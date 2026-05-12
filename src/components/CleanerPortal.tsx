@@ -70,7 +70,6 @@ export default function CleanerPortal({
   setCleanerPortalFilter,
   cleaners,
   sortedMessages,
-  setCleanerReplyText,
   updateStatus,
 }: CleanerPortalProps) {
   return (

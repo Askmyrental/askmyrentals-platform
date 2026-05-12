@@ -742,15 +742,6 @@ export default function App() {
     setMessage("");
   };
 
-  const sendCleanerReply = (
-    item: CleaningItem,
-    text: string,
-    category: AppMessage["category"] = "General"
-  ) => {
-    addMessage(item.property, item.cleaner, "Cleaner", text, category);
-    setCleanerReplyText("");
-  };
-
   const updateProperty = (
     propertyId: number,
     field: keyof Property,
