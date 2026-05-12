@@ -1,0 +1,1260 @@
+{
+  "properties": [
+    {
+      "id": 1,
+      "name": "Sea Otz",
+      "location": "Beach Property",
+      "description": "A beautiful vacation home ready for guest turnovers and owner stays.",
+      "cleaner": "Libby",
+      "icalUrl": "https://www.vrbo.com/icalendar/a5c6161baf9b4c92aabf095fe1abd4c1.ics?nonTentative",
+      "vrboId": "",
+      "airbnbUrl": "",
+      "imageUrl": "",
+      "syncStatus": "56 reservations synced at 3:38 PM"
+    }
+  ],
+  "cleanings": [
+    {
+      "id": 1778618285731,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-05-16",
+      "departure": "2025-05-21",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Lauren",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285733,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-05-24",
+      "departure": "2025-05-28",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Jesse",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285734,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-05-28",
+      "departure": "2025-06-01",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Jeanna",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285735,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-06-15",
+      "departure": "2025-06-22",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Andrea",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285736,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-06-22",
+      "departure": "2025-06-29",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285738,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-06-29",
+      "departure": "2025-07-06",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285739,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-07-13",
+      "departure": "2025-07-20",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Kami",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285740,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-07-20",
+      "departure": "2025-07-27",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Kimberly",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285741,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-08-04",
+      "departure": "2025-08-08",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - David",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285742,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-08-09",
+      "departure": "2025-08-15",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Haley",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285743,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-08-16",
+      "departure": "2025-08-30",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285745,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-08-31",
+      "departure": "2025-09-05",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Richard",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285746,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-09-10",
+      "departure": "2025-09-14",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Jeff",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285747,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-09-20",
+      "departure": "2025-09-24",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Joanne",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285748,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-09-24",
+      "departure": "2025-09-29",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Greg",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285749,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-10-06",
+      "departure": "2025-10-11",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - sarah",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285751,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-10-11",
+      "departure": "2025-10-16",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Kayla",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285752,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-10-22",
+      "departure": "2025-10-26",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Garrett",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285753,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2025-12-22",
+      "departure": "2026-01-16",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285754,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-03-12",
+      "departure": "2026-03-15",
+      "type": "Guest Booking",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Jillian",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285755,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-03-25",
+      "departure": "2026-03-26",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285756,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-03-26",
+      "departure": "2026-03-29",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285758,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-03-29",
+      "departure": "2026-03-30",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285759,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-04-02",
+      "departure": "2026-04-06",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285760,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-04-07",
+      "departure": "2026-04-11",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285761,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-04-11",
+      "departure": "2026-04-12",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285762,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-04-20",
+      "departure": "2026-04-28",
+      "type": "Owner Stay",
+      "status": "Assigned",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "urgent",
+      "urgencyReasons": [
+        "Turnover is overdue",
+        "Cleaner has not accepted yet"
+      ],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z"
+    },
+    {
+      "id": 1778618285763,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-05-22",
+      "departure": "2026-05-28",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285765,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-05-28",
+      "departure": "2026-06-03",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Ted",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285766,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-06-03",
+      "departure": "2026-06-08",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285767,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-06-10",
+      "departure": "2026-06-17",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Dyan",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285768,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-06-17",
+      "departure": "2026-06-22",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Jarett",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285769,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-06-22",
+      "departure": "2026-06-28",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Jordan",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285770,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-06-28",
+      "departure": "2026-07-03",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "3:38 PM",
+      "guestName": "Reserved - Vivi",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285771,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-07-18",
+      "departure": "2026-07-25",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "3:39 PM",
+      "guestName": "Reserved - Keith",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285773,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-08-08",
+      "departure": "2026-08-09",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "3:39 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285774,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-08-09",
+      "departure": "2026-08-26",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "3:41 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285775,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-08-26",
+      "departure": "2026-08-27",
+      "type": "Owner Stay",
+      "status": "On The Way",
+      "lastUpdate": "3:41 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "On The Way"
+    },
+    {
+      "id": 1778618285776,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-08-27",
+      "departure": "2026-08-28",
+      "type": "Owner Stay",
+      "status": "Cleaning",
+      "lastUpdate": "3:41 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Cleaning"
+    },
+    {
+      "id": 1778618285777,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-08-28",
+      "departure": "2026-08-30",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "3:41 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285779,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-08-30",
+      "departure": "2026-08-31",
+      "type": "Owner Stay",
+      "status": "Ready",
+      "lastUpdate": "3:41 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Ready"
+    },
+    {
+      "id": 1778618285780,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-09-04",
+      "departure": "2026-09-07",
+      "type": "Guest Booking",
+      "status": "Cleaning",
+      "lastUpdate": "3:41 PM",
+      "guestName": "Reserved - Jordan",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Cleaning"
+    },
+    {
+      "id": 1778618285781,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-09-11",
+      "departure": "2026-09-17",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "4:05 PM",
+      "guestName": "Reserved - Susan",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285782,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-09-26",
+      "departure": "2026-10-02",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "3:39 PM",
+      "guestName": "Reserved - Steven",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285783,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-10-05",
+      "departure": "2026-10-10",
+      "type": "Guest Booking",
+      "status": "On The Way",
+      "lastUpdate": "3:41 PM",
+      "guestName": "Reserved - Dean",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:20.558Z",
+      "cleanerStatus": "On The Way"
+    },
+    {
+      "id": 1778618285784,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-10-10",
+      "departure": "2026-10-17",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Reserved - Robyn",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:30.004Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285786,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-10-17",
+      "departure": "2026-10-24",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Reserved - Stephanie",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:34.850Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285787,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-11-22",
+      "departure": "2026-11-29",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:36.194Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285788,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-12-20",
+      "departure": "2027-01-02",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:37.170Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285789,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2027-03-21",
+      "departure": "2027-03-28",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:38.178Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285790,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2027-04-12",
+      "departure": "2027-04-20",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:39.986Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285791,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2027-07-11",
+      "departure": "2027-07-18",
+      "type": "Guest Booking",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Reserved - katelyn",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:46.042Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285792,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2027-08-15",
+      "departure": "2027-08-31",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:46.546Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285794,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2027-09-17",
+      "departure": "2027-09-26",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:46.842Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285795,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2027-11-21",
+      "departure": "2027-11-28",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:47.034Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618285796,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2027-12-19",
+      "departure": "2028-01-09",
+      "type": "Owner Stay",
+      "status": "Accepted",
+      "lastUpdate": "4:30 PM",
+      "guestName": "Blocked",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:47.290Z",
+      "cleanerStatus": "Accepted"
+    },
+    {
+      "id": 1778618418254,
+      "propertyId": 1,
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "arrival": "2026-05-12",
+      "departure": "2026-05-14",
+      "type": "Guest Booking",
+      "status": "Ready",
+      "lastUpdate": "4:30 PM",
+      "guestName": "test",
+      "urgencyLevel": "normal",
+      "urgencyReasons": [],
+      "lastUrgencyCheck": "2026-05-12T21:30:48.130Z",
+      "cleanerStatus": "Ready"
+    }
+  ],
+  "records": [
+    {
+      "id": 1778621448651,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Ready.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:48.130Z"
+    },
+    {
+      "id": 1778621448381,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Cleaning.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:47.634Z"
+    },
+    {
+      "id": 1778621447651,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to On The Way.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:47.474Z"
+    },
+    {
+      "id": 1778621447996,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:47.290Z"
+    },
+    {
+      "id": 1778621447944,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:47.035Z"
+    },
+    {
+      "id": 1778621447052,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:46.842Z"
+    },
+    {
+      "id": 1778621447285,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:46.546Z"
+    },
+    {
+      "id": 1778621446587,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:46.042Z"
+    },
+    {
+      "id": 1778621440251,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:39.986Z"
+    },
+    {
+      "id": 1778621439108,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:38.178Z"
+    },
+    {
+      "id": 1778621437939,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:37.170Z"
+    },
+    {
+      "id": 1778621436728,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:36.194Z"
+    },
+    {
+      "id": 1778621434888,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:34.850Z"
+    },
+    {
+      "id": 1778621430253,
+      "time": "May 12, 2026, 4:30 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T21:30:30.004Z"
+    },
+    {
+      "id": 1778619923760,
+      "time": "May 12, 2026, 4:05 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T21:05:23.092Z"
+    },
+    {
+      "id": 1778618496587,
+      "time": "May 12, 2026, 3:41 PM",
+      "event": "Sea Otz status changed to On The Way.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:41:36.571Z"
+    },
+    {
+      "id": 1778618489684,
+      "time": "May 12, 2026, 3:41 PM",
+      "event": "Sea Otz status changed to Cleaning.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:41:28.779Z"
+    },
+    {
+      "id": 1778618482408,
+      "time": "May 12, 2026, 3:41 PM",
+      "event": "Cleaner message sent to Libby for Sea Otz: Sea Otz is ready for the next guest.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:41:21.884Z"
+    },
+    {
+      "id": 1778618482458,
+      "time": "May 12, 2026, 3:41 PM",
+      "event": "Sea Otz status changed to Ready.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:41:21.884Z"
+    },
+    {
+      "id": 1778618479443,
+      "time": "May 12, 2026, 3:41 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:41:18.970Z"
+    },
+    {
+      "id": 1778618478356,
+      "time": "May 12, 2026, 3:41 PM",
+      "event": "Sea Otz status changed to Cleaning.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:41:18.210Z"
+    },
+    {
+      "id": 1778618477736,
+      "time": "May 12, 2026, 3:41 PM",
+      "event": "Sea Otz status changed to On The Way.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:41:17.282Z"
+    },
+    {
+      "id": 1778618476285,
+      "time": "May 12, 2026, 3:41 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:41:15.954Z"
+    },
+    {
+      "id": 1778618469529,
+      "time": "May 12, 2026, 3:41 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:41:09.139Z"
+    },
+    {
+      "id": 1778618418903,
+      "time": "May 12, 2026, 3:40 PM",
+      "event": "Manual reservation added for Sea Otz: 2026-05-12 to 2026-05-14.",
+      "source": "Homeowner",
+      "createdAt": "2026-05-12T20:40:18.258Z"
+    },
+    {
+      "id": 1778618366286,
+      "time": "May 12, 2026, 3:39 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:39:25.675Z"
+    },
+    {
+      "id": 1778618343911,
+      "time": "May 12, 2026, 3:39 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:39:02.979Z"
+    },
+    {
+      "id": 1778618341463,
+      "time": "May 12, 2026, 3:39 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:39:01.187Z"
+    },
+    {
+      "id": 1778618340061,
+      "time": "May 12, 2026, 3:38 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:38:59.787Z"
+    },
+    {
+      "id": 1778618338684,
+      "time": "May 12, 2026, 3:38 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:38:57.794Z"
+    },
+    {
+      "id": 1778618336684,
+      "time": "May 12, 2026, 3:38 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:38:56.466Z"
+    },
+    {
+      "id": 1778618336039,
+      "time": "May 12, 2026, 3:38 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:38:55.235Z"
+    },
+    {
+      "id": 1778618332634,
+      "time": "May 12, 2026, 3:38 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:38:51.955Z"
+    },
+    {
+      "id": 1778618331309,
+      "time": "May 12, 2026, 3:38 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:38:50.972Z"
+    },
+    {
+      "id": 1778618326835,
+      "time": "May 12, 2026, 3:38 PM",
+      "event": "Sea Otz status changed to Accepted.",
+      "source": "Cleaner",
+      "createdAt": "2026-05-12T20:38:45.932Z"
+    },
+    {
+      "id": 1778618320116,
+      "time": "May 12, 2026, 3:38 PM",
+      "event": "56 reservations imported from iCal for Sea Otz.",
+      "source": "System",
+      "createdAt": "2026-05-12T20:38:39.251Z"
+    },
+    {
+      "id": 1778618192957,
+      "time": "May 12, 2026, 3:36 PM",
+      "event": "App opened. No reservations loaded yet.",
+      "source": "System",
+      "createdAt": "2026-05-12T20:36:32.900Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": 1778618481902,
+      "time": "May 12, 2026, 3:41 PM",
+      "createdAt": "2026-05-12T20:41:21.878Z",
+      "property": "Sea Otz",
+      "cleaner": "Libby",
+      "sender": "Cleaner",
+      "text": "Sea Otz is ready for the next guest.",
+      "category": "Ready Update"
+    }
+  ],
+  "savedAt": "2026-05-12T21:30:48.142Z",
+  "turnovers": [],
+  "updatedAt": "2026-05-12T21:30:48.144Z"
+}
