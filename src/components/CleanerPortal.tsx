@@ -1,277 +1,302 @@
-import type { CleaningItem } from "../types";
+import { useMemo } from "react";
 
-type CleanerPortalProps = {
-  cleanerPortalItems: CleaningItem[];
-  cleanerPortalFilter: string;
-  setCleanerPortalFilter: (value: string) => void;
-  cleaners: { name: string }[];
-  sortedMessages: any;
-  cleanerReplyText: string;
-  setCleanerReplyText: (value: string) => void;
-  updateStatus: (
-    id: number,
-    status:
-      | "Assigned"
-      | "Accepted"
-      | "On The Way"
-      | "Cleaning"
-      | "Ready"
-      | "Attention Needed"
-  ) => void;
+type CleaningItem = {
+  id: number;
+  property: string;
+  cleaner: string;
+  checkOut: string;
+  nextCheckIn?: string;
+  status: string;
+  priority?: string;
 };
 
-function getStatusStyle(status: string) {
-  if (status === "Ready") {
-    return { background: "#dcfce7", color: "#166534" };
-  }
+type Props = {
+  cleanings: CleaningItem[];
+  onUpdateStatus: (id: number, status: string) => void;
+};
 
-  if (status === "Cleaning") {
-    return { background: "#dbeafe", color: "#1d4ed8" };
-  }
+const statusColors: Record<string, string> = {
+  Assigned: "#f59e0b",
+  Accepted: "#3b82f6",
+  "On The Way": "#8b5cf6",
+  Cleaning: "#06b6d4",
+  Ready: "#10b981",
+};
 
-  if (status === "On The Way") {
-    return { background: "#fef3c7", color: "#92400e" };
-  }
-
-  if (status === "Accepted") {
-    return { background: "#ede9fe", color: "#5b21b6" };
-  }
-
-  if (status === "Attention Needed") {
-    return { background: "#fee2e2", color: "#991b1b" };
-  }
-
-  return { background: "#f1f5f9", color: "#334155" };
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <div
+      style={{
+        background: statusColors[status] || "#64748b",
+        color: "white",
+        padding: "6px 12px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 700,
+      }}
+    >
+      {status}
+    </div>
+  );
 }
 
-function getNextAction(status: string) {
-  if (status === "Assigned") {
-    return { label: "Accept Job", nextStatus: "Accepted" as const };
-  }
+function CleaningCard({
+  item,
+  onUpdateStatus,
+}: {
+  item: CleaningItem;
+  onUpdateStatus: (id: number, status: string) => void;
+}) {
+  const nextAction = () => {
+    switch (item.status) {
+      case "Assigned":
+        return {
+          label: "Accept Job",
+          status: "Accepted",
+        };
 
-  if (status === "Accepted") {
-    return { label: "On The Way", nextStatus: "On The Way" as const };
-  }
+      case "Accepted":
+        return {
+          label: "On The Way",
+          status: "On The Way",
+        };
 
-  if (status === "On The Way") {
-    return { label: "Start Cleaning", nextStatus: "Cleaning" as const };
-  }
+      case "On The Way":
+        return {
+          label: "Start Cleaning",
+          status: "Cleaning",
+        };
 
-  if (status === "Cleaning") {
-    return { label: "Mark Ready", nextStatus: "Ready" as const };
-  }
+      case "Cleaning":
+        return {
+          label: "Mark Ready",
+          status: "Ready",
+        };
 
-  return null;
+      default:
+        return null;
+    }
+  };
+
+  const action = nextAction();
+
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: 18,
+        padding: 20,
+        marginBottom: 18,
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 16,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              marginBottom: 6,
+            }}
+          >
+            {item.property}
+          </div>
+
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: 14,
+            }}
+          >
+            Cleaner: {item.cleaner}
+          </div>
+        </div>
+
+        <StatusBadge status={item.status} />
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+          marginBottom: 18,
+        }}
+      >
+        <div
+          style={{
+            background: "#f8fafc",
+            padding: 14,
+            borderRadius: 12,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 12,
+              color: "#64748b",
+              marginBottom: 4,
+            }}
+          >
+            CHECKOUT
+          </div>
+
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+            }}
+          >
+            {item.checkOut}
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: "#f8fafc",
+            padding: 14,
+            borderRadius: 12,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 12,
+              color: "#64748b",
+              marginBottom: 4,
+            }}
+          >
+            NEXT CHECK-IN
+          </div>
+
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+            }}
+          >
+            {item.nextCheckIn || "—"}
+          </div>
+        </div>
+      </div>
+
+      {action && (
+        <button
+          onClick={() => onUpdateStatus(item.id, action.status)}
+          style={{
+            width: "100%",
+            background: "#111827",
+            color: "white",
+            border: "none",
+            borderRadius: 12,
+            padding: "14px 16px",
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function CleanerPortal({
-  cleanerPortalItems,
-  cleanerPortalFilter,
-  setCleanerPortalFilter,
-  cleaners,
-  sortedMessages,
-  updateStatus,
-}: CleanerPortalProps) {
+  cleanings,
+  onUpdateStatus,
+}: Props) {
+  const grouped = useMemo(() => {
+    return {
+      needsResponse: cleanings.filter(
+        (c) => c.status === "Assigned"
+      ),
+
+      active: cleanings.filter((c) =>
+        ["Accepted", "On The Way", "Cleaning"].includes(c.status)
+      ),
+
+      completed: cleanings.filter(
+        (c) => c.status === "Ready"
+      ),
+    };
+  }, [cleanings]);
+
+  const sectionTitleStyle = {
+    fontSize: 24,
+    fontWeight: 800,
+    marginBottom: 18,
+    marginTop: 28,
+  } as const;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-      <section>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "14px",
-            alignItems: "center",
-            flexWrap: "wrap",
-            marginBottom: "18px",
-          }}
-        >
-          <div>
-            <h1 style={{ margin: 0, fontSize: "28px", color: "#0f172a" }}>
-              Cleaner Portal
-            </h1>
-            <p style={{ margin: "6px 0 0", color: "#64748b" }}>
-              Compact view of assigned turnovers and next actions.
-            </p>
-          </div>
+    <div
+      style={{
+        padding: 24,
+        background: "#f1f5f9",
+        minHeight: "100vh",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 34,
+          fontWeight: 800,
+          marginBottom: 8,
+        }}
+      >
+        Cleaner Portal
+      </div>
 
-          <select
-            value={cleanerPortalFilter}
-            onChange={(e) => setCleanerPortalFilter(e.target.value)}
-            style={{
-              padding: "10px 12px",
-              borderRadius: "12px",
-              border: "1px solid #cbd5e1",
-              minWidth: "200px",
-            }}
-          >
-            <option value="All">All Cleaners</option>
-            {cleaners.map((cleaner) => (
-              <option key={cleaner.name} value={cleaner.name}>
-                {cleaner.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div
+        style={{
+          color: "#64748b",
+          marginBottom: 28,
+        }}
+      >
+        Manage turnovers and cleaning progress
+      </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {cleanerPortalItems.length === 0 ? (
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #e2e8f0",
-                borderRadius: "16px",
-                padding: "18px",
-                color: "#64748b",
-              }}
-            >
-              No assigned cleanings found.
-            </div>
-          ) : (
-            cleanerPortalItems.map((item) => {
-              const statusStyle = getStatusStyle(item.status);
-              const nextAction = getNextAction(item.status);
+      <div style={sectionTitleStyle}>
+        Needs Response
+      </div>
 
-              const itemMessages = sortedMessages.filter(
-                (msg: any) =>
-                  msg.property === item.property && msg.cleaner === item.cleaner
-              );
+      {grouped.needsResponse.map((item) => (
+        <CleaningCard
+          key={item.id}
+          item={item}
+          onUpdateStatus={onUpdateStatus}
+        />
+      ))}
 
-              return (
-                <div
-                  key={item.id}
-                  style={{
-                    background: "#ffffff",
-                    border: "1px solid #dbe4ee",
-                    borderRadius: "16px",
-                    padding: "16px",
-                    boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: "12px",
-                      alignItems: "flex-start",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div>
-                      <h2
-                        style={{
-                          margin: 0,
-                          fontSize: "18px",
-                          color: "#0f172a",
-                        }}
-                      >
-                        {item.property}
-                      </h2>
+      <div style={sectionTitleStyle}>
+        Active Cleanings
+      </div>
 
-                      <p
-                        style={{
-                          margin: "4px 0 0",
-                          color: "#64748b",
-                          fontSize: "14px",
-                        }}
-                      >
-                        {item.guestName} • {item.cleaner}
-                      </p>
-                    </div>
+      {grouped.active.map((item) => (
+        <CleaningCard
+          key={item.id}
+          item={item}
+          onUpdateStatus={onUpdateStatus}
+        />
+      ))}
 
-                    <div
-                      style={{
-                        ...statusStyle,
-                        borderRadius: "999px",
-                        padding: "7px 11px",
-                        fontWeight: 800,
-                        fontSize: "13px",
-                      }}
-                    >
-                      {item.status}
-                    </div>
-                  </div>
+      <div style={sectionTitleStyle}>
+        Ready / Completed
+      </div>
 
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-                      gap: "10px",
-                      marginTop: "14px",
-                      fontSize: "14px",
-                    }}
-                  >
-                    <div>
-                      <strong>Departure</strong>
-                      <div>{item.departure}</div>
-                    </div>
-
-                    <div>
-                      <strong>Arrival</strong>
-                      <div>{item.arrival}</div>
-                    </div>
-
-                    <div>
-                      <strong>Last Update</strong>
-                      <div>{item.lastUpdate || "Not updated yet"}</div>
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      flexWrap: "wrap",
-                      marginTop: "14px",
-                    }}
-                  >
-                    {nextAction ? (
-                      <button
-                        className="primary-btn"
-                        onClick={() =>
-                          updateStatus(item.id, nextAction.nextStatus)
-                        }
-                      >
-                        {nextAction.label}
-                      </button>
-                    ) : (
-                      <button className="secondary-btn" disabled>
-                        No Action Needed
-                      </button>
-                    )}
-
-                    <button
-                      className="danger-btn"
-                      onClick={() =>
-                        updateStatus(item.id, "Attention Needed")
-                      }
-                    >
-                      Report Issue
-                    </button>
-                  </div>
-
-                  {itemMessages.length > 0 && (
-                    <div
-                      style={{
-                        marginTop: "14px",
-                        borderTop: "1px solid #e2e8f0",
-                        paddingTop: "12px",
-                      }}
-                    >
-                      <strong style={{ fontSize: "14px" }}>
-                        Latest Message
-                      </strong>
-
-                      <p style={{ margin: "6px 0 0", color: "#475569" }}>
-                        {itemMessages[0].text}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </section>
+      {grouped.completed.map((item) => (
+        <CleaningCard
+          key={item.id}
+          item={item}
+          onUpdateStatus={onUpdateStatus}
+        />
+      ))}
     </div>
   );
 }
