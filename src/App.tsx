@@ -1477,6 +1477,12 @@ export default function App() {
                   </div>
                 </div>
 
+                <div className="cardActions">
+                  <button onClick={() => startEditingProperty(selectedProperty)}>
+                    Edit Property
+                  </button>
+                </div>
+
                 <div className="detailStack">
                   <div>
                     <span>Status</span>
@@ -1550,19 +1556,6 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="cardActions">
-                  <button onClick={() => startEditingProperty(selectedProperty)}>
-                    Edit Property
-                  </button>
-                </div>
-<div className="cardActions">
-  <button
-    className="secondaryButton"
-    onClick={() => startEditingProperty(selectedProperty)}
-  >
-    Edit Property
-  </button>
-</div>
                 {selectedProperty.notes && <p className="notesBox">{selectedProperty.notes}</p>}
               </>
             )}
