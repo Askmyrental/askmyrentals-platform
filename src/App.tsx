@@ -495,6 +495,17 @@ export default function App() {
   });
   const [selectedCleanerId, setSelectedCleanerId] = useState(starterCleaners[0]?.id ?? "");
   const [notificationFilter, setNotificationFilter] = useState("all");
+  const [dismissedDiscrepancies, setDismissedDiscrepancies] = useState<string[]>([]);
+  const [dataMode, setDataMode] = useState<"Demo" | "Live">("Demo");
+  const [sourceForm, setSourceForm] = useState({
+    propertyName: "",
+    market: "",
+    vrboId: "",
+    vrboICalUrl: "",
+    airbnbUrl: "",
+    airbnbICalUrl: "",
+  });
+  const [importMessage, setImportMessage] = useState("Demo data is active. Switch to Live Mode when you are ready to start from real VRBO/iCal sources.");
   const [cleanerPortalId, setCleanerPortalId] = useState(starterCleaners[0]?.id ?? "");
   const [cleanerIssueForm, setCleanerIssueForm] = useState({
     reservationId: "",
@@ -1187,6 +1198,97 @@ export default function App() {
     setShowPropertyForm(false);
   }
 
+  function startLiveMode() {
+    const confirmed = window.confirm(
+      "Start Live Mode? This clears the demo homes, reservations, calendar blocks, work orders, and notifications from this browser session. Your git backup is not affected."
+    );
+
+    if (!confirmed) return;
+
+    setDataMode("Live");
+    setHomes([]);
+    setReservations([]);
+    setCalendarBlocks([]);
+    setWorkOrders([]);
+    setNotifications([]);
+    setSelectedPropertyId("");
+    setSelectedHome("all");
+    setSelectedCalendarHome("all");
+    setSelectedCalendarItem(null);
+    setSelectedWorkOrder(null);
+    setEditingPropertyId(null);
+    setShowPropertyForm(false);
+    setDismissedDiscrepancies([]);
+    setImportMessage("Live Mode is active. Add a VRBO property ID and calendar links to create the first live property shell.");
+  }
+
+  function restoreDemoMode() {
+    const confirmed = window.confirm("Restore demo data in this browser session?");
+
+    if (!confirmed) return;
+
+    setDataMode("Demo");
+    setHomes(starterHomes);
+    setCleaners(starterCleaners);
+    setReservations(starterReservations);
+    setCalendarBlocks(starterBlocks);
+    setWorkOrders(starterWorkOrders);
+    setNotifications(starterNotifications);
+    setSelectedPropertyId(starterHomes[0]?.id ?? "");
+    setSelectedHome("all");
+    setSelectedCalendarHome(starterHomes[0]?.id ?? "all");
+    setSelectedCalendarItem(null);
+    setSelectedWorkOrder(starterWorkOrders[0] ?? null);
+    setEditingPropertyId(null);
+    setShowPropertyForm(false);
+    setDismissedDiscrepancies([]);
+    setImportMessage("Demo data restored. Switch back to Live Mode when you want a clean import workspace.");
+  }
+
+  function createLivePropertyShell(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!sourceForm.propertyName.trim() && !sourceForm.vrboId.trim()) return;
+
+    const name = sourceForm.propertyName.trim() || `VRBO ${sourceForm.vrboId.trim()}`;
+    const shortName = name
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+    const nextHome: Home = {
+      id: `live-home-${Date.now()}`,
+      name,
+      city: sourceForm.market.trim() || "Market pending",
+      shortName: shortName || "LV",
+      setupMode: sourceForm.vrboId ? "VRBO" : sourceForm.airbnbUrl ? "Airbnb" : "Manual",
+      vrboId: sourceForm.vrboId || undefined,
+      airbnbUrl: sourceForm.airbnbUrl || undefined,
+      iCalUrl: sourceForm.vrboICalUrl || sourceForm.airbnbICalUrl || undefined,
+      bedrooms: 0,
+      bathrooms: 0,
+      maxGuests: 0,
+      status: sourceForm.vrboICalUrl || sourceForm.airbnbICalUrl || sourceForm.vrboId ? "Active" : "Setup Needed",
+      notes: `Live data shell created. VRBO iCal: ${sourceForm.vrboICalUrl || "missing"}. Airbnb iCal: ${sourceForm.airbnbICalUrl || "missing"}.`,
+    };
+
+    setDataMode("Live");
+    setHomes((current) => [...current, nextHome]);
+    setSelectedPropertyId(nextHome.id);
+    setSelectedCalendarHome(nextHome.id);
+    setImportMessage("Live property shell created. Calendar parsing will be connected in the next integration step.");
+    setSourceForm({
+      propertyName: "",
+      market: "",
+      vrboId: "",
+      vrboICalUrl: "",
+      airbnbUrl: "",
+      airbnbICalUrl: "",
+    });
+  }
+
   function startEditingProperty(home: Home) {
     setEditingPropertyId(home.id);
     setPropertyForm({
@@ -1204,6 +1306,93 @@ export default function App() {
       notes: home.notes ?? "",
     });
     setShowPropertyForm(true);
+  }
+
+  function renderDataIntegrationPanel() {
+    return (
+      <section className="dataIntegrationPanel">
+        <div className="sectionHeader">
+          <div>
+            <p className="eyebrow">Data integration prep</p>
+            <h3>{dataMode} Mode</h3>
+            <p>
+              Use Demo Mode for testing the UI. Use Live Mode when you are ready to clear sample data and build from VRBO IDs and iCal calendar links.
+            </p>
+          </div>
+
+          <div className="dataModeActions">
+            <button className="ghostButton" onClick={restoreDemoMode} type="button">
+              Restore Demo Data
+            </button>
+            <button className="primaryButton" onClick={startLiveMode} type="button">
+              Start Live Mode
+            </button>
+          </div>
+        </div>
+
+        <p className="dataIntegrationMessage">{importMessage}</p>
+
+        <form className="dataSourceForm" onSubmit={createLivePropertyShell}>
+          <label>
+            Property name
+            <input
+              value={sourceForm.propertyName}
+              onChange={(event) => setSourceForm({ ...sourceForm, propertyName: event.target.value })}
+              placeholder="Example: Beach Retreat 301"
+            />
+          </label>
+
+          <label>
+            Market / county
+            <input
+              value={sourceForm.market}
+              onChange={(event) => setSourceForm({ ...sourceForm, market: event.target.value })}
+              placeholder="Okaloosa, Walton, Destin, 30A"
+            />
+          </label>
+
+          <label>
+            VRBO property ID
+            <input
+              value={sourceForm.vrboId}
+              onChange={(event) => setSourceForm({ ...sourceForm, vrboId: event.target.value })}
+              placeholder="VRBO listing ID"
+            />
+          </label>
+
+          <label>
+            VRBO iCal URL
+            <input
+              value={sourceForm.vrboICalUrl}
+              onChange={(event) => setSourceForm({ ...sourceForm, vrboICalUrl: event.target.value })}
+              placeholder="https://...ics"
+            />
+          </label>
+
+          <label>
+            Airbnb listing URL
+            <input
+              value={sourceForm.airbnbUrl}
+              onChange={(event) => setSourceForm({ ...sourceForm, airbnbUrl: event.target.value })}
+              placeholder="https://airbnb.com/rooms/..."
+            />
+          </label>
+
+          <label>
+            Airbnb iCal URL
+            <input
+              value={sourceForm.airbnbICalUrl}
+              onChange={(event) => setSourceForm({ ...sourceForm, airbnbICalUrl: event.target.value })}
+              placeholder="https://...ics"
+            />
+          </label>
+
+          <button className="primaryButton" type="submit">
+            Create Live Property Shell
+          </button>
+        </form>
+      </section>
+    );
   }
 
   function renderProperties() {
@@ -1462,6 +1651,8 @@ export default function App() {
             + Create Home Profile
           </button>
         </header>
+
+        {renderDataIntegrationPanel()}
 
         <section className="statsGrid">
           <div className="statCard">
@@ -2708,6 +2899,270 @@ export default function App() {
     );
   }
 
+
+  function renderOccupancy() {
+    const totalDays = 365;
+    const guestNights = reservations.filter((reservation) => reservation.source !== "Owner Block").reduce((total, reservation) => {
+      const start = toDate(reservation.arrival);
+      const end = toDate(reservation.departure);
+      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    }, 0);
+    const ownerNights = reservations.filter((reservation) => reservation.source === "Owner Block").reduce((total, reservation) => {
+      const start = toDate(reservation.arrival);
+      const end = toDate(reservation.departure);
+      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    }, 0) + calendarBlocks.filter((block) => block.type === "Owner Block").reduce((total, block) => {
+      const start = toDate(block.start);
+      const end = toDate(block.end);
+      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    }, 0);
+    const blockedNights = calendarBlocks.filter((block) => block.type === "Maintenance").reduce((total, block) => {
+      const start = toDate(block.start);
+      const end = toDate(block.end);
+      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    }, 0);
+    const openNights = Math.max(0, totalDays - guestNights - ownerNights - blockedNights);
+    const occupancyPercent = Math.round((guestNights / totalDays) * 100);
+    const projectedOccupancy = Math.min(100, occupancyPercent + 7);
+
+    const occupancyDiscrepancies = [
+      {
+        id: "disc-1",
+        property: "Coates Cabin",
+        dateRange: "Jul 14–18",
+        message: "VRBO calendar is open while Airbnb is blocked.",
+        severity: "High",
+        status: dismissedDiscrepancies.includes("disc-1") ? "Dismissed" : "Open",
+      },
+      {
+        id: "disc-2",
+        property: "Pine Ridge Lodge",
+        dateRange: "Aug 3",
+        message: "Duplicate owner block detected across calendar sources.",
+        severity: "Medium",
+        status: dismissedDiscrepancies.includes("disc-2") ? "Dismissed" : "Open",
+      },
+      {
+        id: "disc-3",
+        property: "Lakeview Retreat",
+        dateRange: "Sep 9–12",
+        message: "Reservation appears on Airbnb but is missing from VRBO.",
+        severity: "High",
+        status: dismissedDiscrepancies.includes("disc-3") ? "Dismissed" : "Open",
+      },
+    ];
+
+    const visibleDiscrepancies = occupancyDiscrepancies.filter((item) => item.status === "Open");
+
+    return (
+      <>
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Owner intelligence</p>
+            <h2>Occupancy</h2>
+            <p className="headerSubtext">
+              Track guest nights, owner nights, blocked nights, open inventory, projections, and calendar discrepancies.
+            </p>
+          </div>
+
+          <button className="primaryButton" onClick={() => setActivePage("Calendar")}>
+            Open Calendar
+          </button>
+        </header>
+
+        <section className="occupancyStatsGrid">
+          <article className="occupancyCard">
+            <span>Occupancy</span>
+            <strong>{occupancyPercent}%</strong>
+            <p>Guest nights divided by annual inventory</p>
+          </article>
+
+          <article className="occupancyCard">
+            <span>Guest Nights</span>
+            <strong>{guestNights}</strong>
+            <p>Booked rental nights</p>
+          </article>
+
+          <article className="occupancyCard">
+            <span>Owner Nights</span>
+            <strong>{ownerNights}</strong>
+            <p>Owner stays and personal blocks</p>
+          </article>
+
+          <article className="occupancyCard">
+            <span>Blocked Nights</span>
+            <strong>{blockedNights}</strong>
+            <p>Maintenance and unavailable dates</p>
+          </article>
+
+          <article className="occupancyCard">
+            <span>Open Nights</span>
+            <strong>{openNights}</strong>
+            <p>Remaining available inventory</p>
+          </article>
+
+          <article className="occupancyCard">
+            <span>Projected Occupancy</span>
+            <strong>{projectedOccupancy}%</strong>
+            <p>Mock projection until historical data is connected</p>
+          </article>
+        </section>
+
+        <section className="occupancyLayout">
+          <div className="occupancyPanel">
+            <div className="panelHeader compact">
+              <div>
+                <p className="eyebrow">Calendar QA</p>
+                <h3>Calendar Discrepancies</h3>
+              </div>
+              <span className="occupancyAlertPill">{visibleDiscrepancies.length} open</span>
+            </div>
+
+            <div className="occupancyDiscrepancyStack">
+              {visibleDiscrepancies.length === 0 ? (
+                <div className="emptyStateBox">
+                  <h4>No open discrepancies</h4>
+                  <p>Dismissed and fixed items stay in records for later audit history.</p>
+                </div>
+              ) : (
+                visibleDiscrepancies.map((item) => (
+                  <article key={item.id} className="occupancyDiscrepancyCard">
+                    <div className="occupancyDiscrepancyTop">
+                      <div>
+                        <h4>{item.property}</h4>
+                        <p>{item.message}</p>
+                        <span>{item.dateRange}</span>
+                      </div>
+
+                      <span className={`urgencyBadge ${item.severity === "High" ? "urgent" : "watch"}`}>
+                        {item.severity}
+                      </span>
+                    </div>
+
+                    <label className="occupancyNoteField">
+                      Owner note
+                      <input placeholder="Add note about why this is okay or what needs fixing" />
+                    </label>
+
+                    <div className="cardActions">
+                      <button onClick={() => setDismissedDiscrepancies((current) => [...current, item.id])}>
+                        Dismiss
+                      </button>
+                      <button className="primaryButton" onClick={() => setDismissedDiscrepancies((current) => [...current, item.id])}>
+                        Mark Fixed
+                      </button>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+          </div>
+
+          <aside className="occupancyPanel">
+            <div className="panelHeader compact">
+              <div>
+                <p className="eyebrow">Reports</p>
+                <h3>Occupancy Report</h3>
+              </div>
+            </div>
+
+            <div className="occupancyReportFilters">
+              <label>
+                Property
+                <select defaultValue="all">
+                  <option value="all">All properties</option>
+                  {homes.map((home) => (
+                    <option key={home.id} value={home.id}>{home.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Period
+                <select defaultValue="year">
+                  <option value="month">This month</option>
+                  <option value="quarter">This quarter</option>
+                  <option value="year">This year</option>
+                  <option value="prior-year">Prior year comparison</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="occupancyReportBox">
+              <div className="occupancyReportRow">
+                <span>Guest nights</span>
+                <strong>{guestNights}</strong>
+              </div>
+              <div className="occupancyReportRow">
+                <span>Owner nights</span>
+                <strong>{ownerNights}</strong>
+              </div>
+              <div className="occupancyReportRow">
+                <span>Blocked nights</span>
+                <strong>{blockedNights}</strong>
+              </div>
+              <div className="occupancyReportRow">
+                <span>Open nights</span>
+                <strong>{openNights}</strong>
+              </div>
+              <div className="occupancyReportRow total">
+                <span>Occupancy</span>
+                <strong>{occupancyPercent}%</strong>
+              </div>
+            </div>
+
+            <button className="primaryButton fullWidthButton">Generate Report</button>
+            <p className="mutedText">For now this gives owners the core numbers they can manually enter into county or tax reporting portals.</p>
+          </aside>
+        </section>
+      </>
+    );
+  }
+
+  function renderRecords() {
+    const recentReservationEvents = reservations.flatMap((reservation) =>
+      reservation.timeline.slice(-2).map((item) => ({
+        id: `${reservation.id}-${item}`,
+        label: item,
+        detail: `${reservation.guestName} · ${homes.find((home) => home.id === reservation.homeId)?.name ?? "Unknown home"}`,
+        type: "Reservation",
+      }))
+    );
+    const recentWorkOrderEvents = workOrders.slice(0, 4).map((order) => ({
+      id: order.id,
+      label: order.title,
+      detail: `${order.status} · ${order.urgency}`,
+      type: "Maintenance",
+    }));
+    const recordItems = [...recentReservationEvents, ...recentWorkOrderEvents].slice(0, 12);
+
+    return (
+      <>
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Audit trail</p>
+            <h2>Records</h2>
+            <p className="headerSubtext">
+              A lightweight history of cleaner updates, reservation changes, maintenance items, and owner decisions.
+            </p>
+          </div>
+        </header>
+
+        <section className="recordsPanel">
+          {recordItems.map((item) => (
+            <article key={item.id} className="recordItem">
+              <span>{item.type}</span>
+              <div>
+                <h3>{item.label}</h3>
+                <p>{item.detail}</p>
+              </div>
+            </article>
+          ))}
+        </section>
+      </>
+    );
+  }
+
   function renderPlaceholder() {
     return (
       <section className="placeholderPage">
@@ -2735,7 +3190,7 @@ export default function App() {
         </div>
 
         <nav className="nav">
-          {["Dashboard", "Reservation Board", "Calendar", "Properties", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center"].map(
+          {["Dashboard", "Reservation Board", "Calendar", "Properties", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].map(
             (item) => (
               <button
                 key={item}
@@ -2748,6 +3203,86 @@ export default function App() {
           )}
         </nav>
 
+        <div className="quickLinksBox">
+          <div className="quickLinksHeader">Quick Links</div>
+          <button
+            onClick={() => {
+              setActivePage("Reservation Board");
+              setShowManualForm(true);
+            }}
+          >
+            Add Manual Reservation
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Dashboard");
+            }}
+          >
+            Open Dashboard
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Calendar");
+              setSelectedCalendarHome("all");
+            }}
+          >
+            View Full Calendar
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Reservation Board");
+              setSelectedStatus("New");
+            }}
+          >
+            Unassigned / New
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Cleaner Portal");
+            }}
+          >
+            Cleaner Portal
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Properties");
+              setEditingPropertyId(null);
+              setPropertyForm({
+                name: "",
+                city: "",
+                address: "",
+                setupMode: "VRBO",
+                vrboId: "",
+                airbnbUrl: "",
+                iCalUrl: "",
+                defaultCleanerId: "",
+                bedrooms: "3",
+                bathrooms: "2",
+                maxGuests: "8",
+                notes: "",
+              });
+              setShowPropertyForm(true);
+            }}
+          >
+            Create Home Profile
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Maintenance");
+              setWorkOrderFilter("after-hours");
+            }}
+          >
+            Maintenance Risks
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Reservation Board");
+              setSelectedStatus("Needs Review");
+            }}
+          >
+            Needs Owner Review
+          </button>
+        </div>
       </aside>
 
       <main className="mainContent">
@@ -2755,11 +3290,13 @@ export default function App() {
         {activePage === "Dashboard" && renderDashboard()}
         {activePage === "Reservation Board" && renderReservationBoard()}
         {activePage === "Properties" && renderProperties()}
+        {activePage === "Occupancy" && renderOccupancy()}
         {activePage === "Cleaners" && renderCleaners()}
         {activePage === "Cleaner Portal" && renderCleanerPortal()}
         {activePage === "Maintenance" && renderMaintenance()}
         {activePage === "Notification Center" && renderNotificationCenter()}
-        {!["Dashboard", "Reservation Board", "Calendar", "Properties", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center"].includes(activePage) && renderPlaceholder()}
+        {activePage === "Records" && renderRecords()}
+        {!["Dashboard", "Reservation Board", "Calendar", "Properties", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].includes(activePage) && renderPlaceholder()}
       </main>
     </div>
   );

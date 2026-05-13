@@ -70,7 +70,38 @@ button {
 }
 
 .nav button,
+.quickLinksBox button {
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  text-align: left;
+  background: transparent;
+  color: #d1d5db;
+}
 
+.nav button:hover,
+.quickLinksBox button:hover,
+.nav button.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.quickLinksBox {
+  margin-top: auto;
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.quickLinksHeader {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
 
 .mainContent {
   padding: 32px;
@@ -1578,5 +1609,257 @@ textarea:focus {
 
   .mainContent {
     padding: 14px !important;
+  }
+}
+
+/* Occupancy + Records phase */
+.occupancyStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.occupancyCard,
+.occupancyPanel,
+.recordsPanel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+}
+
+.occupancyCard {
+  border-radius: 22px;
+  padding: 18px;
+}
+
+.occupancyCard span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.occupancyCard strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 30px;
+}
+
+.occupancyCard p {
+  margin: 8px 0 0;
+  color: #64748b;
+}
+
+.occupancyLayout {
+  display: grid;
+  grid-template-columns: minmax(520px, 1fr) 380px;
+  gap: 18px;
+  align-items: start;
+}
+
+.occupancyPanel,
+.recordsPanel {
+  border-radius: 26px;
+  padding: 20px;
+}
+
+.occupancyAlertPill {
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.occupancyDiscrepancyStack {
+  display: grid;
+  gap: 14px;
+}
+
+.occupancyDiscrepancyCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.occupancyDiscrepancyTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.occupancyDiscrepancyTop h4 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.occupancyDiscrepancyTop p,
+.occupancyDiscrepancyTop span,
+.emptyStateBox p {
+  margin: 0;
+  color: #64748b;
+}
+
+.occupancyNoteField,
+.occupancyReportFilters label {
+  display: grid;
+  gap: 7px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.occupancyReportFilters {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.occupancyReportBox {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.occupancyReportRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.occupancyReportRow span {
+  color: #64748b;
+}
+
+.occupancyReportRow.total {
+  background: #eef2ff;
+  color: #1e3a8a;
+  font-size: 18px;
+}
+
+.fullWidthButton {
+  width: 100%;
+}
+
+.emptyStateBox {
+  border-radius: 20px;
+  padding: 18px;
+  background: #f8fafc;
+}
+
+.emptyStateBox h4 {
+  margin: 0 0 6px;
+}
+
+.recordItem {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.recordItem:last-child {
+  border-bottom: 0;
+}
+
+.recordItem span {
+  width: fit-content;
+  height: fit-content;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: #eef2ff;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.recordItem h3 {
+  margin: 0 0 5px;
+}
+
+.recordItem p {
+  margin: 0;
+  color: #64748b;
+}
+
+@media (max-width: 1200px) {
+  .occupancyLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .occupancyDiscrepancyTop,
+  .recordItem {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+}
+
+/* Data Integration Prep */
+.dataIntegrationPanel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  border-radius: 28px;
+  padding: 22px;
+  margin-bottom: 24px;
+}
+
+.dataIntegrationPanel .sectionHeader p {
+  margin: 8px 0 0;
+  color: #64748b;
+  max-width: 780px;
+}
+
+.dataModeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.dataIntegrationMessage {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border: 1px solid #bfdbfe;
+  border-radius: 18px;
+  padding: 12px 14px;
+  margin: 18px 0;
+  font-weight: 700;
+}
+
+.dataSourceForm {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.dataSourceForm label {
+  display: grid;
+  gap: 7px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dataSourceForm button {
+  align-self: end;
+}
+
+@media (max-width: 1050px) {
+  .dataSourceForm {
+    grid-template-columns: 1fr;
+  }
+
+  .dataModeActions {
+    justify-content: flex-start;
   }
 }
