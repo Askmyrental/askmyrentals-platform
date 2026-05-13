@@ -1193,6 +1193,202 @@ export default function App() {
     const activeHomes = homes.filter((home) => home.status === "Active").length;
     const setupNeeded = homes.filter((home) => home.status === "Setup Needed").length;
 
+    if (showPropertyForm && editingPropertyId) {
+      const editingProperty = homes.find((home) => home.id === editingPropertyId);
+
+      return (
+        <>
+          <header className="pageHeader">
+            <div>
+              <p className="eyebrow">Edit home profile</p>
+              <h2>{editingProperty?.name ?? "Edit Property"}</h2>
+              <p className="headerSubtext">
+                Update the full home profile, listing details, cleaner assignment, capacity, and property notes.
+              </p>
+            </div>
+
+            <button
+              className="ghostButton"
+              onClick={() => {
+                setEditingPropertyId(null);
+                setShowPropertyForm(false);
+              }}
+            >
+              ← Back to Properties
+            </button>
+          </header>
+
+          <section className="manualPanel">
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Property editor</p>
+                <h3>Edit Property Details</h3>
+              </div>
+            </div>
+
+            <form
+              className="propertyForm"
+              onSubmit={(event) => {
+                event.preventDefault();
+
+                updateProperty(editingPropertyId, {
+                  name: propertyForm.name,
+                  city: propertyForm.city,
+                  address: propertyForm.address,
+                  setupMode: propertyForm.setupMode,
+                  vrboId: propertyForm.vrboId,
+                  airbnbUrl: propertyForm.airbnbUrl,
+                  iCalUrl: propertyForm.iCalUrl,
+                  defaultCleanerId: propertyForm.defaultCleanerId || undefined,
+                  bedrooms: Number(propertyForm.bedrooms) || 0,
+                  bathrooms: Number(propertyForm.bathrooms) || 0,
+                  maxGuests: Number(propertyForm.maxGuests) || 0,
+                  status: propertyForm.iCalUrl || propertyForm.vrboId || propertyForm.airbnbUrl ? "Active" : "Setup Needed",
+                  notes: propertyForm.notes,
+                });
+
+                setEditingPropertyId(null);
+                setShowPropertyForm(false);
+              }}
+            >
+              <label>
+                Home name
+                <input
+                  value={propertyForm.name}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, name: event.target.value })}
+                  placeholder="Example: Coates Cabin"
+                />
+              </label>
+
+              <label>
+                City / market
+                <input
+                  value={propertyForm.city}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, city: event.target.value })}
+                  placeholder="Broken Bow"
+                />
+              </label>
+
+              <label>
+                Setup method
+                <select
+                  value={propertyForm.setupMode}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, setupMode: event.target.value as Home["setupMode"] })}
+                >
+                  <option value="VRBO">Use VRBO Listing ID</option>
+                  <option value="Airbnb">Use Airbnb Listing URL</option>
+                  <option value="Manual">Manually Set Up House</option>
+                </select>
+              </label>
+
+              <label>
+                VRBO property ID
+                <input
+                  value={propertyForm.vrboId}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, vrboId: event.target.value })}
+                  placeholder="VRBO ID"
+                />
+              </label>
+
+              <label>
+                Airbnb listing URL
+                <input
+                  value={propertyForm.airbnbUrl}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, airbnbUrl: event.target.value })}
+                  placeholder="https://airbnb.com/rooms/..."
+                />
+              </label>
+
+              <label>
+                iCal link
+                <input
+                  value={propertyForm.iCalUrl}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, iCalUrl: event.target.value })}
+                  placeholder="Calendar feed URL"
+                />
+              </label>
+
+              <label>
+                Default cleaner
+                <select
+                  value={propertyForm.defaultCleanerId}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, defaultCleanerId: event.target.value })}
+                >
+                  <option value="">No default cleaner</option>
+                  {cleaners.map((cleaner) => (
+                    <option key={cleaner.id} value={cleaner.id}>
+                      {cleaner.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Bedrooms
+                <input
+                  type="number"
+                  value={propertyForm.bedrooms}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, bedrooms: event.target.value })}
+                />
+              </label>
+
+              <label>
+                Bathrooms
+                <input
+                  type="number"
+                  value={propertyForm.bathrooms}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, bathrooms: event.target.value })}
+                />
+              </label>
+
+              <label>
+                Max guests
+                <input
+                  type="number"
+                  value={propertyForm.maxGuests}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, maxGuests: event.target.value })}
+                />
+              </label>
+
+              <label className="fullWidth">
+                Address / internal notes
+                <input
+                  value={propertyForm.address}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, address: event.target.value })}
+                  placeholder="Address or private location notes"
+                />
+              </label>
+
+              <label className="fullWidth">
+                Property notes
+                <textarea
+                  value={propertyForm.notes}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, notes: event.target.value })}
+                  placeholder="Owner notes, parking, supplies, access, known issues"
+                />
+              </label>
+
+              <div className="cardActions fullWidth">
+                <button className="primaryButton" type="submit">
+                  Save Property Changes
+                </button>
+                <button
+                  className="ghostButton"
+                  type="button"
+                  onClick={() => {
+                    setEditingPropertyId(null);
+                    setShowPropertyForm(false);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </section>
+        </>
+      );
+    }
+
     return (
       <>
         <header className="pageHeader">
@@ -1431,7 +1627,10 @@ export default function App() {
                 <button
                   key={home.id}
                   className={`propertyCard ${selectedProperty?.id === home.id ? "selected" : ""}`}
-                  onClick={() => setSelectedPropertyId(home.id)}
+                  onClick={() => {
+                    setSelectedPropertyId(home.id);
+                    startEditingProperty(home);
+                  }}
                 >
                   <div className="propertyCardTop">
                     <div className="homeBadge">{home.shortName}</div>
@@ -1475,12 +1674,6 @@ export default function App() {
                     <h3>{selectedProperty.name}</h3>
                     <p>{selectedProperty.address || selectedProperty.city}</p>
                   </div>
-                </div>
-
-                <div className="cardActions">
-                  <button onClick={() => startEditingProperty(selectedProperty)}>
-                    Edit Property
-                  </button>
                 </div>
 
                 <div className="detailStack">
@@ -1555,6 +1748,7 @@ export default function App() {
                     <strong>{selectedWorkOrders.filter((order) => order.status !== "Completed").length}</strong>
                   </div>
                 </div>
+
 
                 {selectedProperty.notes && <p className="notesBox">{selectedProperty.notes}</p>}
               </>
