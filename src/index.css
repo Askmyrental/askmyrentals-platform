@@ -1484,3 +1484,10 @@ button {
     margin-top: 14px;
   }
 }
+.cleanerScheduleBox {
+  padding: 20px;
+  border-radius: 24px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+}

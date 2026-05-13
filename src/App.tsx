@@ -2150,8 +2150,6 @@ export default function App() {
       return urgency.label === "Today" || urgency.label === "Tomorrow" || urgency.className === "watch";
     });
 
-    const activeTask = cleanerTasks.find((reservation) => reservation.id === cleanerIssueForm.reservationId) ?? cleanerTasks[0];
-    const activeHome = activeTask ? homes.find((home) => home.id === activeTask.homeId) : undefined;
 
     return (
       <>
@@ -2283,27 +2281,48 @@ export default function App() {
           </div>
 
           <aside className="cleanerOpsPanel">
-            <section className="cleanerChecklistBox">
-              <p className="eyebrow">Readiness checklist</p>
-              <h3>{activeHome?.name ?? "Select a cleaning"}</h3>
-              <div className="checklistItems">
-                {[
-                  "Beds reset and photographed",
-                  "Bathrooms cleaned and stocked",
-                  "Kitchen reset",
-                  "Floors checked",
-                  "Trash removed",
-                  "Hot tub / outdoor areas checked",
-                  "Supplies reported",
-                  "Final walkthrough complete",
-                ].map((item) => (
-                  <label key={item}>
-                    <input type="checkbox" />
-                    {item}
-                  </label>
-                ))}
-              </div>
-            </section>
+           <section className="cleanerScheduleBox">
+  <p className="eyebrow">Upcoming schedule</p>
+  <h3>Next 30 Days</h3>
+
+  <div className="cleanerTaskStack">
+    {cleanerTasks.slice(0, 12).map((reservation) => {
+      const home = homes.find((item) => item.id === reservation.homeId);
+
+      return (
+        <article key={`schedule-${reservation.id}`} className="cleanerTaskCard">
+          <div className="cleanerTaskHeader">
+            <div>
+              <h3>{home?.name ?? "Unknown home"}</h3>
+              <p>{reservation.guestName}</p>
+            </div>
+
+            <span className={`urgencyBadge ${getUrgency(reservation.arrival).className}`}>
+              {getUrgency(reservation.arrival).label}
+            </span>
+          </div>
+
+          <div className="cleanerTaskDetails">
+            <div>
+              <span>Arrival</span>
+              <strong>{formatDate(reservation.arrival)}</strong>
+            </div>
+
+            <div>
+              <span>Departure</span>
+              <strong>{formatDate(reservation.departure)}</strong>
+            </div>
+
+            <div>
+              <span>Status</span>
+              <strong>{reservation.status}</strong>
+            </div>
+          </div>
+        </article>
+      );
+    })}
+  </div>
+</section>
 
             <section className="cleanerIssueBox" id="cleanerIssueForm">
               <p className="eyebrow">Maintenance reporting</p>
