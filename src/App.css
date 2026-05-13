@@ -1487,3 +1487,56 @@ textarea:focus {
     margin-left: 0;
   }
 }
+@media (max-width: 768px) {
+  .appShell {
+    display: block;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    width: 100%;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .brand {
+    justify-content: center;
+  }
+
+  .brandIcon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .brand h1 {
+    font-size: 16px;
+  }
+
+  .brand p {
+    display: none;
+  }
+
+  .nav {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+
+  .nav button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 10px 12px;
+  }
+
+  .quickLinksBox {
+    display: none;
+  }
+
+  .mainContent {
+    padding: 16px;
+  }
+}
