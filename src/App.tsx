@@ -464,7 +464,7 @@ export default function App() {
   const [homes, setHomes] = useState<Home[]>(starterHomes);
   const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
   const [reservations, setReservations] = useState<Reservation[]>(starterReservations);
-  const [calendarBlocks] = useState<CalendarBlock[]>(starterBlocks);
+  const [calendarBlocks, setCalendarBlocks] = useState<CalendarBlock[]>(starterBlocks);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>(starterWorkOrders);
   const [notifications, setNotifications] = useState<OwnerNotification[]>(starterNotifications);
   const [selectedHome, setSelectedHome] = useState("all");
@@ -1163,6 +1163,30 @@ export default function App() {
     setHomes((current) => current.map((home) => (home.id === id ? { ...home, ...updates } : home)));
   }
 
+  function archiveProperty(id: string) {
+    updateProperty(id, { status: "Paused" });
+    setEditingPropertyId(null);
+    setShowPropertyForm(false);
+  }
+
+  function deleteProperty(id: string) {
+    const property = homes.find((home) => home.id === id);
+    const confirmation = window.prompt(
+      `Type DELETE to permanently remove ${property?.name ?? "this property"}. This will also remove related reservations, calendar blocks, and work orders from this prototype.`
+    );
+
+    if (confirmation !== "DELETE") return;
+
+    const remainingHomes = homes.filter((home) => home.id !== id);
+    setHomes(remainingHomes);
+    setReservations((current) => current.filter((reservation) => reservation.homeId !== id));
+    setCalendarBlocks((current) => current.filter((block) => block.homeId !== id));
+    setWorkOrders((current) => current.filter((order) => order.homeId !== id));
+    setSelectedPropertyId(remainingHomes[0]?.id ?? "");
+    setEditingPropertyId(null);
+    setShowPropertyForm(false);
+  }
+
   function startEditingProperty(home: Home) {
     setEditingPropertyId(home.id);
     setPropertyForm({
@@ -1371,6 +1395,20 @@ export default function App() {
               <div className="cardActions fullWidth">
                 <button className="primaryButton" type="submit">
                   Save Property Changes
+                </button>
+                <button
+                  className="ghostButton"
+                  type="button"
+                  onClick={() => archiveProperty(editingPropertyId)}
+                >
+                  Archive Property
+                </button>
+                <button
+                  className="dangerButton"
+                  type="button"
+                  onClick={() => deleteProperty(editingPropertyId)}
+                >
+                  Delete Property
                 </button>
                 <button
                   className="ghostButton"
