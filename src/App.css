@@ -1617,4 +1617,70 @@ textarea:focus {
   .headerSubtext {
     font-size: 16px;
   }
+}@media screen and (max-width: 768px) {
+  .appShell {
+    display: block !important;
+    grid-template-columns: none !important;
+  }
+
+  .sidebar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 999 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 10px 12px !important;
+    display: block !important;
+  }
+
+  .brand {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .brandIcon {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 12px !important;
+    font-size: 12px !important;
+  }
+
+  .brand h1 {
+    font-size: 18px !important;
+    margin: 0 !important;
+  }
+
+  .brand p {
+    display: none !important;
+  }
+
+  .nav {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    gap: 8px !important;
+    padding-bottom: 6px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .nav button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    padding: 9px 12px !important;
+    font-size: 14px !important;
+    border-radius: 999px !important;
+  }
+
+  .quickLinksBox {
+    display: none !important;
+  }
+
+  .mainContent {
+    padding: 14px !important;
+  }
 }
