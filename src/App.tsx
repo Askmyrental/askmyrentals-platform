@@ -1555,7 +1555,14 @@ export default function App() {
                     Edit Property
                   </button>
                 </div>
-
+<div className="cardActions">
+  <button
+    className="secondaryButton"
+    onClick={() => startEditingProperty(selectedProperty)}
+  >
+    Edit Property
+  </button>
+</div>
                 {selectedProperty.notes && <p className="notesBox">{selectedProperty.notes}</p>}
               </>
             )}
