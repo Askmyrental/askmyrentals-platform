@@ -1,18 +1,43 @@
 import { useMemo } from "react";
 
-type CleaningItem = {
-  id: number;
-  property: string;
-  cleaner: string;
-  checkOut: string;
-  nextCheckIn?: string;
-  status: string;
-  priority?: string;
-};
+function formatDate(dateString: string) {
+  if (!dateString) return "—";
 
+  const date = new Date(dateString);
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${month}-${day}-${year}`;
+}
+
+function getUrgency(arrival?: string) {
+  if (!arrival) return null;
+
+  const today = new Date();
+  const arrivalDate = new Date(arrival);
+
+  today.setHours(0, 0, 0, 0);
+  arrivalDate.setHours(0, 0, 0, 0);
+
+  const diff =
+    (arrivalDate.getTime() - today.getTime()) /
+    (1000 * 60 * 60 * 24);
+
+  if (diff <= 0) {
+    return { label: "Guest Arrives Today", color: "#dc2626" };
+  }
+
+  if (diff === 1) {
+    return { label: "Guest Arrives Tomorrow", color: "#ea580c" };
+  }
+
+  return { label: "Upcoming Stay", color: "#16a34a" };
+}
 type Props = {
-  cleanings: CleaningItem[];
-  onUpdateStatus: (id: number, status: string) => void;
+  cleanings: any[];
+  onUpdateStatus: any;
 };
 
 const statusColors: Record<string, string> = {
@@ -44,7 +69,7 @@ function CleaningCard({
   item,
   onUpdateStatus,
 }: {
-  item: CleaningItem;
+  item: any;
   onUpdateStatus: (id: number, status: string) => void;
 }) {
   const nextAction = () => {
@@ -79,7 +104,7 @@ function CleaningCard({
   };
 
   const action = nextAction();
-
+const urgency = getUrgency(item.arrival);
   return (
     <div
       style={{
@@ -121,6 +146,22 @@ function CleaningCard({
         </div>
 
         <StatusBadge status={item.status} />
+        {urgency && (
+  <div
+    style={{
+      marginTop: 10,
+      background: urgency.color,
+      color: "white",
+      padding: "6px 10px",
+      borderRadius: 999,
+      fontSize: 12,
+      fontWeight: 700,
+      display: "inline-block",
+    }}
+  >
+    {urgency.label}
+  </div>
+)}
       </div>
 
       <div
@@ -154,7 +195,7 @@ function CleaningCard({
               fontWeight: 700,
             }}
           >
-            {item.checkOut}
+          {formatDate(item.departure)} 
           </div>
         </div>
 
@@ -181,7 +222,7 @@ function CleaningCard({
               fontWeight: 700,
             }}
           >
-            {item.nextCheckIn || "—"}
+          {formatDate(item.arrival)} 
           </div>
         </div>
       </div>
@@ -218,9 +259,15 @@ export default function CleanerPortal({
         (c) => c.status === "Assigned"
       ),
 
-      active: cleanings.filter((c) =>
-        ["Accepted", "On The Way", "Cleaning"].includes(c.status)
-      ),
+      active: cleanings
+  .filter((c) =>
+    ["Accepted", "On The Way", "Cleaning"].includes(c.status)
+  )
+  .sort(
+    (a, b) =>
+      new Date(a.arrival || 0).getTime() -
+      new Date(b.arrival || 0).getTime()
+  ),
 
       completed: cleanings.filter(
         (c) => c.status === "Ready"
@@ -263,9 +310,23 @@ export default function CleanerPortal({
       </div>
 
       <div style={sectionTitleStyle}>
-        Needs Response
+ <div style={sectionTitleStyle}>
+  Needs Response ({grouped.needsResponse.length})
+</div>
       </div>
-
+{cleanings.length === 0 && (
+  <div
+    style={{
+      background: "white",
+      padding: 24,
+      borderRadius: 16,
+      color: "#64748b",
+      border: "1px solid #e2e8f0",
+    }}
+  >
+    No assigned cleanings yet.
+  </div>
+)}
       {grouped.needsResponse.map((item) => (
         <CleaningCard
           key={item.id}
@@ -275,7 +336,9 @@ export default function CleanerPortal({
       ))}
 
       <div style={sectionTitleStyle}>
-        Active Cleanings
+ <div style={sectionTitleStyle}>
+  Active Cleanings ({grouped.active.length})
+</div>
       </div>
 
       {grouped.active.map((item) => (
@@ -287,7 +350,9 @@ export default function CleanerPortal({
       ))}
 
       <div style={sectionTitleStyle}>
-        Ready / Completed
+ <div style={sectionTitleStyle}>
+  Ready / Completed ({grouped.completed.length})
+</div>
       </div>
 
       {grouped.completed.map((item) => (

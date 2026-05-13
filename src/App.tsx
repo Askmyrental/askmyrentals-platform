@@ -1,2363 +1,2178 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import "./App.css";
-import CleanerPortal from "./components/CleanerPortal";
-type Page =
-  | "dashboard"
-  | "properties"
-  | "calendar"
-  | "notifications"
-  | "cleaners"
-  | "cleanerPortal"
-  | "records";
 
-type ReadyStatus =
+type ReservationStatus =
+  | "New"
   | "Assigned"
   | "Accepted"
-  | "On The Way"
   | "Cleaning"
   | "Ready"
-  | "Attention Needed";
- 
+  | "Needs Review"
+  | "Completed";
 
-type MessageSender = "Homeowner" | "Cleaner" | "System";
+type ReservationSource = "VRBO" | "Airbnb" | "Manual" | "Owner Block";
 
-type Property = {
-  id: number;
+type BlockType = "Owner Block" | "Maintenance";
+
+type Home = {
+  id: string;
   name: string;
-  location: string;
-  description: string;
-  cleaner: string;
-  icalUrl: string;
-  vrboId: string;
-  airbnbUrl: string;
-  imageUrl: string;
-  syncStatus: string;
+  city: string;
+  shortName: string;
+  address?: string;
+  vrboId?: string;
+  airbnbUrl?: string;
+  iCalUrl?: string;
+  setupMode: "Manual" | "VRBO" | "Airbnb";
+  defaultCleanerId?: string;
+  bedrooms: number;
+  bathrooms: number;
+  maxGuests: number;
+  status: "Active" | "Setup Needed" | "Paused";
+  notes?: string;
 };
 
-type UrgencyLevel = "urgent" | "attention" | "normal";
-
-type CleaningItem = {
-  id: number;
-  propertyId: number;
-  property: string;
-  cleaner: string;
-  departure: string;
-  arrival: string;
-  checkoutDate?: string;
-  checkOutDate?: string;
-  cleaningDate?: string;
-  type: "Guest Booking" | "Deep Clean" | "Owner Stay";
-  status: ReadyStatus;
-  cleanerStatus?: string;
-  assignmentStatus?: string;
-  assignedCleanerId?: string | number | null;
-  lastUpdate: string;
-  guestName?: string;
-  requiresChecklist?: boolean;
-  checklistCompleted?: boolean;
-  urgencyLevel?: UrgencyLevel;
-  urgencyReasons?: string[];
-  lastUrgencyCheck?: string;
+type Cleaner = {
+  id: string;
+  name: string;
+  phone: string;
+  status: "Available" | "Busy" | "Offline";
+  serviceArea: string;
+  rating: number;
+  activeJobs: number;
+  specialties: string[];
+  notes?: string;
 };
 
-type ActivityRecord = {
-  id: number;
-  time: string;
-  event: string;
-  source: "System" | "Homeowner" | "Cleaner" | "Guest";
-  createdAt?: string;
-};
+type NotificationPriority = "Critical" | "High" | "Normal" | "Low";
+type NotificationType = "Reservation" | "Cleaner" | "Maintenance" | "Property" | "System";
 
-type AppMessage = {
-  id: number;
-  time: string;
+type OwnerNotification = {
+  id: string;
+  type: NotificationType;
+  priority: NotificationPriority;
+  title: string;
+  message: string;
+  relatedHomeId?: string;
+  relatedCleanerId?: string;
   createdAt: string;
-  property: string;
-  cleaner: string;
-  sender: MessageSender;
-  text: string;
-  category: "General" | "ETA Request" | "Early Arrival" | "Issue" | "Ready Update";
+  read: boolean;
 };
 
-const STORAGE_KEY = "cleaner-app-state-v1";
-const API_BASE =
-  import.meta.env.VITE_API_URL || "http://localhost:8787";
-
-const API_URL = `${API_BASE}/api/app-data`;
-
-const monthNames = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-const cleaners = [
-  { name: "Libby", status: "Available", assigned: "Sea Otz" },
-  { name: "Ashley", status: "Available", assigned: "Not assigned" },
-  { name: "Maria", status: "Unavailable", assigned: "Not assigned" },
-];
-
-const statusHelp: Record<ReadyStatus, string> = {
-  Assigned: "Cleaner has been assigned but the home has not been accepted yet.",
-  Accepted: "Cleaner accepted this cleaning.",
-  "On The Way": "Cleaner is on the way.",
-  Cleaning: "Cleaner is currently cleaning.",
-  Ready: "Cleaner confirmed the property is guest-ready.",
-  "Attention Needed": "Guest arrival is approaching and the home has not been marked ready.",
+type Reservation = {
+  id: string;
+  guestName: string;
+  homeId: string;
+  source: ReservationSource;
+  arrival: string;
+  departure: string;
+  status: ReservationStatus;
+  cleanerId?: string;
+  notes?: string;
+  timeline: string[];
 };
 
-const defaultProperties: Property[] = [
+type CalendarBlock = {
+  id: string;
+  homeId: string;
+  type: BlockType;
+  title: string;
+  start: string;
+  end: string;
+  notes?: string;
+};
+
+type WorkOrderStatus = "New" | "Assigned" | "Scheduled" | "In Progress" | "Owner Review" | "Completed";
+type WorkOrderUrgency = "Low" | "Medium" | "High" | "After Hours";
+
+type Vendor = {
+  id: string;
+  name: string;
+  category: string;
+  phone: string;
+  rating: number;
+  afterHours: boolean;
+};
+
+type WorkOrder = {
+  id: string;
+  homeId: string;
+  title: string;
+  category: string;
+  urgency: WorkOrderUrgency;
+  status: WorkOrderStatus;
+  vendorId?: string;
+  createdDate: string;
+  scheduledDate?: string;
+  notes: string;
+  timeline: string[];
+};
+
+const starterHomes: Home[] = [
   {
-    id: 1,
-    name: "Sea Otz",
-    location: "Beach Property",
-    description: "A beautiful vacation home ready for guest turnovers and owner stays.",
-    cleaner: "Libby",
-    icalUrl: "",
-    vrboId: "",
-    airbnbUrl: "",
-    imageUrl: "",
-    syncStatus: "No calendar synced yet",
+    id: "coates",
+    name: "Coates Cabin",
+    city: "Broken Bow",
+    shortName: "CO",
+    address: "Broken Bow, OK",
+    vrboId: "1234567",
+    iCalUrl: "https://example.com/coates.ics",
+    setupMode: "VRBO",
+    defaultCleanerId: "aarthi",
+    bedrooms: 3,
+    bathrooms: 2,
+    maxGuests: 8,
+    status: "Active",
+    notes: "Primary test property. VRBO ID will eventually support listing intelligence and occupancy comparisons.",
+  },
+  {
+    id: "pine",
+    name: "Pine Ridge Lodge",
+    city: "Gatlinburg",
+    shortName: "PR",
+    address: "Gatlinburg, TN",
+    airbnbUrl: "https://airbnb.com/rooms/example",
+    iCalUrl: "https://example.com/pine.ics",
+    setupMode: "Airbnb",
+    defaultCleanerId: "maria",
+    bedrooms: 4,
+    bathrooms: 3,
+    maxGuests: 10,
+    status: "Active",
+    notes: "Needs stronger vendor coverage during peak season.",
+  },
+  {
+    id: "lake",
+    name: "Lakeview Retreat",
+    city: "Branson",
+    shortName: "LR",
+    address: "Branson, MO",
+    setupMode: "Manual",
+    defaultCleanerId: "jordan",
+    bedrooms: 2,
+    bathrooms: 2,
+    maxGuests: 6,
+    status: "Setup Needed",
+    notes: "Manual setup started. Add calendar feed when available.",
   },
 ];
 
-function todayTime() {
-  return new Date().toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+const starterCleaners: Cleaner[] = [
+  {
+    id: "aarthi",
+    name: "Aarthi",
+    phone: "555-0134",
+    status: "Available",
+    serviceArea: "Broken Bow",
+    rating: 4.9,
+    activeJobs: 1,
+    specialties: ["B2B turnovers", "Hot tub reset", "Restock"],
+    notes: "Strong default cleaner for Coates Cabin.",
+  },
+  {
+    id: "maria",
+    name: "Maria",
+    phone: "555-0198",
+    status: "Busy",
+    serviceArea: "Gatlinburg",
+    rating: 4.8,
+    activeJobs: 2,
+    specialties: ["Large cabins", "Inspection photos", "Laundry coordination"],
+    notes: "Best for larger homes and detail-heavy resets.",
+  },
+  {
+    id: "jordan",
+    name: "Jordan",
+    phone: "555-0147",
+    status: "Available",
+    serviceArea: "Branson",
+    rating: 4.7,
+    activeJobs: 1,
+    specialties: ["Quick turnovers", "Guest-ready checks", "Supply reporting"],
+    notes: "Good backup cleaner for urgent same-day needs.",
+  },
+];
 
-function todayDateTime() {
-  return new Date().toLocaleString([], {
+const starterReservations: Reservation[] = [
+  {
+    id: "res-1001",
+    guestName: "Miller Family",
+    homeId: "coates",
+    source: "VRBO",
+    arrival: "2026-05-16",
+    departure: "2026-05-19",
+    status: "Assigned",
+    cleanerId: "aarthi",
+    notes: "Back-to-back turnover. Check hot tub towels.",
+    timeline: ["Imported from VRBO", "Turnover created", "Assigned to Aarthi"],
+  },
+  {
+    id: "res-1002",
+    guestName: "Owner Deep Clean",
+    homeId: "pine",
+    source: "Manual",
+    arrival: "2026-05-20",
+    departure: "2026-05-20",
+    status: "New",
+    notes: "Manual reservation for deep clean and restock.",
+    timeline: ["Manual reservation created"],
+  },
+  {
+    id: "res-1003",
+    guestName: "Thompson Stay",
+    homeId: "lake",
+    source: "Airbnb",
+    arrival: "2026-05-22",
+    departure: "2026-05-26",
+    status: "Accepted",
+    cleanerId: "jordan",
+    notes: "Guest requested early check-in if possible.",
+    timeline: ["Imported from Airbnb", "Assigned to Jordan", "Jordan accepted"],
+  },
+  {
+    id: "res-1004",
+    guestName: "Rivera Group",
+    homeId: "coates",
+    source: "VRBO",
+    arrival: "2026-05-19",
+    departure: "2026-05-23",
+    status: "New",
+    notes: "Same-day arrival after Miller departure.",
+    timeline: ["Imported from VRBO", "B2B risk detected"],
+  },
+];
+
+const starterBlocks: CalendarBlock[] = [
+  {
+    id: "block-1",
+    homeId: "coates",
+    type: "Owner Block",
+    title: "Owner Weekend",
+    start: "2026-05-29",
+    end: "2026-05-31",
+    notes: "Owner using property.",
+  },
+  {
+    id: "block-2",
+    homeId: "pine",
+    type: "Maintenance",
+    title: "HVAC Service",
+    start: "2026-05-23",
+    end: "2026-05-23",
+    notes: "Vendor window 10 AM - 2 PM.",
+  },
+];
+
+const vendors: Vendor[] = [
+  { id: "vendor-hvac", name: "Summit HVAC", category: "HVAC", phone: "555-1200", rating: 4.9, afterHours: true },
+  { id: "vendor-plumb", name: "Rapid Rooter", category: "Plumbing", phone: "555-4421", rating: 4.7, afterHours: true },
+  { id: "vendor-elec", name: "BrightLine Electric", category: "Electrical", phone: "555-3390", rating: 4.8, afterHours: false },
+  { id: "vendor-handyman", name: "Cabin Care Pros", category: "General", phone: "555-7731", rating: 4.6, afterHours: false },
+];
+
+const starterWorkOrders: WorkOrder[] = [
+  {
+    id: "wo-1001",
+    homeId: "pine",
+    title: "HVAC not cooling consistently",
+    category: "HVAC",
+    urgency: "High",
+    status: "Scheduled",
+    vendorId: "vendor-hvac",
+    createdDate: "2026-05-12",
+    scheduledDate: "2026-05-23",
+    notes: "Guest reported warm upstairs bedroom. Vendor window already added to calendar.",
+    timeline: ["Issue created", "Vendor recommended", "Service scheduled"],
+  },
+  {
+    id: "wo-1002",
+    homeId: "coates",
+    title: "Loose deck railing",
+    category: "General",
+    urgency: "Medium",
+    status: "Owner Review",
+    vendorId: "vendor-handyman",
+    createdDate: "2026-05-11",
+    notes: "Cleaner flagged during turnover. Needs owner approval before dispatch.",
+    timeline: ["Cleaner reported issue", "Photo review requested", "Owner review needed"],
+  },
+  {
+    id: "wo-1003",
+    homeId: "lake",
+    title: "Kitchen sink slow drain",
+    category: "Plumbing",
+    urgency: "After Hours",
+    status: "New",
+    createdDate: "2026-05-12",
+    notes: "Potential guest-impacting issue. Recommend after-hours plumber if guest is currently in home.",
+    timeline: ["Issue created", "After-hours risk detected"],
+  },
+];
+
+const starterNotifications: OwnerNotification[] = [
+  {
+    id: "note-1",
+    type: "Reservation",
+    priority: "High",
+    title: "B2B turnover detected",
+    message: "Coates Cabin has a same-day departure and arrival on May 19. Confirm cleaner timing.",
+    relatedHomeId: "coates",
+    relatedCleanerId: "aarthi",
+    createdAt: "2026-05-12 09:10",
+    read: false,
+  },
+  {
+    id: "note-2",
+    type: "Maintenance",
+    priority: "Critical",
+    title: "After-hours maintenance risk",
+    message: "Lakeview Retreat has a slow kitchen drain flagged as after-hours risk.",
+    relatedHomeId: "lake",
+    createdAt: "2026-05-12 10:25",
+    read: false,
+  },
+  {
+    id: "note-3",
+    type: "Cleaner",
+    priority: "Normal",
+    title: "Cleaner accepted assignment",
+    message: "Jordan accepted the Thompson Stay turnover.",
+    relatedHomeId: "lake",
+    relatedCleanerId: "jordan",
+    createdAt: "2026-05-12 11:05",
+    read: true,
+  },
+  {
+    id: "note-4",
+    type: "Property",
+    priority: "Normal",
+    title: "Property setup incomplete",
+    message: "Lakeview Retreat is missing an iCal feed.",
+    relatedHomeId: "lake",
+    createdAt: "2026-05-12 12:00",
+    read: false,
+  },
+];
+
+const statusOrder: ReservationStatus[] = [
+  "New",
+  "Assigned",
+  "Accepted",
+  "Cleaning",
+  "Ready",
+  "Needs Review",
+  "Completed",
+];
+
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+function formatDate(dateString: string) {
+  if (!dateString) return "—";
+  const date = new Date(`${dateString}T12:00:00`);
+  return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
   });
 }
 
-function makeRecord(
-  event: string,
-  source: ActivityRecord["source"] = "System"
-): ActivityRecord {
-  const now = new Date();
-
-  return {
-    id: now.getTime() + Math.floor(Math.random() * 1000),
-    time: todayDateTime(),
-    event,
-    source,
-    createdAt: now.toISOString(),
-  };
+function toDate(dateString: string) {
+  return new Date(`${dateString}T12:00:00`);
 }
 
-function makeMessage(
-  property: string,
-  cleaner: string,
-  sender: MessageSender,
-  text: string,
-  category: AppMessage["category"] = "General"
-): AppMessage {
-  const now = new Date();
-
-  return {
-    id: now.getTime() + Math.floor(Math.random() * 1000),
-    time: todayDateTime(),
-    createdAt: now.toISOString(),
-    property,
-    cleaner,
-    sender,
-    text,
-    category,
-  };
+function toInputDate(date: Date) {
+  return date.toISOString().slice(0, 10);
 }
 
-function formatIcalDate(raw: string) {
-  if (!raw) return "";
-  const value = raw.trim().replace("Z", "");
-  return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
+function daysUntil(dateString: string) {
+  const today = new Date();
+  const target = toDate(dateString);
+  today.setHours(12, 0, 0, 0);
+  return Math.ceil((target.getTime() - today.getTime()) / 86400000);
 }
 
-function unfoldIcal(text: string) {
-  return text.replace(/\r?\n[ \t]/g, "");
+function getUrgency(arrival: string) {
+  const days = daysUntil(arrival);
+
+  if (days < 0) return { label: "Past", className: "neutral" };
+  if (days === 0) return { label: "Today", className: "critical" };
+  if (days === 1) return { label: "Tomorrow", className: "urgent" };
+  if (days <= 3) return { label: `${days} days`, className: "watch" };
+  return { label: `${days} days`, className: "normal" };
 }
 
-function getIcalValue(event: string, key: string) {
-  const line = event.split(/\r?\n/).find((item) => item.startsWith(key));
-  if (!line) return "";
-  return line.split(":").slice(1).join(":").trim();
-}
+function makeTimelineNote(status: ReservationStatus, cleanerId?: string) {
+  const cleaner = starterCleaners.find((item) => item.id === cleanerId);
 
-function parseIcalBookings(text: string, property: Property): CleaningItem[] {
-  const unfolded = unfoldIcal(text);
-  const events = unfolded.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
-
-  return events
-    .map((event, index) => {
-      const startLine = event.split(/\r?\n/).find((line) => line.startsWith("DTSTART"));
-      const endLine = event.split(/\r?\n/).find((line) => line.startsWith("DTEND"));
-
-      if (!startLine || !endLine) return null;
-
-      const arrival = formatIcalDate(startLine.split(":")[1]);
-      const departure = formatIcalDate(endLine.split(":")[1]);
-
-      if (!arrival || !departure) return null;
-
-      const summary = getIcalValue(event, "SUMMARY") || property.name;
-      const lowerSummary = summary.toLowerCase();
-
-      const type =
-        lowerSummary.includes("owner") ||
-        lowerSummary.includes("block") ||
-        lowerSummary.includes("blocked")
-          ? ("Owner Stay" as const)
-          : ("Guest Booking" as const);
-
-      return {
-        id: Date.now() + index,
-        propertyId: property.id,
-        property: property.name,
-        cleaner: property.cleaner || "Unassigned",
-        arrival,
-        departure,
-        type,
-        status: "Assigned" as const,
-        lastUpdate: todayTime(),
-        guestName: summary,
-      };
-    })
-    .filter(Boolean) as CleaningItem[];
-}
-
-function isDateBetweenInclusive(date: string, start: string, end: string) {
-  return date >= start && date <= end;
-}
-
-function daysUntilDate(dateValue: string) {
-  if (!dateValue) return null;
-
-  const now = new Date();
-  const target = new Date(`${dateValue}T00:00:00`);
-
-  if (Number.isNaN(target.getTime())) return null;
-
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfTarget = new Date(
-    target.getFullYear(),
-    target.getMonth(),
-    target.getDate()
-  );
-
-  return Math.ceil(
-    (startOfTarget.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24)
-  );
-}
-
-function calculateUrgency(item: CleaningItem): Pick<
-  CleaningItem,
-  "urgencyLevel" | "urgencyReasons" | "lastUrgencyCheck"
-> {
-  const reasons: string[] = [];
-  const status = String(item.status || "").toLowerCase();
-  const cleanerStatus = String(
-    item.cleanerStatus || item.assignmentStatus || item.status || ""
-  ).toLowerCase();
-  const cleanerAssigned =
-    Boolean(item.cleaner && item.cleaner !== "Unassigned") || Boolean(item.assignedCleanerId);
-  const keyDate = item.checkoutDate || item.checkOutDate || item.cleaningDate || item.departure;
-  const days = daysUntilDate(keyDate);
-
-  if (status !== "ready") {
-    if (days !== null && days < 0) reasons.push("Turnover is overdue");
-    if (days !== null && days <= 1 && days >= 0) {
-      reasons.push("Turnover is due today or tomorrow");
-    }
-    if (!cleanerAssigned) reasons.push("No cleaner assigned");
-    if (status === "attention needed") reasons.push("Cleaner requested help");
-    if (cleanerStatus === "declined" || status === "declined" || status === "rejected") {
-      reasons.push("Cleaner declined assignment");
-    }
-    if (
-      cleanerAssigned &&
-      !["accepted", "on the way", "cleaning", "ready", "confirmed", "completed"].includes(
-        cleanerStatus
-      )
-    ) {
-      reasons.push("Cleaner has not accepted yet");
-    }
-    if (item.requiresChecklist && !item.checklistCompleted) {
-      reasons.push("Checklist is missing");
-    }
+  if (status === "Assigned" && cleaner) {
+    return `Assigned to ${cleaner.name}`;
   }
 
-  const urgentReasons = [
-    "Turnover is overdue",
-    "Turnover is due today or tomorrow",
-    "No cleaner assigned",
-    "Cleaner declined assignment",
-    "Cleaner requested help",
-  ];
-
-  const urgencyLevel: UrgencyLevel = reasons.some((reason) => urgentReasons.includes(reason))
-    ? "urgent"
-    : reasons.length > 0
-      ? "attention"
-      : "normal";
-
-  return {
-    urgencyLevel,
-    urgencyReasons: reasons,
-    lastUrgencyCheck: new Date().toISOString(),
-  };
-}
-
-function withUrgency(item: CleaningItem): CleaningItem {
-  return {
-    ...item,
-    ...calculateUrgency(item),
-  };
-}
-
-function normalizeCleanings(cleanings: CleaningItem[] | undefined) {
-  if (!Array.isArray(cleanings)) return [];
-  return cleanings.map((item) => withUrgency(item));
-}
-
-function urgencyRank(level?: UrgencyLevel) {
-  if (level === "urgent") return 0;
-  if (level === "attention") return 1;
-  return 2;
-}
-
-function urgencyLabel(level?: UrgencyLevel) {
-  if (level === "urgent") return "Urgent";
-  if (level === "attention") return "Needs Attention";
-  return "Normal";
-}
-
-function urgencyStyle(level?: UrgencyLevel): React.CSSProperties {
-  if (level === "urgent") {
-    return {
-      display: "inline-flex",
-      alignItems: "center",
-      width: "fit-content",
-      borderRadius: "999px",
-      padding: "5px 10px",
-      background: "#fee2e2",
-      color: "#991b1b",
-      fontWeight: 900,
-      fontSize: "12px",
-      border: "1px solid #fecaca",
-    };
+  if (status === "Accepted" && cleaner) {
+    return `${cleaner.name} accepted assignment`;
   }
 
-  if (level === "attention") {
-    return {
-      display: "inline-flex",
-      alignItems: "center",
-      width: "fit-content",
-      borderRadius: "999px",
-      padding: "5px 10px",
-      background: "#fef3c7",
-      color: "#92400e",
-      fontWeight: 900,
-      fontSize: "12px",
-      border: "1px solid #fde68a",
-    };
+  if (status === "Cleaning") {
+    return "Cleaner marked cleaning in progress";
   }
 
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    width: "fit-content",
-    borderRadius: "999px",
-    padding: "5px 10px",
-    background: "#dcfce7",
-    color: "#166534",
-    fontWeight: 900,
-    fontSize: "12px",
-    border: "1px solid #bbf7d0",
-  };
-}
-
-
-function cleanReservationLabel(label: string) {
-  return label
-    .replace("Reserved - ", "")
-    .replace("Reserved-", "")
-    .replace("Reserved", "")
-    .trim() || "Reserved";
-}
-
-function normalizeRecords(records: ActivityRecord[] | undefined) {
-  if (!Array.isArray(records)) return [];
-
-  return records.map((record, index) => ({
-    ...record,
-    id: record.id || Date.now() + index,
-    time: record.time || "Unknown time",
-    event: record.event || "Record saved.",
-    source: record.source || "System",
-  }));
-}
-
-function normalizeMessages(messages: AppMessage[] | undefined) {
-  if (!Array.isArray(messages)) return [];
-
-  return messages.map((message, index) => ({
-    ...message,
-    id: message.id || Date.now() + index,
-    time: message.time || "Unknown time",
-    createdAt: message.createdAt || new Date().toISOString(),
-    property: message.property || "Unknown property",
-    cleaner: message.cleaner || "Unassigned",
-    sender: message.sender || "System",
-    text: message.text || "",
-    category: message.category || "General",
-  }));
-}
-
-function loadSavedState() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return null;
-
-    const parsed = JSON.parse(saved);
-
-    return {
-      properties: Array.isArray(parsed?.properties)
-        ? parsed.properties
-        : defaultProperties,
-      cleanings: normalizeCleanings(parsed?.turnovers || parsed?.cleanings),
-      records: normalizeRecords(parsed?.records),
-      messages: normalizeMessages(parsed?.messages),
-    };
-  } catch {
-    return null;
+  if (status === "Ready") {
+    return "Cleaner marked home ready";
   }
+
+  if (status === "Needs Review") {
+    return "Flagged for owner review";
+  }
+
+  if (status === "Completed") {
+    return "Turnover completed";
+  }
+
+  return "Status updated";
 }
 
-function saveStateToStorage(state: {
-  properties: Property[];
-  cleanings: CleaningItem[];
-  records: ActivityRecord[];
-  messages: AppMessage[];
-}) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    return true;
-  } catch {
-    return false;
+function getMonthDays(year: number, month: number) {
+  const firstDay = new Date(year, month, 1);
+  const startDay = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days: Array<{ date: Date; inMonth: boolean }> = [];
+
+  for (let i = startDay - 1; i >= 0; i -= 1) {
+    days.push({ date: new Date(year, month, -i), inMonth: false });
   }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    days.push({ date: new Date(year, month, day), inMonth: true });
+  }
+
+  while (days.length % 7 !== 0) {
+    const last = days[days.length - 1].date;
+    days.push({
+      date: new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1),
+      inMonth: false,
+    });
+  }
+
+  return days;
+}
+
+function isDateInRange(date: Date, start: string, end: string) {
+  const target = toInputDate(date);
+  return target >= start && target <= end;
+}
+
+function isSameDay(date: Date, dateString: string) {
+  return toInputDate(date) === dateString;
 }
 
 export default function App() {
-  const savedState = loadSavedState();
+  const [activePage, setActivePage] = useState("Reservation Board");
+  const [homes, setHomes] = useState<Home[]>(starterHomes);
+  const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
+  const [reservations, setReservations] = useState<Reservation[]>(starterReservations);
+  const [calendarBlocks] = useState<CalendarBlock[]>(starterBlocks);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(starterWorkOrders);
+  const [notifications, setNotifications] = useState<OwnerNotification[]>(starterNotifications);
+  const [selectedHome, setSelectedHome] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [search, setSearch] = useState("");
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [selectedCalendarHome, setSelectedCalendarHome] = useState(homes[0]?.id ?? "all");
+  const [calendarDate, setCalendarDate] = useState(new Date(2026, 4, 1));
+  const [selectedCalendarItem, setSelectedCalendarItem] = useState<Reservation | CalendarBlock | null>(null);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(starterWorkOrders[0]);
+  const [workOrderFilter, setWorkOrderFilter] = useState("all");
+  const [selectedPropertyId, setSelectedPropertyId] = useState(starterHomes[0]?.id ?? "");
+  const [showPropertyForm, setShowPropertyForm] = useState(false);
+  const [propertyForm, setPropertyForm] = useState({
+    name: "",
+    city: "",
+    address: "",
+    setupMode: "VRBO" as Home["setupMode"],
+    vrboId: "",
+    airbnbUrl: "",
+    iCalUrl: "",
+    defaultCleanerId: "",
+    bedrooms: "3",
+    bathrooms: "2",
+    maxGuests: "8",
+    notes: "",
+  });
+  const [selectedCleanerId, setSelectedCleanerId] = useState(starterCleaners[0]?.id ?? "");
+  const [notificationFilter, setNotificationFilter] = useState("all");
+  const [manualForm, setManualForm] = useState({
+    guestName: "",
+    homeId: homes[0]?.id ?? "",
+    source: "Manual" as ReservationSource,
+    arrival: "",
+    departure: "",
+    notes: "",
+  });
 
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth();
+  const filteredReservations = useMemo(() => {
+    return reservations
+      .filter((reservation) => {
+        const home = homes.find((item) => item.id === reservation.homeId);
+        const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+        const combined = `${reservation.guestName} ${home?.name ?? ""} ${cleaner?.name ?? ""} ${reservation.source}`.toLowerCase();
 
-  const [page, setPage] = useState<Page>("dashboard");
-  const [calendarYear, setCalendarYear] = useState(currentYear);
-  const calendarMonthRefs = useRef<Record<number, HTMLDivElement | null>>({});
+        if (selectedHome !== "all" && reservation.homeId !== selectedHome) return false;
+        if (selectedStatus !== "all" && reservation.status !== selectedStatus) return false;
+        if (search.trim() && !combined.includes(search.trim().toLowerCase())) return false;
 
-  const [activeTab, setActiveTab] = useState<
-    "urgent" | "pending" | "confirmed" | "early" | "message"
-  >("urgent");
-
-  const [properties, setProperties] = useState<Property[]>(
-    savedState?.properties || defaultProperties
-  );
-
-  const [cleanings, setCleanings] = useState<CleaningItem[]>(
-    savedState?.cleanings || []
-  );
-
-  const [records, setRecords] = useState<ActivityRecord[]>(
-    savedState?.records?.length
-      ? savedState.records
-      : [makeRecord("App opened. No reservations loaded yet.")]
-  );
-
-  const [messages, setMessages] = useState<AppMessage[]>(
-    savedState?.messages || []
-  );
-
-  const [recordSearch, setRecordSearch] = useState("");
-  const [recordSourceFilter, setRecordSourceFilter] = useState<
-    "All" | ActivityRecord["source"]
-  >("All");
-  const [recordSaveStatus, setRecordSaveStatus] = useState("Saved locally");
-
-  const [editingPropertyId, setEditingPropertyId] = useState<number | null>(null);
-  const [confirmRemoveId, setConfirmRemoveId] = useState<number | null>(null);
-
-  const [manualPropertyId, setManualPropertyId] = useState(1);
-  const [manualArrival, setManualArrival] = useState("");
-  const [manualDeparture, setManualDeparture] = useState("");
-  const [manualGuestName, setManualGuestName] = useState("");
-  const [manualType, setManualType] =
-    useState<CleaningItem["type"]>("Guest Booking");
-
-  const [selectedCleaner, setSelectedCleaner] = useState("Libby");
-  const [selectedProperty, setSelectedProperty] = useState("Sea Otz");
-  const [message, setMessage] = useState("");
-  const [cleanerReplyText, setCleanerReplyText] = useState("");
-  const [cleanerPortalFilter, setCleanerPortalFilter] = useState("All");
-
-  useEffect(() => {
-    const loadBackend = async () => {
-      try {
-        const response = await fetch(API_URL);
-
-        if (!response.ok) {
-          throw new Error("Backend load failed");
-        }
-
-        const data = await response.json();
-
-        if (Array.isArray(data.properties) && data.properties.length > 0) {
-          setProperties(data.properties);
-        }
-
-        const backendCleanings = Array.isArray(data.turnovers)
-          ? data.turnovers
-          : Array.isArray(data.cleanings)
-            ? data.cleanings
-            : [];
-
-        if (backendCleanings.length > 0) {
-          setCleanings(normalizeCleanings(backendCleanings));
-        }
-
-        if (Array.isArray(data.records) && data.records.length > 0) {
-          setRecords(normalizeRecords(data.records));
-        }
-
-        if (Array.isArray(data.messages)) {
-          setMessages(normalizeMessages(data.messages));
-        }
-
-        setRecordSaveStatus("Loaded from backend");
-      } catch {
-        setRecordSaveStatus("Using local browser data");
-      }
-    };
-
-    loadBackend();
-  }, []);
-
-  useEffect(() => {
-    const cleaningsWithUrgency = normalizeCleanings(cleanings);
-
-    const saveLocal = saveStateToStorage({
-      properties,
-      cleanings: cleaningsWithUrgency,
-      records,
-      messages,
-    });
-
-    setRecordSaveStatus(saveLocal ? "Saved locally" : "Local storage issue");
-
-    const saveBackend = async () => {
-      try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            properties,
-            cleanings,
-            records,
-            messages,
-            savedAt: new Date().toISOString(),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Backend save failed");
-        }
-
-        setRecordSaveStatus("Saved to backend");
-      } catch {
-        setRecordSaveStatus("Saved locally only");
-      }
-    };
-
-    saveBackend();
-  }, [properties, cleanings, records, messages]);
-
-  useEffect(() => {
-    if (page === "calendar" && calendarYear === currentYear) {
-      setTimeout(() => {
-        calendarMonthRefs.current[currentMonth]?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 100);
-    }
-  }, [page, calendarYear, currentMonth, currentYear]);
-
-  const sortedCleanings = useMemo(() => {
-    return normalizeCleanings(cleanings).sort((a, b) => {
-      const urgencyDifference = urgencyRank(a.urgencyLevel) - urgencyRank(b.urgencyLevel);
-      if (urgencyDifference !== 0) return urgencyDifference;
-      return new Date(a.departure).getTime() - new Date(b.departure).getTime();
-    });
-  }, [cleanings]);
-
-  const pendingCleanings = sortedCleanings.filter(
-    (item) => item.status !== "Ready"
-  );
-
-  const readyCleanings = sortedCleanings.filter((item) => item.status === "Ready");
-
-  const urgentCleanings = sortedCleanings.filter(
-    (item) => item.urgencyLevel === "urgent"
-  );
-
-  const attentionCleanings = sortedCleanings.filter(
-    (item) => item.urgencyLevel === "attention"
-  );
-
-  const activeAlertCleanings = sortedCleanings.filter(
-    (item) => item.urgencyLevel === "urgent" || item.urgencyLevel === "attention"
-  );
-
-  const cleanerPortalItems = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-
-    return normalizeCleanings(cleanings)
-      .filter((item) => item.departure >= today || item.arrival >= today)
-      .filter((item) => {
-        if (cleanerPortalFilter === "All") return true;
-        return item.cleaner === cleanerPortalFilter;
+        return true;
       })
-      .sort((a, b) => {
-        const urgencyDifference = urgencyRank(a.urgencyLevel) - urgencyRank(b.urgencyLevel);
-        if (urgencyDifference !== 0) return urgencyDifference;
-        return new Date(a.departure).getTime() - new Date(b.departure).getTime();
-      });
-  }, [cleanings, cleanerPortalFilter]);
+      .sort((a, b) => a.arrival.localeCompare(b.arrival));
+  }, [reservations, search, selectedHome, selectedStatus]);
 
-  const filteredRecords = useMemo(() => {
-    const search = recordSearch.trim().toLowerCase();
+  const boardStats = useMemo(() => {
+    return {
+      total: reservations.length,
+      unassigned: reservations.filter((item) => !item.cleanerId).length,
+      needsReview: reservations.filter((item) => item.status === "Needs Review").length,
+      ready: reservations.filter((item) => item.status === "Ready").length,
+    };
+  }, [reservations]);
 
-    return records.filter((record) => {
-      const matchesSource =
-        recordSourceFilter === "All" || record.source === recordSourceFilter;
+  const calendarDays = useMemo(
+    () => getMonthDays(calendarDate.getFullYear(), calendarDate.getMonth()),
+    [calendarDate]
+  );
 
-      const matchesSearch =
-        !search ||
-        [record.time, record.event, record.source, record.createdAt || ""]
-          .join(" ")
-          .toLowerCase()
-          .includes(search);
+  const visibleCalendarReservations = useMemo(() => {
+    return reservations.filter((reservation) => selectedCalendarHome === "all" || reservation.homeId === selectedCalendarHome);
+  }, [reservations, selectedCalendarHome]);
 
-      return matchesSource && matchesSearch;
-    });
-  }, [records, recordSearch, recordSourceFilter]);
+  const visibleCalendarBlocks = useMemo(() => {
+    return calendarBlocks.filter((block) => selectedCalendarHome === "all" || block.homeId === selectedCalendarHome);
+  }, [calendarBlocks, selectedCalendarHome]);
 
-  const sortedMessages = useMemo(() => {
-    return [...messages].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  function updateReservation(id: string, updates: Partial<Reservation>) {
+    setReservations((current) =>
+      current.map((reservation) => {
+        if (reservation.id !== id) return reservation;
+
+        const nextStatus = updates.status ?? reservation.status;
+        const nextCleaner = updates.cleanerId ?? reservation.cleanerId;
+        const shouldAddTimeline = updates.status || updates.cleanerId;
+
+        return {
+          ...reservation,
+          ...updates,
+          timeline: shouldAddTimeline
+            ? [...reservation.timeline, makeTimelineNote(nextStatus, nextCleaner)]
+            : reservation.timeline,
+        };
+      })
     );
-  }, [messages]);
+  }
 
-  const exportRecords = () => {
-    const blob = new Blob([JSON.stringify(records, null, 2)], {
-      type: "application/json",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = `cleaner-app-records-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-
-    URL.revokeObjectURL(url);
-    addRecord("Records exported.", "System");
-  };
-
-  const clearRecords = () => {
-    const shouldClear = window.confirm(
-      "Clear activity records from this browser and backend? Properties and reservations will stay saved."
-    );
-
-    if (!shouldClear) return;
-
-    setRecords([makeRecord("Activity records cleared by homeowner.", "Homeowner")]);
-    setRecordSearch("");
-    setRecordSourceFilter("All");
-  };
-
-  const addRecord = (
-    event: string,
-    source: ActivityRecord["source"] = "System"
-  ) => {
-    setRecords((current) => [makeRecord(event, source), ...current]);
-  };
-
-  const addMessage = (
-    property: string,
-    cleaner: string,
-    sender: MessageSender,
-    text: string,
-    category: AppMessage["category"] = "General"
-  ) => {
-    if (!text.trim()) return;
-
-    const newMessage = makeMessage(
-      property,
-      cleaner,
-      sender,
-      text.trim(),
-      category
-    );
-
-    setMessages((current) => [newMessage, ...current]);
-
-    addRecord(
-      `${sender} message sent to ${cleaner} for ${property}: ${text.trim()}`,
-      sender === "Cleaner" ? "Cleaner" : "Homeowner"
-    );
-  };
-
-  const sendHomeownerMessage = (
-    category: AppMessage["category"] = "General",
-    customText?: string
-  ) => {
-    const property =
-      selectedProperty === "All" ? properties[0]?.name || "Property" : selectedProperty;
-    const cleaner = selectedCleaner === "All" ? "Cleaner" : selectedCleaner;
-    const text = customText || message;
-
-    addMessage(property, cleaner, "Homeowner", text, category);
-    setMessage("");
-  };
-
-  const updateProperty = (
-    propertyId: number,
-    field: keyof Property,
-    value: string
-  ) => {
-    setProperties((current) =>
-      current.map((property) =>
-        property.id === propertyId ? { ...property, [field]: value } : property
-      )
-    );
-  };
-
-  const syncIcal = async (property: Property) => {
-    if (!property.icalUrl.trim()) {
-      alert("Add the iCal URL first, then click Sync iCal.");
-      addRecord(`${property.name} iCal sync failed: no iCal URL saved.`);
-      return;
+  function deleteReservation(id: string) {
+    setReservations((current) => current.filter((reservation) => reservation.id !== id));
+    if (selectedCalendarItem && "guestName" in selectedCalendarItem && selectedCalendarItem.id === id) {
+      setSelectedCalendarItem(null);
     }
+  }
 
-    try {
-const response = await fetch(
-  `${API_BASE}/api/sync-ical?url=${encodeURIComponent(
-    property.icalUrl.trim()
-  )}`
-);
+  function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-      if (!response.ok) {
-        throw new Error("Calendar could not be fetched through proxy.");
-      }
+    if (!manualForm.guestName || !manualForm.arrival || !manualForm.departure) return;
 
-      const text = await response.text();
-      const imported = parseIcalBookings(text, property);
-
-      setCleanings((current) => {
-        const withoutThisProperty = current.filter(
-          (item) => item.propertyId !== property.id
-        );
-
-        return [...withoutThisProperty, ...normalizeCleanings(imported)];
-      });
-
-      setProperties((current) =>
-        current.map((item) =>
-          item.id === property.id
-            ? {
-                ...item,
-                syncStatus: `${imported.length} reservations synced at ${todayTime()}`,
-              }
-            : item
-        )
-      );
-
-      addRecord(`${imported.length} reservations imported from iCal for ${property.name}.`);
-      alert(`${imported.length} reservations imported from iCal.`);
-    } catch {
-      addRecord(`${property.name} iCal sync failed through proxy.`);
-      alert("iCal sync failed. Make sure server.cjs is running with: node server.cjs");
-    }
-  };
-
-  const addManualReservation = () => {
-    const property = properties.find((item) => item.id === manualPropertyId);
-
-    if (!property || !manualArrival || !manualDeparture) {
-      alert("Choose a property, arrival date, and departure date.");
-      return;
-    }
-
-    const newCleaning: CleaningItem = {
-      id: Date.now(),
-      propertyId: property.id,
-      property: property.name,
-      cleaner: property.cleaner || "Unassigned",
-      arrival: manualArrival,
-      departure: manualDeparture,
-      type: manualType,
-      status: "Assigned",
-      lastUpdate: todayTime(),
-      guestName: manualGuestName || property.name,
+    const nextReservation: Reservation = {
+      id: `res-${Date.now()}`,
+      guestName: manualForm.guestName,
+      homeId: manualForm.homeId,
+      source: manualForm.source,
+      arrival: manualForm.arrival,
+      departure: manualForm.departure,
+      status: "New",
+      notes: manualForm.notes,
+      timeline: ["Manual reservation created"],
     };
 
-    setCleanings((current) => [...current, withUrgency(newCleaning)]);
+    setReservations((current) => [nextReservation, ...current]);
+    setManualForm({
+      guestName: "",
+      homeId: homes[0]?.id ?? "",
+      source: "Manual",
+      arrival: "",
+      departure: "",
+      notes: "",
+    });
+    setShowManualForm(false);
+  }
 
-    addRecord(
-      `Manual reservation added for ${property.name}: ${manualArrival} to ${manualDeparture}.`,
-      "Homeowner"
+  function moveCalendarMonth(direction: number) {
+    setCalendarDate((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+  }
+
+  function renderReservationBoard() {
+    return (
+      <>
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Phase 1</p>
+            <h2>Reservation Board</h2>
+            <p className="headerSubtext">
+              Track stays, cleaner assignments, turnover status, manual reservations, and owner review items.
+            </p>
+          </div>
+
+          <button className="primaryButton" onClick={() => setShowManualForm(true)}>
+            + Add Manual Reservation
+          </button>
+        </header>
+
+        <section className="statsGrid">
+          <div className="statCard">
+            <span>Total reservations</span>
+            <strong>{boardStats.total}</strong>
+          </div>
+          <div className="statCard">
+            <span>Unassigned</span>
+            <strong>{boardStats.unassigned}</strong>
+          </div>
+          <div className="statCard">
+            <span>Ready</span>
+            <strong>{boardStats.ready}</strong>
+          </div>
+          <div className="statCard warning">
+            <span>Needs review</span>
+            <strong>{boardStats.needsReview}</strong>
+          </div>
+        </section>
+
+        <section className="filtersPanel">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search guest, home, cleaner, or source"
+          />
+
+          <select value={selectedHome} onChange={(event) => setSelectedHome(event.target.value)}>
+            <option value="all">All homes</option>
+            {homes.map((home) => (
+              <option key={home.id} value={home.id}>
+                {home.name}
+              </option>
+            ))}
+          </select>
+
+          <select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
+            <option value="all">All statuses</option>
+            {statusOrder.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </section>
+
+        {renderManualForm()}
+
+        <section className="reservationGrid">
+          {filteredReservations.map((reservation) => {
+            const home = homes.find((item) => item.id === reservation.homeId);
+            const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+            const urgency = getUrgency(reservation.arrival);
+
+            return (
+              <article className="reservationCard" key={reservation.id}>
+                <div className="cardTop">
+                  <div className="homeBadge">{home?.shortName ?? "HM"}</div>
+                  <div>
+                    <h3>{reservation.guestName}</h3>
+                    <p>{home?.name ?? "Unknown home"}</p>
+                  </div>
+                  <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
+                </div>
+
+                <div className="reservationMeta">
+                  <div>
+                    <span>Arrival</span>
+                    <strong>{formatDate(reservation.arrival)}</strong>
+                  </div>
+                  <div>
+                    <span>Departure</span>
+                    <strong>{formatDate(reservation.departure)}</strong>
+                  </div>
+                  <div>
+                    <span>Source</span>
+                    <strong>{reservation.source}</strong>
+                  </div>
+                </div>
+
+                <div className="assignmentRow">
+                  <label>
+                    Cleaner
+                    <select
+                      value={reservation.cleanerId ?? ""}
+                      onChange={(event) =>
+                        updateReservation(reservation.id, {
+                          cleanerId: event.target.value || undefined,
+                          status: event.target.value ? "Assigned" : "New",
+                        })
+                      }
+                    >
+                      <option value="">Unassigned</option>
+                      {cleaners.map((cleanerOption) => (
+                        <option key={cleanerOption.id} value={cleanerOption.id}>
+                          {cleanerOption.name} — {cleanerOption.status}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    Status
+                    <select
+                      value={reservation.status}
+                      onChange={(event) =>
+                        updateReservation(reservation.id, {
+                          status: event.target.value as ReservationStatus,
+                        })
+                      }
+                    >
+                      {statusOrder.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="statusRail">
+                  {statusOrder.map((status) => (
+                    <span
+                      key={status}
+                      className={statusOrder.indexOf(status) <= statusOrder.indexOf(reservation.status) ? "done" : ""}
+                    />
+                  ))}
+                </div>
+
+                {reservation.notes && <p className="notesBox">{reservation.notes}</p>}
+
+                <div className="timeline">
+                  <h4>Timeline</h4>
+                  {reservation.timeline.map((item, index) => (
+                    <div key={`${reservation.id}-${item}-${index}`} className="timelineItem">
+                      <span />
+                      <p>{item}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="cardActions">
+                  <button
+                    onClick={() =>
+                      updateReservation(reservation.id, {
+                        status: reservation.status === "Needs Review" ? "Ready" : "Needs Review",
+                      })
+                    }
+                  >
+                    {reservation.status === "Needs Review" ? "Mark Ready" : "Needs Review"}
+                  </button>
+                  <button onClick={() => updateReservation(reservation.id, { status: "Completed" })}>Complete</button>
+                  <button className="dangerButton" onClick={() => deleteReservation(reservation.id)}>
+                    Delete
+                  </button>
+                </div>
+
+                <div className="cleanerFooter">
+                  <span>Cleaner status</span>
+                  <strong>{cleaner ? `${cleaner.name} · ${cleaner.status}` : "No cleaner assigned"}</strong>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      </>
     );
+  }
 
-    setManualArrival("");
-    setManualDeparture("");
-    setManualGuestName("");
-    setManualType("Guest Booking");
-  };
+  function renderManualForm() {
+    if (!showManualForm) return null;
 
-  const addAnotherHome = () => {
-    const newHome: Property = {
-      id: Date.now(),
-      name: "New Home",
-      location: "Add location",
-      description: "Add a short description for this home.",
-      cleaner: "",
-      icalUrl: "",
+    return (
+      <section className="manualPanel">
+        <div className="panelHeader">
+          <div>
+            <p className="eyebrow">Manual add</p>
+            <h3>Add Reservation / Deep Clean</h3>
+          </div>
+          <button className="ghostButton" onClick={() => setShowManualForm(false)}>
+            Close
+          </button>
+        </div>
+
+        <form className="manualForm" onSubmit={createManualReservation}>
+          <label>
+            Reservation name
+            <input
+              value={manualForm.guestName}
+              onChange={(event) => setManualForm({ ...manualForm, guestName: event.target.value })}
+              placeholder="Guest name, deep clean, owner block"
+            />
+          </label>
+
+          <label>
+            Home
+            <select value={manualForm.homeId} onChange={(event) => setManualForm({ ...manualForm, homeId: event.target.value })}>
+              {homes.map((home) => (
+                <option key={home.id} value={home.id}>
+                  {home.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Type
+            <select
+              value={manualForm.source}
+              onChange={(event) => setManualForm({ ...manualForm, source: event.target.value as ReservationSource })}
+            >
+              <option value="Manual">Manual</option>
+              <option value="Owner Block">Owner Block</option>
+              <option value="VRBO">VRBO</option>
+              <option value="Airbnb">Airbnb</option>
+            </select>
+          </label>
+
+          <label>
+            Arrival / start
+            <input
+              type="date"
+              value={manualForm.arrival}
+              onChange={(event) => setManualForm({ ...manualForm, arrival: event.target.value })}
+            />
+          </label>
+
+          <label>
+            Departure / end
+            <input
+              type="date"
+              value={manualForm.departure}
+              onChange={(event) => setManualForm({ ...manualForm, departure: event.target.value })}
+            />
+          </label>
+
+          <label className="fullWidth">
+            Notes
+            <textarea
+              value={manualForm.notes}
+              onChange={(event) => setManualForm({ ...manualForm, notes: event.target.value })}
+              placeholder="Deep clean notes, supply needs, guest requests, maintenance flags"
+            />
+          </label>
+
+          <button className="primaryButton" type="submit">
+            Save Reservation
+          </button>
+        </form>
+      </section>
+    );
+  }
+
+  function renderCalendar() {
+    return (
+      <>
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Phase 2</p>
+            <h2>Calendar</h2>
+            <p className="headerSubtext">
+              See property stays, same-day turnovers, owner blocks, maintenance blocks, and cleaner visibility.
+            </p>
+          </div>
+
+          <div className="calendarHeaderActions">
+            <button className="ghostButton" onClick={() => moveCalendarMonth(-1)}>
+              Previous
+            </button>
+            <button className="ghostButton" onClick={() => setCalendarDate(new Date(2026, 4, 1))}>
+              May 2026
+            </button>
+            <button className="ghostButton" onClick={() => moveCalendarMonth(1)}>
+              Next
+            </button>
+          </div>
+        </header>
+
+        <section className="calendarToolbar">
+          <div>
+            <span>Calendar month</span>
+            <strong>
+              {monthNames[calendarDate.getMonth()]} {calendarDate.getFullYear()}
+            </strong>
+          </div>
+
+          <label>
+            Property
+            <select value={selectedCalendarHome} onChange={(event) => setSelectedCalendarHome(event.target.value)}>
+              <option value="all">All homes</option>
+              {homes.map((home) => (
+                <option key={home.id} value={home.id}>
+                  {home.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
+
+        <section className="calendarLayout">
+          <div className="calendarPanel">
+            <div className="weekdayGrid">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <div key={day}>{day}</div>
+              ))}
+            </div>
+
+            <div className="calendarGrid">
+              {calendarDays.map((day) => {
+                const dateKey = toInputDate(day.date);
+                const dayReservations = visibleCalendarReservations.filter((reservation) =>
+                  isDateInRange(day.date, reservation.arrival, reservation.departure)
+                );
+                const dayBlocks = visibleCalendarBlocks.filter((block) => isDateInRange(day.date, block.start, block.end));
+                const arrivals = visibleCalendarReservations.filter((reservation) => isSameDay(day.date, reservation.arrival));
+                const departures = visibleCalendarReservations.filter((reservation) => isSameDay(day.date, reservation.departure));
+                const isB2B = arrivals.length > 0 && departures.length > 0;
+
+                return (
+                  <div className={`calendarDay ${day.inMonth ? "" : "mutedDay"}`} key={dateKey}>
+                    <div className="dayTop">
+                      <span>{day.date.getDate()}</span>
+                      {isB2B && <strong className="b2bBadge">B2B</strong>}
+                    </div>
+
+                    <div className="dayEvents">
+                      {dayReservations.slice(0, 3).map((reservation) => {
+                        const home = homes.find((item) => item.id === reservation.homeId);
+                        const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+
+                        return (
+                          <button
+                            key={`${dateKey}-${reservation.id}`}
+                            className={`calendarEvent source${reservation.source.replace(/\s/g, "")}`}
+                            onClick={() => setSelectedCalendarItem(reservation)}
+                            title={`${reservation.guestName} · ${home?.name ?? ""}`}
+                          >
+                            <span>{reservation.guestName}</span>
+                            <small>{cleaner?.name ?? "Unassigned"}</small>
+                          </button>
+                        );
+                      })}
+
+                      {dayBlocks.map((block) => (
+                        <button
+                          key={`${dateKey}-${block.id}`}
+                          className={`calendarEvent block${block.type.replace(/\s/g, "")}`}
+                          onClick={() => setSelectedCalendarItem(block)}
+                          title={block.title}
+                        >
+                          <span>{block.title}</span>
+                          <small>{block.type}</small>
+                        </button>
+                      ))}
+
+                      {dayReservations.length > 3 && <p className="moreEvents">+{dayReservations.length - 3} more</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <aside className="calendarDetailPanel">
+            <p className="eyebrow">Selected item</p>
+            {!selectedCalendarItem ? (
+              <>
+                <h3>Click a reservation or block</h3>
+                <p className="mutedText">Details will show here without leaving the calendar.</p>
+              </>
+            ) : "guestName" in selectedCalendarItem ? (
+              <>
+                <h3>{selectedCalendarItem.guestName}</h3>
+                <p className="mutedText">
+                  {homes.find((home) => home.id === selectedCalendarItem.homeId)?.name ?? "Unknown home"}
+                </p>
+
+                <div className="detailStack">
+                  <div>
+                    <span>Stay</span>
+                    <strong>
+                      {formatDate(selectedCalendarItem.arrival)} → {formatDate(selectedCalendarItem.departure)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Status</span>
+                    <strong>{selectedCalendarItem.status}</strong>
+                  </div>
+                  <div>
+                    <span>Cleaner</span>
+                    <strong>
+                      {cleaners.find((cleaner) => cleaner.id === selectedCalendarItem.cleanerId)?.name ?? "Unassigned"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Source</span>
+                    <strong>{selectedCalendarItem.source}</strong>
+                  </div>
+                </div>
+
+                {selectedCalendarItem.notes && <p className="notesBox">{selectedCalendarItem.notes}</p>}
+
+                <div className="cardActions">
+                  <button
+                    onClick={() => {
+                      updateReservation(selectedCalendarItem.id, { status: "Needs Review" });
+                      setSelectedCalendarItem({ ...selectedCalendarItem, status: "Needs Review" });
+                    }}
+                  >
+                    Needs Review
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateReservation(selectedCalendarItem.id, { status: "Completed" });
+                      setSelectedCalendarItem({ ...selectedCalendarItem, status: "Completed" });
+                    }}
+                  >
+                    Complete
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>{selectedCalendarItem.title}</h3>
+                <p className="mutedText">
+                  {homes.find((home) => home.id === selectedCalendarItem.homeId)?.name ?? "Unknown home"}
+                </p>
+
+                <div className="detailStack">
+                  <div>
+                    <span>Type</span>
+                    <strong>{selectedCalendarItem.type}</strong>
+                  </div>
+                  <div>
+                    <span>Dates</span>
+                    <strong>
+                      {formatDate(selectedCalendarItem.start)} → {formatDate(selectedCalendarItem.end)}
+                    </strong>
+                  </div>
+                </div>
+
+                {selectedCalendarItem.notes && <p className="notesBox">{selectedCalendarItem.notes}</p>}
+              </>
+            )}
+          </aside>
+        </section>
+      </>
+    );
+  }
+
+
+  function updateWorkOrder(id: string, updates: Partial<WorkOrder>) {
+    setWorkOrders((current) =>
+      current.map((order) => {
+        if (order.id !== id) return order;
+        const timelineNote = updates.status
+          ? `Status changed to ${updates.status}`
+          : updates.vendorId
+            ? `Vendor assigned: ${vendors.find((vendor) => vendor.id === updates.vendorId)?.name ?? "Vendor"}`
+            : "Work order updated";
+
+        const updatedOrder = {
+          ...order,
+          ...updates,
+          timeline: [...order.timeline, timelineNote],
+        };
+
+        if (selectedWorkOrder?.id === id) {
+          setSelectedWorkOrder(updatedOrder);
+        }
+
+        return updatedOrder;
+      })
+    );
+  }
+
+  function getRecommendedVendors(category: string, urgency: WorkOrderUrgency) {
+    return vendors
+      .filter((vendor) => vendor.category === category || vendor.category === "General")
+      .filter((vendor) => urgency !== "After Hours" || vendor.afterHours)
+      .sort((a, b) => b.rating - a.rating);
+  }
+
+
+  function createProperty(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!propertyForm.name.trim() || !propertyForm.city.trim()) return;
+
+    const shortName = propertyForm.name
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+    const nextHome: Home = {
+      id: `home-${Date.now()}`,
+      name: propertyForm.name,
+      city: propertyForm.city,
+      shortName: shortName || "HM",
+      address: propertyForm.address,
+      setupMode: propertyForm.setupMode,
+      vrboId: propertyForm.vrboId,
+      airbnbUrl: propertyForm.airbnbUrl,
+      iCalUrl: propertyForm.iCalUrl,
+      defaultCleanerId: propertyForm.defaultCleanerId || undefined,
+      bedrooms: Number(propertyForm.bedrooms) || 0,
+      bathrooms: Number(propertyForm.bathrooms) || 0,
+      maxGuests: Number(propertyForm.maxGuests) || 0,
+      status: propertyForm.iCalUrl || propertyForm.vrboId || propertyForm.airbnbUrl ? "Active" : "Setup Needed",
+      notes: propertyForm.notes,
+    };
+
+    setHomes((current) => [...current, nextHome]);
+    setSelectedPropertyId(nextHome.id);
+    setShowPropertyForm(false);
+    setPropertyForm({
+      name: "",
+      city: "",
+      address: "",
+      setupMode: "VRBO",
       vrboId: "",
       airbnbUrl: "",
-      imageUrl: "",
-      syncStatus: "No calendar synced yet",
-    };
+      iCalUrl: "",
+      defaultCleanerId: "",
+      bedrooms: "3",
+      bathrooms: "2",
+      maxGuests: "8",
+      notes: "",
+    });
+  }
 
-    setProperties((current) => [...current, newHome]);
-    setEditingPropertyId(newHome.id);
-    addRecord("New home added by homeowner.", "Homeowner");
-  };
+  function updateProperty(id: string, updates: Partial<Home>) {
+    setHomes((current) => current.map((home) => (home.id === id ? { ...home, ...updates } : home)));
+  }
 
-  const removeHome = (property: Property) => {
-    setProperties((current) => current.filter((item) => item.id !== property.id));
-    setCleanings((current) => current.filter((item) => item.propertyId !== property.id));
-    setConfirmRemoveId(null);
-    addRecord(`${property.name} removed by homeowner.`, "Homeowner");
-  };
+  function renderProperties() {
+    const selectedProperty = homes.find((home) => home.id === selectedPropertyId) ?? homes[0];
+    const selectedReservations = selectedProperty
+      ? reservations.filter((reservation) => reservation.homeId === selectedProperty.id)
+      : [];
+    const selectedWorkOrders = selectedProperty
+      ? workOrders.filter((order) => order.homeId === selectedProperty.id)
+      : [];
+    const activeHomes = homes.filter((home) => home.status === "Active").length;
+    const setupNeeded = homes.filter((home) => home.status === "Setup Needed").length;
 
-  const linkVrbo = (property: Property) => {
-    if (!property.vrboId.trim()) {
-      alert("Add the VRBO listing ID first.");
-      return;
-    }
+    return (
+      <>
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Phase 4</p>
+            <h2>Properties</h2>
+            <p className="headerSubtext">
+              Build home profiles, connect VRBO/Airbnb/iCal sources, set default cleaners, and prepare property intelligence.
+            </p>
+          </div>
 
-    addRecord(`${property.name} linked to VRBO listing ${property.vrboId}.`, "Homeowner");
-    alert("VRBO listing saved. Full property import can be connected to a backend later.");
-  };
+          <button className="primaryButton" onClick={() => setShowPropertyForm(true)}>
+            + Create Home Profile
+          </button>
+        </header>
 
-  const linkAirbnb = (property: Property) => {
-    if (!property.airbnbUrl.trim()) {
-      alert("Add the Airbnb listing URL first.");
-      return;
-    }
+        <section className="statsGrid">
+          <div className="statCard">
+            <span>Total homes</span>
+            <strong>{homes.length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Active</span>
+            <strong>{activeHomes}</strong>
+          </div>
+          <div className="statCard warning">
+            <span>Setup needed</span>
+            <strong>{setupNeeded}</strong>
+          </div>
+          <div className="statCard">
+            <span>Calendar feeds</span>
+            <strong>{homes.filter((home) => home.iCalUrl).length}</strong>
+          </div>
+        </section>
 
-    addRecord(`${property.name} linked to Airbnb URL.`, "Homeowner");
-    alert("Airbnb listing saved. Full property import can be connected to a backend later.");
-  };
-
-   const updateStatus = (
-    id: number,
-    newStatus: ReadyStatus,
-    source: ActivityRecord["source"] = "Homeowner"
-  ) => {
-    const item = cleanings.find((cleaning) => cleaning.id === id);
-    if (!item) return;
-
-   setCleanings((current) =>
-  current.map((cleaning) =>
-    cleaning.id === id
-      ? withUrgency({
-          ...cleaning,
-          status: newStatus,
-          cleanerStatus: newStatus,
-          lastUpdate: todayTime(),
-        })
-      : cleaning
-  )
-);
-
-    addRecord(`${item.property} status changed to ${newStatus}.`, source);
-
-    if (source === "Cleaner" && newStatus === "Ready") {
-      addMessage(
-        item.property,
-        item.cleaner,
-        "Cleaner",
-        `${item.property} is ready for the next guest.`,
-        "Ready Update"
-      );
-    }
-  };
-
-  const getDaysInMonth = (year: number, monthIndex: number) => {
-    return new Date(year, monthIndex + 1, 0).getDate();
-  };
-
-  const getStatusClass = (status: ReadyStatus) => {
-    if (status === "Ready") return "status green";
-    if (status === "Attention Needed") return "status red";
-    return "status orange";
-  };
-
-
-  const urgencyBadge = (item: CleaningItem) => (
-    <span
-      style={urgencyStyle(item.urgencyLevel)}
-      title={item.urgencyReasons?.length ? item.urgencyReasons.join(" • ") : "On track"}
-    >
-      {urgencyLabel(item.urgencyLevel)}
-    </span>
-  );
-
-  const urgencyReasonText = (item: CleaningItem) =>
-    item.urgencyReasons?.length ? item.urgencyReasons.join(" • ") : "On track";
-
-  const navButton = (target: Page, label: string) => (
-    <button
-      className={page === target ? "nav-button active" : "nav-button"}
-      onClick={() => {
-        if (target === "calendar") {
-          setCalendarYear(currentYear);
-        }
-
-        setPage(target);
-      }}
-    >
-      {label}
-    </button>
-  );
-
-  const getReservationBarColor = (type: CleaningItem["type"]) => {
-    if (type === "Owner Stay") return "#dbeafe";
-    return "#fef3c7";
-  };
-
-  const getCalendarItemsForDay = (dateString: string) => {
-    return sortedCleanings.filter((item) =>
-      isDateBetweenInclusive(dateString, item.arrival, item.departure)
-    );
-  };
-
-  const getBarPosition = (item: CleaningItem, dateString: string) => {
-    const isStart = item.arrival === dateString;
-    const isEnd = item.departure === dateString;
-
-    if (isStart && isEnd) {
-      return {
-        left: "25%",
-        right: "25%",
-        borderRadius: "999px",
-      };
-    }
-
-    if (isStart) {
-      return {
-        left: "50%",
-        right: "0",
-        borderRadius: "999px 0 0 999px",
-      };
-    }
-
-    if (isEnd) {
-      return {
-        left: "0",
-        right: "50%",
-        borderRadius: "0 999px 999px 0",
-      };
-    }
-
-    return {
-      left: "0",
-      right: "0",
-      borderRadius: "0",
-    };
-  };
-
-  const shouldShowCenteredLabel = (item: CleaningItem, dateString: string) => {
-    const arrivalTime = new Date(`${item.arrival}T00:00:00`).getTime();
-    const departureTime = new Date(`${item.departure}T00:00:00`).getTime();
-    const midTime = arrivalTime + (departureTime - arrivalTime) / 2;
-    const midDate = new Date(midTime).toISOString().slice(0, 10);
-
-    return midDate === dateString;
-  };
-
-  const getNextCleaningForProperty = (propertyId: number) => {
-    const today = new Date().toISOString().slice(0, 10);
-
-    return sortedCleanings.find(
-      (item) => item.propertyId === propertyId && item.departure >= today
-    );
-  };
-
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="logo">Cleaner App</div>
-
-        {navButton("dashboard", "Dashboard")}
-        {navButton("properties", "Properties")}
-        {navButton("calendar", "Calendar")}
-        {navButton("notifications", "Notifications")}
-        {navButton("cleaners", "Cleaners")}
-        {navButton("cleanerPortal", "Cleaner Portal")}
-        {navButton("records", "Records")}
-      </aside>
-
-      <main className="main-content">
-        {page === "dashboard" && (
-          <>
-            <div className="page-header">
-              <h1>Dashboard</h1>
-              <p>
-                Quick view of departures, arrivals, urgent items, and cleaner
-                activity.
-              </p>
+        {showPropertyForm && (
+          <section className="manualPanel">
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Create home profile</p>
+                <h3>Add Property</h3>
+              </div>
+              <button className="ghostButton" onClick={() => setShowPropertyForm(false)}>
+                Close
+              </button>
             </div>
 
-            <section className="card-section">
-              <h2>Urgent / Today</h2>
+            <form className="propertyForm" onSubmit={createProperty}>
+              <label>
+                Home name
+                <input
+                  value={propertyForm.name}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, name: event.target.value })}
+                  placeholder="Example: Coates Cabin"
+                />
+              </label>
 
-              {activeAlertCleanings.length === 0 && (
-                <div className="urgent-card">
-                  <div>
-                    <strong>All turnovers are on track</strong>
-                    <p>No urgent or attention items are currently flagged.</p>
-                  </div>
-                  <span style={urgencyStyle("normal")}>Normal</span>
-                </div>
-              )}
+              <label>
+                City / market
+                <input
+                  value={propertyForm.city}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, city: event.target.value })}
+                  placeholder="Broken Bow"
+                />
+              </label>
 
-              {activeAlertCleanings.slice(0, 5).map((item) => (
-                <div
-                  className={item.urgencyLevel === "urgent" ? "urgent-card warning" : "urgent-card"}
-                  key={`dash-alert-${item.id}`}
-                >
-                  <div>
-                    <strong>{item.property} • {item.departure}</strong>
-                    <p>{urgencyReasonText(item)}</p>
-                  </div>
-                  {urgencyBadge(item)}
-                </div>
-              ))}
-
-              <div className="urgent-card">
-                <div>
-                  <strong>Cleaner ETA Needed</strong>
-                  <p>Guests arrived early or cleaner timing needs attention.</p>
-                </div>
-
-                <button
-                  className="primary-btn"
-                  onClick={() => {
-                    setActiveTab("message");
-                    setMessage("Can you please send your ETA for this turnover?");
-                    setPage("notifications");
-                  }}
-                >
-                  Request ETA
-                </button>
-              </div>
-
-              <div className="urgent-card warning">
-                <div>
-                  <strong>Attention Needed</strong>
-                  <p>Any arrival not marked ready by 3:00 PM should appear here.</p>
-                </div>
-
-                <button
-                  className="secondary-btn"
-                  onClick={() => setPage("notifications")}
-                >
-                  View Status
-                </button>
-              </div>
-            </section>
-
-            <section className="card-section">
-              <h2>Upcoming Departures</h2>
-
-              <div className="compact-table">
-                <div className="table-header confirmed-header">
-                  <span>Property</span>
-                  <span>Departure</span>
-                  <span>Cleaner</span>
-                  <span>Status</span>
-                  <span>Priority</span>
-                  <span>Last Update</span>
-                </div>
-
-                {sortedCleanings.length === 0 && (
-                  <div className="table-row confirmed-row">
-                    <span>No reservations loaded yet.</span>
-                    <span>—</span>
-                    <span>—</span>
-                    <span>—</span>
-                    <span>—</span>
-                  </div>
-                )}
-
-                {sortedCleanings.map((item) => (
-                  <div className="table-row confirmed-row" key={item.id}>
-                    <span>{item.property}</span>
-                    <span>{item.departure}</span>
-                    <span>{item.cleaner}</span>
-                    <span
-                      className={getStatusClass(item.status)}
-                      title={statusHelp[item.status]}
-                    >
-                      {item.status}
-                    </span>
-                    <span>{urgencyBadge(item)}</span>
-                    <span>{item.lastUpdate}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="card-section">
-              <h2>Upcoming Arrivals</h2>
-
-              <div className="compact-table">
-                <div className="table-header">
-                  <span>Property</span>
-                  <span>Arrival</span>
-                  <span>Cleaner</span>
-                  <span>Ready Status</span>
-                  <span>Priority</span>
-                  <span>Last Update</span>
-                  <span>Owner Override</span>
-                </div>
-
-                {sortedCleanings.length === 0 && (
-                  <div className="table-row">
-                    <span>No reservations loaded yet.</span>
-                    <span>—</span>
-                    <span>—</span>
-                    <span>—</span>
-                    <span>—</span>
-                    <span>—</span>
-                  </div>
-                )}
-
-                {sortedCleanings.map((item) => (
-                  <div className="table-row" key={item.id}>
-                    <span>{item.property}</span>
-                    <span>{item.arrival}</span>
-                    <span>{item.cleaner}</span>
-                    <span
-                      className={getStatusClass(item.status)}
-                      title={statusHelp[item.status]}
-                    >
-                      {item.status}
-                    </span>
-                    <span>{urgencyBadge(item)}</span>
-                    <span>{item.lastUpdate}</span>
-
-                    <div className="row-actions">
-                      <button onClick={() => updateStatus(item.id, "Assigned")}>
-                        Assigned
-                      </button>
-                      <button onClick={() => updateStatus(item.id, "Ready")}>
-                        Ready
-                      </button>
-                      <button
-                        onClick={() => updateStatus(item.id, "Attention Needed")}
-                      >
-                        Needs Attention
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </>
-        )}
-
-        {page === "properties" && (
-          <>
-            <div className="page-header">
-              <h1>Properties</h1>
-              <p>
-                View your homes, assign cleaners, connect listing calendars,
-                and manage property details.
-              </p>
-            </div>
-
-            <section className="card-section">
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "16px",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  marginBottom: "22px",
-                }}
-              >
-                <h2 style={{ margin: 0 }}>Your Homes</h2>
-
-                <button className="primary-btn" onClick={addAnotherHome}>
-                  Add Another Home
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "24px",
-                }}
-              >
-                {properties.map((property) => {
-                  const nextCleaning = getNextCleaningForProperty(property.id);
-
-                  return (
-                    <div
-                      key={property.id}
-                      style={{
-                        background: "#ffffff",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "20px",
-                        overflow: "hidden",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "minmax(260px, 360px) 1fr",
-                          gap: "0",
-                        }}
-                      >
-                        <div
-                          style={{
-                            minHeight: "230px",
-                            background: property.imageUrl
-                              ? `url(${property.imageUrl}) center/cover`
-                              : "linear-gradient(135deg, #dbeafe, #fef3c7)",
-                            display: "flex",
-                            alignItems: "end",
-                            padding: "18px",
-                          }}
-                        >
-                          {!property.imageUrl && (
-                            <div
-                              style={{
-                                background: "rgba(255,255,255,0.85)",
-                                borderRadius: "999px",
-                                padding: "8px 12px",
-                                fontWeight: 800,
-                              }}
-                            >
-                              Home Photo
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ padding: "24px" }}>
-                          <h2 style={{ marginTop: 0, marginBottom: "8px" }}>
-                            {property.name}
-                          </h2>
-
-                          <p style={{ color: "#6b7280", marginTop: 0 }}>
-                            {property.location}
-                          </p>
-
-                          <p>{property.description}</p>
-
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns:
-                                "repeat(auto-fit, minmax(180px, 1fr))",
-                              gap: "12px",
-                              marginTop: "18px",
-                            }}
-                          >
-                            <div>
-                              <strong>Cleaner</strong>
-                              <p>{property.cleaner || "Unassigned"}</p>
-                            </div>
-
-                            <div>
-                              <strong>Calendar</strong>
-                              <p>{property.syncStatus}</p>
-                            </div>
-
-                            <div>
-                              <strong>Next Departure</strong>
-                              <p>{nextCleaning?.departure || "None loaded"}</p>
-                            </div>
-
-                            <div>
-                              <strong>Next Arrival</strong>
-                              <p>{nextCleaning?.arrival || "None loaded"}</p>
-                            </div>
-                          </div>
-
-                          <div className="button-row">
-                            <button
-                              className="primary-btn"
-                              onClick={() => setEditingPropertyId(property.id)}
-                            >
-                              Edit Home
-                            </button>
-
-                            <button
-                              className="secondary-btn"
-                              onClick={() => syncIcal(property)}
-                            >
-                              Sync Calendar
-                            </button>
-
-                            <button
-                              className="secondary-btn"
-                              onClick={() => {
-                                setCalendarYear(currentYear);
-                                setPage("calendar");
-                              }}
-                            >
-                              View Calendar
-                            </button>
-
-                            <button
-                              className="secondary-btn"
-                              onClick={() => setConfirmRemoveId(property.id)}
-                            >
-                              Remove Home
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {editingPropertyId === property.id && (
-                        <div
-                          style={{
-                            borderTop: "1px solid #e5e7eb",
-                            padding: "24px",
-                            background: "#f9fafb",
-                          }}
-                        >
-                          <h2>Edit Home</h2>
-
-                          <div className="form-card">
-                            <label>Property Name</label>
-                            <input
-                              value={property.name}
-                              onChange={(e) =>
-                                updateProperty(property.id, "name", e.target.value)
-                              }
-                            />
-
-                            <label>Location</label>
-                            <input
-                              value={property.location}
-                              onChange={(e) =>
-                                updateProperty(property.id, "location", e.target.value)
-                              }
-                            />
-
-                            <label>Description</label>
-                            <textarea
-                              value={property.description}
-                              onChange={(e) =>
-                                updateProperty(
-                                  property.id,
-                                  "description",
-                                  e.target.value
-                                )
-                              }
-                            />
-
-                            <label>Home Photo URL</label>
-                            <input
-                              value={property.imageUrl}
-                              onChange={(e) =>
-                                updateProperty(property.id, "imageUrl", e.target.value)
-                              }
-                              placeholder="Paste image URL"
-                            />
-
-                            <label>Assigned Cleaner</label>
-                            <select
-                              value={property.cleaner}
-                              onChange={(e) =>
-                                updateProperty(property.id, "cleaner", e.target.value)
-                              }
-                            >
-                              <option value="">Unassigned</option>
-                              {cleaners.map((cleaner) => (
-                                <option key={cleaner.name} value={cleaner.name}>
-                                  {cleaner.name}
-                                </option>
-                              ))}
-                            </select>
-
-                            <label>iCal URL</label>
-                            <input
-                              value={property.icalUrl}
-                              onChange={(e) =>
-                                updateProperty(property.id, "icalUrl", e.target.value)
-                              }
-                              placeholder="Paste Airbnb or VRBO iCal URL"
-                            />
-
-                            <label>VRBO Listing ID</label>
-                            <input
-                              value={property.vrboId}
-                              onChange={(e) =>
-                                updateProperty(property.id, "vrboId", e.target.value)
-                              }
-                              placeholder="Example: 1234567"
-                            />
-
-                            <label>Airbnb Listing URL</label>
-                            <input
-                              value={property.airbnbUrl}
-                              onChange={(e) =>
-                                updateProperty(
-                                  property.id,
-                                  "airbnbUrl",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Paste Airbnb listing URL"
-                            />
-
-                            <div className="button-row">
-                              <button
-                                className="primary-btn"
-                                onClick={() => syncIcal(property)}
-                              >
-                                Sync iCal
-                              </button>
-
-                              <button
-                                className="secondary-btn"
-                                onClick={() => linkVrbo(property)}
-                              >
-                                Link VRBO
-                              </button>
-
-                              <button
-                                className="secondary-btn"
-                                onClick={() => linkAirbnb(property)}
-                              >
-                                Link Airbnb
-                              </button>
-
-                              <button
-                                className="secondary-btn"
-                                onClick={() => {
-                                  setEditingPropertyId(null);
-                                  addRecord(
-                                    `${property.name} property details saved.`,
-                                    "Homeowner"
-                                  );
-                                }}
-                              >
-                                Done
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {confirmRemoveId === property.id && (
-                        <div
-                          style={{
-                            borderTop: "1px solid #fecaca",
-                            background: "#fef2f2",
-                            padding: "20px 24px",
-                          }}
-                        >
-                          <strong>Remove {property.name}?</strong>
-                          <p>
-                            This removes the home and its loaded reservations from
-                            this app view. This action will be recorded.
-                          </p>
-
-                          <div className="button-row">
-                            <button
-                              className="secondary-btn"
-                              onClick={() => setConfirmRemoveId(null)}
-                            >
-                              Cancel
-                            </button>
-
-                            <button
-                              className="primary-btn"
-                              onClick={() => removeHome(property)}
-                            >
-                              Yes, Remove Home
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="card-section">
-              <h2>Manual Reservation</h2>
-
-              <div className="form-card">
-                <label>Property</label>
+              <label>
+                Setup method
                 <select
-                  value={manualPropertyId}
-                  onChange={(e) => setManualPropertyId(Number(e.target.value))}
+                  value={propertyForm.setupMode}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, setupMode: event.target.value as Home["setupMode"] })}
                 >
-                  {properties.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      {property.name}
+                  <option value="VRBO">Use VRBO Listing ID</option>
+                  <option value="Airbnb">Use Airbnb Listing URL</option>
+                  <option value="Manual">Manually Set Up House</option>
+                </select>
+              </label>
+
+              <label>
+                VRBO property ID
+                <input
+                  value={propertyForm.vrboId}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, vrboId: event.target.value })}
+                  placeholder="VRBO ID"
+                />
+              </label>
+
+              <label>
+                Airbnb listing URL
+                <input
+                  value={propertyForm.airbnbUrl}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, airbnbUrl: event.target.value })}
+                  placeholder="https://airbnb.com/rooms/..."
+                />
+              </label>
+
+              <label>
+                iCal link
+                <input
+                  value={propertyForm.iCalUrl}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, iCalUrl: event.target.value })}
+                  placeholder="Calendar feed URL"
+                />
+              </label>
+
+              <label>
+                Default cleaner
+                <select
+                  value={propertyForm.defaultCleanerId}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, defaultCleanerId: event.target.value })}
+                >
+                  <option value="">No default cleaner</option>
+                  {cleaners.map((cleaner) => (
+                    <option key={cleaner.id} value={cleaner.id}>
+                      {cleaner.name}
                     </option>
                   ))}
                 </select>
+              </label>
 
-                <label>Reservation Type</label>
-                <select
-                  value={manualType}
-                  onChange={(e) =>
-                    setManualType(e.target.value as CleaningItem["type"])
-                  }
-                >
-                  <option value="Guest Booking">Guest Booking</option>
-                  <option value="Owner Stay">Owner / Block</option>
-                  <option value="Deep Clean">Deep Clean</option>
-                </select>
-
-                <label>Guest Name / Label</label>
+              <label>
+                Bedrooms
                 <input
-                  value={manualGuestName}
-                  onChange={(e) => setManualGuestName(e.target.value)}
-                  placeholder="Guest name, owner stay, or block label"
+                  type="number"
+                  value={propertyForm.bedrooms}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, bedrooms: event.target.value })}
                 />
+              </label>
 
-                <label>Arrival Date</label>
+              <label>
+                Bathrooms
                 <input
-                  type="date"
-                  value={manualArrival}
-                  onChange={(e) => setManualArrival(e.target.value)}
+                  type="number"
+                  value={propertyForm.bathrooms}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, bathrooms: event.target.value })}
                 />
+              </label>
 
-                <label>Departure Date</label>
+              <label>
+                Max guests
                 <input
-                  type="date"
-                  value={manualDeparture}
-                  onChange={(e) => setManualDeparture(e.target.value)}
+                  type="number"
+                  value={propertyForm.maxGuests}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, maxGuests: event.target.value })}
                 />
+              </label>
 
-                <button className="primary-btn" onClick={addManualReservation}>
-                  Add Reservation
-                </button>
-              </div>
-            </section>
-          </>
+              <label className="fullWidth">
+                Address / internal notes
+                <input
+                  value={propertyForm.address}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, address: event.target.value })}
+                  placeholder="Address or private location notes"
+                />
+              </label>
+
+              <label className="fullWidth">
+                Property notes
+                <textarea
+                  value={propertyForm.notes}
+                  onChange={(event) => setPropertyForm({ ...propertyForm, notes: event.target.value })}
+                  placeholder="Owner notes, parking, supplies, access, known issues"
+                />
+              </label>
+
+              <button className="primaryButton" type="submit">
+                Save Home Profile
+              </button>
+            </form>
+          </section>
         )}
 
-        {page === "calendar" && (
-          <>
-            <div className="page-header">
-              <h1>Calendar</h1>
-              <p>
-                Guest bookings are tan. Owner blocks are light blue. Calendar
-                opens near the current month.
-              </p>
-            </div>
+        <section className="propertiesLayout">
+          <div className="propertyCardGrid">
+            {homes.map((home) => {
+              const defaultCleaner = cleaners.find((cleaner) => cleaner.id === home.defaultCleanerId);
+              const homeReservations = reservations.filter((reservation) => reservation.homeId === home.id);
+              const homeWorkOrders = workOrders.filter((order) => order.homeId === home.id && order.status !== "Completed");
 
-            <section className="card-section">
-              <div className="button-row">
+              return (
                 <button
-                  className="secondary-btn"
-                  onClick={() => setCalendarYear(calendarYear - 1)}
+                  key={home.id}
+                  className={`propertyCard ${selectedProperty?.id === home.id ? "selected" : ""}`}
+                  onClick={() => setSelectedPropertyId(home.id)}
                 >
-                  Previous Year
+                  <div className="propertyCardTop">
+                    <div className="homeBadge">{home.shortName}</div>
+                    <div>
+                      <h3>{home.name}</h3>
+                      <p>{home.city}</p>
+                    </div>
+                    <span className={`propertyStatus status${home.status.replace(/\s/g, "")}`}>{home.status}</span>
+                  </div>
+
+                  <div className="propertyMiniStats">
+                    <span>{home.bedrooms} bd</span>
+                    <span>{home.bathrooms} ba</span>
+                    <span>{home.maxGuests} guests</span>
+                  </div>
+
+                  <div className="propertySourceRow">
+                    <span>{home.setupMode}</span>
+                    <span>{home.iCalUrl ? "iCal connected" : "No iCal"}</span>
+                    <span>{defaultCleaner?.name ?? "No cleaner"}</span>
+                  </div>
+
+                  <p>{homeReservations.length} reservations · {homeWorkOrders.length} open work orders</p>
                 </button>
+              );
+            })}
+          </div>
 
-                <button className="primary-btn">{calendarYear}</button>
+          <aside className="propertyDetailPanel">
+            {!selectedProperty ? (
+              <>
+                <p className="eyebrow">Property detail</p>
+                <h3>Select a home</h3>
+              </>
+            ) : (
+              <>
+                <p className="eyebrow">Property detail</p>
+                <div className="propertyDetailHeader">
+                  <div className="homeBadge">{selectedProperty.shortName}</div>
+                  <div>
+                    <h3>{selectedProperty.name}</h3>
+                    <p>{selectedProperty.address || selectedProperty.city}</p>
+                  </div>
+                </div>
 
-                <button
-                  className="secondary-btn"
-                  onClick={() => setCalendarYear(calendarYear + 1)}
-                >
-                  Next Year
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "16px",
-                  marginTop: "18px",
-                  flexWrap: "wrap",
-                  color: "#4b5563",
-                  fontSize: "14px",
-                }}
-              >
-                <span>
-                  <strong>Tan</strong> = guest booking
-                </span>
-                <span>
-                  <strong>Light blue</strong> = owner stay / block
-                </span>
-              </div>
-
-              <div
-                style={{
-                  marginTop: "30px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "42px",
-                }}
-              >
-                {monthNames.map((month, monthIndex) => (
-                  <div
-                    key={month}
-                    ref={(element) => {
-                      calendarMonthRefs.current[monthIndex] = element;
-                    }}
-                  >
-                    <h2 style={{ marginBottom: "16px" }}>{month}</h2>
-
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(7, minmax(92px, 1fr))",
-                        gap: "2px",
-                        overflowX: "auto",
-                      }}
+                <div className="detailStack">
+                  <div>
+                    <span>Status</span>
+                    <select
+                      value={selectedProperty.status}
+                      onChange={(event) =>
+                        updateProperty(selectedProperty.id, { status: event.target.value as Home["status"] })
+                      }
                     >
-                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                        (day) => (
-                          <div
-                            key={day}
-                            style={{
-                              fontWeight: 800,
-                              color: "#6b7280",
-                              padding: "8px",
-                              fontSize: "13px",
-                              background: "#f9fafb",
-                            }}
-                          >
-                            {day}
-                          </div>
-                        )
-                      )}
+                      <option value="Active">Active</option>
+                      <option value="Setup Needed">Setup Needed</option>
+                      <option value="Paused">Paused</option>
+                    </select>
+                  </div>
 
-                      {Array.from({
-                        length: new Date(calendarYear, monthIndex, 1).getDay(),
-                      }).map((_, index) => (
-                        <div key={`empty-${month}-${index}`} />
+                  <div>
+                    <span>Default cleaner</span>
+                    <select
+                      value={selectedProperty.defaultCleanerId ?? ""}
+                      onChange={(event) =>
+                        updateProperty(selectedProperty.id, { defaultCleanerId: event.target.value || undefined })
+                      }
+                    >
+                      <option value="">No default cleaner</option>
+                      {cleaners.map((cleaner) => (
+                        <option key={cleaner.id} value={cleaner.id}>
+                          {cleaner.name}
+                        </option>
                       ))}
-
-                      {Array.from({
-                        length: getDaysInMonth(calendarYear, monthIndex),
-                      }).map((_, index) => {
-                        const dayNumber = index + 1;
-
-                        const dateString = `${calendarYear}-${String(
-                          monthIndex + 1
-                        ).padStart(2, "0")}-${String(dayNumber).padStart(
-                          2,
-                          "0"
-                        )}`;
-
-                        const dayItems = getCalendarItemsForDay(dateString);
-
-                        return (
-                          <div
-                            key={`${month}-${dayNumber}`}
-                            style={{
-                              minHeight: "78px",
-                              border: "1px solid #d1d5db",
-                              borderRadius: "4px",
-                              padding: "6px",
-                              position: "relative",
-                              background: "#ffffff",
-                              overflow: "hidden",
-                            }}
-                          >
-                            <strong style={{ fontSize: "16px" }}>
-                              {dayNumber}
-                            </strong>
-
-                            {dayItems.map((item, itemIndex) => {
-                              const position = getBarPosition(item, dateString);
-                              const showLabel = shouldShowCenteredLabel(
-                                item,
-                                dateString
-                              );
-
-                              return (
-                                <div
-                                  key={`${item.id}-${dateString}`}
-                                  title={`${item.guestName || item.property}: ${
-                                    item.arrival
-                                  } to ${item.departure}`}
-                                  style={{
-                                    position: "absolute",
-                                    left: position.left,
-                                    right: position.right,
-                                    bottom: `${12 + itemIndex * 22}px`,
-                                    height: "18px",
-                                    background: getReservationBarColor(item.type),
-                                    borderRadius: position.borderRadius,
-                                    border: "1px solid rgba(0,0,0,0.12)",
-                                    color: "#111827",
-                                    fontSize: "11px",
-                                    fontWeight: 800,
-                                    padding: showLabel ? "2px 8px" : "0",
-                                    textAlign: "center",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                >
-                                  {showLabel
-                                    ? cleanReservationLabel(
-                                        item.guestName || item.property
-                                      )
-                                    : ""}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </div>
+                    </select>
                   </div>
-                ))}
-              </div>
-            </section>
-          </>
-        )}
+                </div>
 
-        {page === "notifications" && (
-          <>
-            <div className="page-header">
-              <h1>Notification Center</h1>
-              <p>
-                Manage cleaner responses, urgent updates, early arrivals, and
-                messages.
-              </p>
-            </div>
-
-            <div className="tabs">
-              <button
-                className={activeTab === "urgent" ? "tab active" : "tab"}
-                onClick={() => setActiveTab("urgent")}
-              >
-                Urgent / Today
-              </button>
-
-              <button
-                className={activeTab === "pending" ? "tab active" : "tab"}
-                onClick={() => setActiveTab("pending")}
-              >
-                Pending Requests
-              </button>
-
-              <button
-                className={activeTab === "confirmed" ? "tab active" : "tab"}
-                onClick={() => setActiveTab("confirmed")}
-              >
-                Confirmed / Ready
-              </button>
-
-              <button
-                className={activeTab === "early" ? "tab active" : "tab"}
-                onClick={() => setActiveTab("early")}
-              >
-                Early Arrival
-              </button>
-
-              <button
-                className={activeTab === "message" ? "tab active" : "tab"}
-                onClick={() => setActiveTab("message")}
-              >
-                Message Cleaner
-              </button>
-            </div>
-
-            {activeTab === "urgent" && (
-              <section className="card-section">
-                <h2>Urgent / Today</h2>
-
-                {urgentCleanings.length === 0 && attentionCleanings.length === 0 && (
-                  <div className="urgent-card">
-                    <div>
-                      <strong>No active alerts</strong>
-                      <p>Every loaded turnover is currently tracking normally.</p>
-                    </div>
-                    <span style={urgencyStyle("normal")}>Normal</span>
-                  </div>
-                )}
-
-                {urgentCleanings.map((item) => (
-                  <div className="urgent-card warning" key={`urgent-${item.id}`}>
-                    <div>
-                      <strong>{item.property} needs attention now</strong>
-                      <p>{urgencyReasonText(item)}</p>
-                    </div>
-                    <button
-                      className="primary-btn"
-                      onClick={() => {
-                        setSelectedProperty(item.property);
-                        setSelectedCleaner(item.cleaner);
-                        setActiveTab("message");
-                        setMessage(`Urgent: please update ${item.property} for ${item.departure}. ${urgencyReasonText(item)}`);
-                      }}
-                    >
-                      Message Cleaner
-                    </button>
-                  </div>
-                ))}
-
-                {attentionCleanings.map((item) => (
-                  <div className="urgent-card" key={`attention-${item.id}`}>
-                    <div>
-                      <strong>{item.property} needs follow-up</strong>
-                      <p>{urgencyReasonText(item)}</p>
-                    </div>
-                    {urgencyBadge(item)}
-                  </div>
-                ))}
-
-                <div className="urgent-card">
+                <div className="propertyDataGrid">
                   <div>
-                    <strong>Cleaner ETA Needed</strong>
-                    <p>Ask the cleaner for arrival timing or progress.</p>
+                    <span>VRBO ID</span>
+                    <strong>{selectedProperty.vrboId || "Not connected"}</strong>
                   </div>
-
-                  <button
-                    className="primary-btn"
-                    onClick={() => {
-                      setActiveTab("message");
-                      setMessage("Can you please send your ETA for this turnover?");
-                    }}
-                  >
-                    Request ETA
-                  </button>
-                </div>
-
-                <div className="urgent-card warning">
                   <div>
-                    <strong>Attention Needed</strong>
-                    <p>Arrival is approaching and property is not marked ready.</p>
+                    <span>Airbnb</span>
+                    <strong>{selectedProperty.airbnbUrl ? "URL added" : "Not connected"}</strong>
                   </div>
-
-                  <button
-                    className="secondary-btn"
-                    onClick={() => {
-                      setActiveTab("message");
-                      setMessage("The next arrival is approaching. Please update the cleaning status.");
-                    }}
-                  >
-                    Send Reminder
-                  </button>
-                </div>
-              </section>
-            )}
-
-            {activeTab === "pending" && (
-              <section className="card-section">
-                <h2>Pending Cleaner Requests</h2>
-
-                <div className="compact-table">
-                  <div className="table-header">
-                    <span>Property</span>
-                    <span>Date</span>
-                    <span>Cleaner</span>
-                    <span>Type</span>
-                    <span>Status</span>
-                    <span>Priority</span>
-                    <span>Actions</span>
-                  </div>
-
-                  {pendingCleanings.map((item) => (
-                    <div className="table-row" key={item.id}>
-                      <span>{item.property}</span>
-                      <span>{item.departure}</span>
-                      <span>{item.cleaner}</span>
-                      <span>{item.type}</span>
-                      <span
-                        className={getStatusClass(item.status)}
-                        title={statusHelp[item.status]}
-                      >
-                        {item.status}
-                      </span>
-                      <span>{urgencyBadge(item)}</span>
-
-                      <div className="row-actions">
-                        <button
-                          onClick={() =>
-                            addMessage(
-                              item.property,
-                              item.cleaner,
-                              "Homeowner",
-                              `Reminder: please update ${item.property} for ${item.departure}.`,
-                              "General"
-                            )
-                          }
-                        >
-                          Reminder
-                        </button>
-                        <button onClick={() => updateStatus(item.id, "Ready")}>
-                          Mark Ready
-                        </button>
-                        <button>Reassign</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {activeTab === "confirmed" && (
-              <section className="card-section">
-                <h2>Confirmed / Ready Cleanings</h2>
-
-                <div className="compact-table">
-                  <div className="table-header confirmed-header">
-                    <span>Property</span>
-                    <span>Date</span>
-                    <span>Cleaner</span>
-                    <span>Type</span>
-                    <span>Status</span>
-                  </div>
-
-                  {readyCleanings.map((item) => (
-                    <div className="table-row confirmed-row" key={item.id}>
-                      <span>{item.property}</span>
-                      <span>{item.departure}</span>
-                      <span>{item.cleaner}</span>
-                      <span>{item.type}</span>
-                      <span className="status green" title={statusHelp.Ready}>
-                        Ready
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {activeTab === "early" && (
-              <section className="card-section">
-                <h2>Early Arrival</h2>
-
-                <div className="form-card">
-                  <label>Property</label>
-                  <select
-                    value={selectedProperty}
-                    onChange={(e) => setSelectedProperty(e.target.value)}
-                  >
-                    {properties.map((property) => (
-                      <option key={property.id}>{property.name}</option>
-                    ))}
-                  </select>
-
-                  <label>Cleaner</label>
-                  <select
-                    value={selectedCleaner}
-                    onChange={(e) => setSelectedCleaner(e.target.value)}
-                  >
-                    {cleaners.map((cleaner) => (
-                      <option key={cleaner.name}>{cleaner.name}</option>
-                    ))}
-                  </select>
-
-                  <label>Early Arrival Message</label>
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Guests arrived early. What is your ETA?"
-                  />
-
-                  <div className="button-row">
-                    <button
-                      className="primary-btn"
-                      onClick={() => sendHomeownerMessage("Early Arrival")}
-                    >
-                      Request Early Arrival
-                    </button>
-                    <button
-                      className="secondary-btn"
-                      onClick={() =>
-                        sendHomeownerMessage(
-                          "Early Arrival",
-                          "Guests may arrive early. Please update us if the home can be ready sooner."
-                        )
-                      }
-                    >
-                      Schedule Early Arrival
-                    </button>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {activeTab === "message" && (
-              <section className="card-section">
-                <h2>Message Cleaner</h2>
-
-                <div className="form-card">
-                  <label>Property</label>
-                  <select
-                    value={selectedProperty}
-                    onChange={(e) => setSelectedProperty(e.target.value)}
-                  >
-                    {properties.map((property) => (
-                      <option key={property.id}>{property.name}</option>
-                    ))}
-                  </select>
-
-                  <label>Cleaner</label>
-                  <select
-                    value={selectedCleaner}
-                    onChange={(e) => setSelectedCleaner(e.target.value)}
-                  >
-                    {cleaners.map((cleaner) => (
-                      <option key={cleaner.name}>{cleaner.name}</option>
-                    ))}
-                  </select>
-
-                  <label>Message</label>
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Write message to cleaner..."
-                  />
-
-                  <div className="button-row">
-                    <button
-                      className="primary-btn"
-                      onClick={() => sendHomeownerMessage("General")}
-                    >
-                      Send Message
-                    </button>
-
-                    <button
-                      className="secondary-btn"
-                      onClick={() =>
-                        sendHomeownerMessage(
-                          "ETA Request",
-                          "Can you please send your ETA for this turnover?"
-                        )
-                      }
-                    >
-                      Quick ETA Request
-                    </button>
-                  </div>
-                </div>
-
-                <h2 style={{ marginTop: "28px" }}>Message History</h2>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px",
-                  }}
-                >
-                  {sortedMessages.length === 0 && (
-                    <div
-                      style={{
-                        border: "1px dashed #d1d5db",
-                        borderRadius: "14px",
-                        padding: "18px",
-                        background: "#f9fafb",
-                        color: "#6b7280",
-                      }}
-                    >
-                      No messages yet.
-                    </div>
-                  )}
-
-                  {sortedMessages.map((item) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "14px",
-                        padding: "16px",
-                        background: item.sender === "Cleaner" ? "#f0fdf4" : "#f9fafb",
-                      }}
-                    >
-                      <strong>
-                        {item.sender} • {item.category}
-                      </strong>
-                      <p style={{ margin: "6px 0" }}>{item.text}</p>
-                      <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
-                        {item.property} • {item.cleaner} • {item.time}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
-        )}
-
-        {page === "cleaners" && (
-          <>
-            <div className="page-header">
-              <h1>Cleaners</h1>
-              <p>View cleaner availability, assignments, and status.</p>
-            </div>
-
-            <section className="card-section">
-              <h2>Cleaner Team</h2>
-
-              {cleaners.map((cleaner) => (
-                <div
-                  className={
-                    cleaner.status === "Unavailable"
-                      ? "urgent-card warning"
-                      : "urgent-card"
-                  }
-                  key={cleaner.name}
-                >
                   <div>
-                    <strong>{cleaner.name}</strong>
-                    <p>Status: {cleaner.status}</p>
-                    <p>Assigned: {cleaner.assigned}</p>
+                    <span>iCal</span>
+                    <strong>{selectedProperty.iCalUrl ? "Connected" : "Missing"}</strong>
                   </div>
-
-                  <button
-                    className="primary-btn"
-                    onClick={() => {
-                      setSelectedCleaner(cleaner.name);
-                      setActiveTab("message");
-                      setPage("notifications");
-                    }}
-                  >
-                    Message
-                  </button>
+                  <div>
+                    <span>Capacity</span>
+                    <strong>{selectedProperty.maxGuests} guests</strong>
+                  </div>
                 </div>
-              ))}
 
-              <button className="secondary-btn">Add Cleaner</button>
-            </section>
-          </>
-        )}
-
-       {page === "cleanerPortal" && (
-  <CleanerPortal
-    cleanerPortalItems={cleanerPortalItems}
-    cleanerPortalFilter={cleanerPortalFilter}
-    setCleanerPortalFilter={setCleanerPortalFilter}
-    cleaners={cleaners}
-    sortedMessages={sortedMessages}
-    cleanerReplyText={cleanerReplyText}
-    setCleanerReplyText={setCleanerReplyText}
-    updateStatus={updateStatus}
-  />
-)}
-
-        {page === "records" && (
-          <>
-            <div className="page-header">
-              <h1>Records</h1>
-              <p>
-                Complete activity history across reservations, cleanings,
-                messages, and updates. Records are saved locally and to the
-                backend.
-              </p>
-            </div>
-
-            <section className="card-section">
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "16px",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  marginBottom: "18px",
-                }}
-              >
-                <div>
-                  <h2 style={{ marginBottom: "6px" }}>Activity Records</h2>
-                  <p style={{ margin: 0, color: "#6b7280" }}>
-                    {recordSaveStatus} • {filteredRecords.length} of {records.length} records shown
+                <div className="aiAssistantBox">
+                  <p className="eyebrow">Property intelligence groundwork</p>
+                  <h4>Future automation path</h4>
+                  <p>
+                    VRBO ID, Airbnb URL, and iCal data will eventually feed occupancy comparisons, automated profile creation,
+                    cleaner forecasting, and guest readiness scoring.
                   </p>
                 </div>
 
-                <div className="button-row">
-                  <button className="secondary-btn" onClick={exportRecords}>
-                    Export Records
-                  </button>
-
-                  <button className="secondary-btn" onClick={clearRecords}>
-                    Clear Records
-                  </button>
-                </div>
-              </div>
-
-              <div
-                className="form-card"
-                style={{
-                  marginBottom: "18px",
-                  gridTemplateColumns: "2fr 1fr auto",
-                  alignItems: "end",
-                }}
-              >
-                <div>
-                  <label>Search Records</label>
-                  <input
-                    value={recordSearch}
-                    onChange={(e) => setRecordSearch(e.target.value)}
-                    placeholder="Search property, cleaner, status, message, VRBO, iCal, or date"
-                  />
-                </div>
-
-                <div>
-                  <label>Source</label>
-                  <select
-                    value={recordSourceFilter}
-                    onChange={(e) =>
-                      setRecordSourceFilter(
-                        e.target.value as "All" | ActivityRecord["source"]
-                      )
-                    }
-                  >
-                    <option value="All">All Sources</option>
-                    <option value="System">System</option>
-                    <option value="Homeowner">Homeowner</option>
-                    <option value="Cleaner">Cleaner</option>
-                    <option value="Guest">Guest</option>
-                  </select>
-                </div>
-
-                <button
-                  className="secondary-btn"
-                  onClick={() => {
-                    setRecordSearch("");
-                    setRecordSourceFilter("All");
-                  }}
-                >
-                  Reset
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                  gap: "12px",
-                  marginBottom: "18px",
-                }}
-              >
-                <div className="urgent-card warning">
+                <div className="propertyLinkedOps">
+                  <h4>Linked operations</h4>
                   <div>
-                    <strong>{urgentCleanings.length}</strong>
-                    <p>Urgent turnovers</p>
+                    <span>Upcoming reservations</span>
+                    <strong>{selectedReservations.length}</strong>
                   </div>
-                </div>
-                <div className="urgent-card">
                   <div>
-                    <strong>{attentionCleanings.length}</strong>
-                    <p>Need attention</p>
+                    <span>Open work orders</span>
+                    <strong>{selectedWorkOrders.filter((order) => order.status !== "Completed").length}</strong>
                   </div>
                 </div>
-                <div className="urgent-card">
-                  <div>
-                    <strong>{sortedCleanings.filter((item) => item.urgencyLevel === "normal").length}</strong>
-                    <p>Normal turnovers</p>
-                  </div>
-                </div>
-              </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "14px",
-                }}
-              >
-                {filteredRecords.length === 0 && (
-                  <div
-                    style={{
-                      border: "1px dashed #d1d5db",
-                      borderRadius: "14px",
-                      padding: "18px",
-                      background: "#f9fafb",
-                      color: "#6b7280",
-                    }}
+                {selectedProperty.notes && <p className="notesBox">{selectedProperty.notes}</p>}
+              </>
+            )}
+          </aside>
+        </section>
+      </>
+    );
+  }
+
+  function renderMaintenance() {
+    const filteredWorkOrders = workOrders.filter((order) => {
+      if (workOrderFilter === "all") return true;
+      if (workOrderFilter === "after-hours") return order.urgency === "After Hours";
+      if (workOrderFilter === "review") return order.status === "Owner Review";
+      return order.status === workOrderFilter;
+    });
+
+    const openCount = workOrders.filter((order) => order.status !== "Completed").length;
+    const urgentCount = workOrders.filter((order) => order.urgency === "High" || order.urgency === "After Hours").length;
+    const reviewCount = workOrders.filter((order) => order.status === "Owner Review").length;
+    const scheduledCount = workOrders.filter((order) => order.status === "Scheduled").length;
+
+    return (
+      <>
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Phase 3</p>
+            <h2>Maintenance + Vendor Ops</h2>
+            <p className="headerSubtext">
+              Route issues, track urgency, assign vendors, capture owner review, and prepare the AI maintenance assistant layer.
+            </p>
+          </div>
+
+          <button className="primaryButton" onClick={() => setWorkOrderFilter("after-hours")}>
+            After-Hours Risks
+          </button>
+        </header>
+
+        <section className="statsGrid">
+          <div className="statCard">
+            <span>Open work orders</span>
+            <strong>{openCount}</strong>
+          </div>
+          <div className="statCard warning">
+            <span>Urgent / after-hours</span>
+            <strong>{urgentCount}</strong>
+          </div>
+          <div className="statCard">
+            <span>Owner review</span>
+            <strong>{reviewCount}</strong>
+          </div>
+          <div className="statCard">
+            <span>Scheduled</span>
+            <strong>{scheduledCount}</strong>
+          </div>
+        </section>
+
+        <section className="maintenanceLayout">
+          <div>
+            <section className="filtersPanel maintenanceFilters">
+              <select value={workOrderFilter} onChange={(event) => setWorkOrderFilter(event.target.value)}>
+                <option value="all">All work orders</option>
+                <option value="New">New</option>
+                <option value="Assigned">Assigned</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="In Progress">In Progress</option>
+                <option value="review">Owner Review</option>
+                <option value="after-hours">After-Hours Risks</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </section>
+
+            <section className="workOrderList">
+              {filteredWorkOrders.map((order) => {
+                const home = homes.find((item) => item.id === order.homeId);
+                const vendor = vendors.find((item) => item.id === order.vendorId);
+
+                return (
+                  <article
+                    key={order.id}
+                    className={`workOrderCard ${selectedWorkOrder?.id === order.id ? "selected" : ""}`}
+                    onClick={() => setSelectedWorkOrder(order)}
                   >
-                    No records match this search. Try a different keyword or reset
-                    the filters.
-                  </div>
-                )}
-
-                {filteredRecords.map((record) => (
-                  <div
-                    key={record.id}
-                    style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "14px",
-                      padding: "16px",
-                      background: "#f9fafb",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: "12px",
-                        marginBottom: "8px",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <strong>{record.time}</strong>
-
-                      <span
-                        style={{
-                          color: "#6b7280",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {record.source}
-                      </span>
+                    <div className="workOrderTop">
+                      <div>
+                        <h3>{order.title}</h3>
+                        <p>{home?.name ?? "Unknown home"} · {order.category}</p>
+                      </div>
+                      <span className={`urgencyPill urgency${order.urgency.replace(/\s/g, "")}`}>{order.urgency}</span>
                     </div>
 
-                    <div>{record.event}</div>
-                  </div>
-                ))}
-              </div>
+                    <div className="workOrderMeta">
+                      <span>{order.status}</span>
+                      <span>{vendor?.name ?? "No vendor assigned"}</span>
+                      <span>{order.scheduledDate ? `Scheduled ${formatDate(order.scheduledDate)}` : `Created ${formatDate(order.createdDate)}`}</span>
+                    </div>
+
+                    <p className="workOrderNotes">{order.notes}</p>
+                  </article>
+                );
+              })}
             </section>
-          </>
-        )}
+          </div>
+
+          <aside className="maintenanceDetailPanel">
+            {!selectedWorkOrder ? (
+              <>
+                <p className="eyebrow">Work order</p>
+                <h3>Select a work order</h3>
+                <p className="mutedText">Vendor routing and AI suggestions will show here.</p>
+              </>
+            ) : (
+              <>
+                <p className="eyebrow">Work order detail</p>
+                <h3>{selectedWorkOrder.title}</h3>
+                <p className="mutedText">
+                  {homes.find((home) => home.id === selectedWorkOrder.homeId)?.name ?? "Unknown home"}
+                </p>
+
+                <div className="detailStack">
+                  <div>
+                    <span>Status</span>
+                    <select
+                      value={selectedWorkOrder.status}
+                      onChange={(event) =>
+                        updateWorkOrder(selectedWorkOrder.id, { status: event.target.value as WorkOrderStatus })
+                      }
+                    >
+                      <option value="New">New</option>
+                      <option value="Assigned">Assigned</option>
+                      <option value="Scheduled">Scheduled</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Owner Review">Owner Review</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <span>Vendor</span>
+                    <select
+                      value={selectedWorkOrder.vendorId ?? ""}
+                      onChange={(event) =>
+                        updateWorkOrder(selectedWorkOrder.id, {
+                          vendorId: event.target.value || undefined,
+                          status: event.target.value ? "Assigned" : selectedWorkOrder.status,
+                        })
+                      }
+                    >
+                      <option value="">No vendor assigned</option>
+                      {vendors.map((vendor) => (
+                        <option key={vendor.id} value={vendor.id}>
+                          {vendor.name} · {vendor.category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="aiAssistantBox">
+                  <p className="eyebrow">AI vendor assistant groundwork</p>
+                  <h4>Recommended routing</h4>
+                  <p>
+                    {selectedWorkOrder.urgency === "After Hours"
+                      ? "This is flagged as after-hours. Prioritize vendors with emergency coverage and guest-impact response."
+                      : selectedWorkOrder.urgency === "High"
+                        ? "High urgency. Schedule before next arrival or escalate if currently guest-impacting."
+                        : "Standard routing. Assign the best matching vendor and track owner approval if needed."}
+                  </p>
+                </div>
+
+                <div className="vendorSuggestions">
+                  <h4>Recommended vendors</h4>
+                  {getRecommendedVendors(selectedWorkOrder.category, selectedWorkOrder.urgency).map((vendor) => (
+                    <button
+                      key={vendor.id}
+                      onClick={() =>
+                        updateWorkOrder(selectedWorkOrder.id, {
+                          vendorId: vendor.id,
+                          status: "Assigned",
+                        })
+                      }
+                    >
+                      <strong>{vendor.name}</strong>
+                      <span>{vendor.category} · ★ {vendor.rating} · {vendor.afterHours ? "After-hours" : "Standard hours"}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="timeline maintenanceTimeline">
+                  <h4>Timeline</h4>
+                  {selectedWorkOrder.timeline.map((item, index) => (
+                    <div key={`${selectedWorkOrder.id}-${item}-${index}`} className="timelineItem">
+                      <span />
+                      <p>{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </aside>
+        </section>
+      </>
+    );
+  }
+
+
+  function updateCleaner(id: string, updates: Partial<Cleaner>) {
+    setCleaners((current) => current.map((cleaner) => (cleaner.id === id ? { ...cleaner, ...updates } : cleaner)));
+  }
+
+  function markNotificationRead(id: string) {
+    setNotifications((current) =>
+      current.map((notification) => (notification.id === id ? { ...notification, read: true } : notification))
+    );
+  }
+
+  function renderDashboard() {
+    const upcomingReservations = reservations
+      .filter((reservation) => reservation.status !== "Completed")
+      .sort((a, b) => a.arrival.localeCompare(b.arrival))
+      .slice(0, 4);
+    const openWorkOrders = workOrders.filter((order) => order.status !== "Completed");
+    const unreadCount = notifications.filter((notification) => !notification.read).length;
+    const availableCleaners = cleaners.filter((cleaner) => cleaner.status === "Available").length;
+
+    return (
+      <>
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Operations overview</p>
+            <h2>Dashboard</h2>
+            <p className="headerSubtext">
+              A quick command center for upcoming turnovers, alerts, properties, cleaners, and maintenance risks.
+            </p>
+          </div>
+
+          <button className="primaryButton" onClick={() => setActivePage("Reservation Board")}>
+            Open Reservation Board
+          </button>
+        </header>
+
+        <section className="statsGrid">
+          <div className="statCard">
+            <span>Homes</span>
+            <strong>{homes.length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Upcoming stays</span>
+            <strong>{reservations.filter((reservation) => reservation.status !== "Completed").length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Available cleaners</span>
+            <strong>{availableCleaners}</strong>
+          </div>
+          <div className="statCard warning">
+            <span>Unread alerts</span>
+            <strong>{unreadCount}</strong>
+          </div>
+        </section>
+
+        <section className="dashboardGrid">
+          <article className="dashboardPanel">
+            <div className="panelHeader compact">
+              <div>
+                <p className="eyebrow">Next up</p>
+                <h3>Upcoming turnovers</h3>
+              </div>
+              <button className="ghostButton" onClick={() => setActivePage("Calendar")}>Calendar</button>
+            </div>
+
+            <div className="dashboardList">
+              {upcomingReservations.map((reservation) => {
+                const home = homes.find((item) => item.id === reservation.homeId);
+                const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+
+                return (
+                  <button key={reservation.id} onClick={() => setActivePage("Reservation Board")}>
+                    <strong>{reservation.guestName}</strong>
+                    <span>{home?.name ?? "Unknown home"} · {formatDate(reservation.arrival)}</span>
+                    <small>{cleaner?.name ?? "Unassigned"} · {reservation.status}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </article>
+
+          <article className="dashboardPanel">
+            <div className="panelHeader compact">
+              <div>
+                <p className="eyebrow">Alerts</p>
+                <h3>Notification center</h3>
+              </div>
+              <button className="ghostButton" onClick={() => setActivePage("Notification Center")}>Open</button>
+            </div>
+
+            <div className="dashboardList">
+              {notifications.slice(0, 4).map((notification) => (
+                <button key={notification.id} onClick={() => setActivePage("Notification Center")}>
+                  <strong>{notification.title}</strong>
+                  <span>{notification.message}</span>
+                  <small>{notification.priority} · {notification.read ? "Read" : "Unread"}</small>
+                </button>
+              ))}
+            </div>
+          </article>
+
+          <article className="dashboardPanel">
+            <div className="panelHeader compact">
+              <div>
+                <p className="eyebrow">Maintenance</p>
+                <h3>Open work orders</h3>
+              </div>
+              <button className="ghostButton" onClick={() => setActivePage("Maintenance")}>Open</button>
+            </div>
+
+            <div className="dashboardList">
+              {openWorkOrders.slice(0, 4).map((order) => {
+                const home = homes.find((item) => item.id === order.homeId);
+
+                return (
+                  <button key={order.id} onClick={() => setActivePage("Maintenance")}>
+                    <strong>{order.title}</strong>
+                    <span>{home?.name ?? "Unknown home"} · {order.category}</span>
+                    <small>{order.urgency} · {order.status}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </article>
+
+          <article className="dashboardPanel">
+            <div className="panelHeader compact">
+              <div>
+                <p className="eyebrow">Cleaner coverage</p>
+                <h3>Cleaner operations</h3>
+              </div>
+              <button className="ghostButton" onClick={() => setActivePage("Cleaners")}>Open</button>
+            </div>
+
+            <div className="cleanerMiniGrid">
+              {cleaners.map((cleaner) => (
+                <button key={cleaner.id} onClick={() => { setSelectedCleanerId(cleaner.id); setActivePage("Cleaners"); }}>
+                  <strong>{cleaner.name}</strong>
+                  <span>{cleaner.serviceArea}</span>
+                  <small>{cleaner.status} · {cleaner.activeJobs} active</small>
+                </button>
+              ))}
+            </div>
+          </article>
+        </section>
+      </>
+    );
+  }
+
+  function renderCleaners() {
+    const selectedCleaner = cleaners.find((cleaner) => cleaner.id === selectedCleanerId) ?? cleaners[0];
+    const cleanerReservations = selectedCleaner
+      ? reservations.filter((reservation) => reservation.cleanerId === selectedCleaner.id)
+      : [];
+    const defaultHomes = selectedCleaner
+      ? homes.filter((home) => home.defaultCleanerId === selectedCleaner.id)
+      : [];
+
+    return (
+      <>
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Cleaner operations</p>
+            <h2>Cleaners</h2>
+            <p className="headerSubtext">
+              Manage cleaner availability, default property assignments, specialties, active turnovers, and mobile portal groundwork.
+            </p>
+          </div>
+
+          <button className="primaryButton" onClick={() => setActivePage("Reservation Board")}>
+            Assign Turnovers
+          </button>
+        </header>
+
+        <section className="statsGrid">
+          <div className="statCard">
+            <span>Total cleaners</span>
+            <strong>{cleaners.length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Available</span>
+            <strong>{cleaners.filter((cleaner) => cleaner.status === "Available").length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Busy</span>
+            <strong>{cleaners.filter((cleaner) => cleaner.status === "Busy").length}</strong>
+          </div>
+          <div className="statCard warning">
+            <span>Unassigned stays</span>
+            <strong>{reservations.filter((reservation) => !reservation.cleanerId).length}</strong>
+          </div>
+        </section>
+
+        <section className="cleanersLayout">
+          <div className="cleanerCardGrid">
+            {cleaners.map((cleaner) => (
+              <button
+                key={cleaner.id}
+                className={`cleanerCard ${selectedCleaner?.id === cleaner.id ? "selected" : ""}`}
+                onClick={() => setSelectedCleanerId(cleaner.id)}
+              >
+                <div className="cleanerAvatar">{cleaner.name.slice(0, 2).toUpperCase()}</div>
+                <div>
+                  <h3>{cleaner.name}</h3>
+                  <p>{cleaner.serviceArea}</p>
+                  <div className="propertyMiniStats">
+                    <span>{cleaner.status}</span>
+                    <span>★ {cleaner.rating}</span>
+                    <span>{cleaner.activeJobs} active</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <aside className="cleanerDetailPanel">
+            {!selectedCleaner ? (
+              <>
+                <p className="eyebrow">Cleaner detail</p>
+                <h3>Select a cleaner</h3>
+              </>
+            ) : (
+              <>
+                <p className="eyebrow">Cleaner detail</p>
+                <div className="cleanerDetailHeader">
+                  <div className="cleanerAvatar large">{selectedCleaner.name.slice(0, 2).toUpperCase()}</div>
+                  <div>
+                    <h3>{selectedCleaner.name}</h3>
+                    <p>{selectedCleaner.phone} · {selectedCleaner.serviceArea}</p>
+                  </div>
+                </div>
+
+                <div className="detailStack">
+                  <div>
+                    <span>Status</span>
+                    <select
+                      value={selectedCleaner.status}
+                      onChange={(event) =>
+                        updateCleaner(selectedCleaner.id, { status: event.target.value as Cleaner["status"] })
+                      }
+                    >
+                      <option value="Available">Available</option>
+                      <option value="Busy">Busy</option>
+                      <option value="Offline">Offline</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="propertyDataGrid">
+                  <div>
+                    <span>Rating</span>
+                    <strong>★ {selectedCleaner.rating}</strong>
+                  </div>
+                  <div>
+                    <span>Active jobs</span>
+                    <strong>{selectedCleaner.activeJobs}</strong>
+                  </div>
+                  <div>
+                    <span>Default homes</span>
+                    <strong>{defaultHomes.length}</strong>
+                  </div>
+                  <div>
+                    <span>Assigned stays</span>
+                    <strong>{cleanerReservations.length}</strong>
+                  </div>
+                </div>
+
+                <div className="specialtyList">
+                  <h4>Specialties</h4>
+                  <div>
+                    {selectedCleaner.specialties.map((specialty) => (
+                      <span key={specialty}>{specialty}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="aiAssistantBox">
+                  <p className="eyebrow">Cleaner portal groundwork</p>
+                  <h4>Future mobile flow</h4>
+                  <p>
+                    This profile will support assignment acceptance, ETA tracking, messaging, inspection photos,
+                    supply reporting, and completion confirmations.
+                  </p>
+                </div>
+
+                {selectedCleaner.notes && <p className="notesBox">{selectedCleaner.notes}</p>}
+              </>
+            )}
+          </aside>
+        </section>
+      </>
+    );
+  }
+
+  function renderNotificationCenter() {
+    const visibleNotifications = notifications.filter((notification) => {
+      if (notificationFilter === "all") return true;
+      if (notificationFilter === "unread") return !notification.read;
+      return notification.type === notificationFilter;
+    });
+
+    return (
+      <>
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Owner communication</p>
+            <h2>Notification Center</h2>
+            <p className="headerSubtext">
+              Central hub for reservation risks, cleaner updates, maintenance alerts, property setup issues, and system messages.
+            </p>
+          </div>
+
+          <button
+            className="primaryButton"
+            onClick={() => setNotifications((current) => current.map((notification) => ({ ...notification, read: true })))}
+          >
+            Mark All Read
+          </button>
+        </header>
+
+        <section className="filtersPanel maintenanceFilters">
+          <select value={notificationFilter} onChange={(event) => setNotificationFilter(event.target.value)}>
+            <option value="all">All notifications</option>
+            <option value="unread">Unread only</option>
+            <option value="Reservation">Reservations</option>
+            <option value="Cleaner">Cleaners</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Property">Properties</option>
+            <option value="System">System</option>
+          </select>
+        </section>
+
+        <section className="notificationList">
+          {visibleNotifications.map((notification) => {
+            const home = homes.find((item) => item.id === notification.relatedHomeId);
+            const cleaner = cleaners.find((item) => item.id === notification.relatedCleanerId);
+
+            return (
+              <article key={notification.id} className={`notificationCard ${notification.read ? "read" : "unread"}`}>
+                <div className="notificationTop">
+                  <div>
+                    <span className={`priorityPill priority${notification.priority}`}>{notification.priority}</span>
+                    <span className="typePill">{notification.type}</span>
+                  </div>
+                  <small>{notification.createdAt}</small>
+                </div>
+
+                <h3>{notification.title}</h3>
+                <p>{notification.message}</p>
+
+                <div className="notificationMeta">
+                  {home && <span>{home.name}</span>}
+                  {cleaner && <span>{cleaner.name}</span>}
+                  <span>{notification.read ? "Read" : "Unread"}</span>
+                </div>
+
+                <div className="cardActions">
+                  {!notification.read && <button onClick={() => markNotificationRead(notification.id)}>Mark Read</button>}
+                  {notification.type === "Reservation" && <button onClick={() => setActivePage("Reservation Board")}>Open Reservations</button>}
+                  {notification.type === "Maintenance" && <button onClick={() => setActivePage("Maintenance")}>Open Maintenance</button>}
+                  {notification.type === "Property" && <button onClick={() => setActivePage("Properties")}>Open Properties</button>}
+                  {notification.type === "Cleaner" && <button onClick={() => setActivePage("Cleaners")}>Open Cleaners</button>}
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      </>
+    );
+  }
+
+  function renderPlaceholder() {
+    return (
+      <section className="placeholderPage">
+        <p className="eyebrow">Stable checkpoint</p>
+        <h2>{activePage}</h2>
+        <p>
+          This module is parked for a later phase so the Reservation Board and Calendar can stay stable.
+        </p>
+        <button className="primaryButton" onClick={() => setActivePage("Reservation Board")}>
+          Go to Reservation Board
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <div className="appShell">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brandIcon">AMR</div>
+          <div>
+            <h1>Ask My Rentals</h1>
+            <p>Owner Operations</p>
+          </div>
+        </div>
+
+        <nav className="nav">
+          {["Dashboard", "Reservation Board", "Calendar", "Properties", "Cleaners", "Maintenance", "Notification Center"].map(
+            (item) => (
+              <button
+                key={item}
+                className={activePage === item ? "active" : ""}
+                onClick={() => setActivePage(item)}
+              >
+                {item}
+              </button>
+            )
+          )}
+        </nav>
+
+        <div className="quickLinksBox">
+          <div className="quickLinksHeader">Quick Links</div>
+          <button
+            onClick={() => {
+              setActivePage("Reservation Board");
+              setShowManualForm(true);
+            }}
+          >
+            Add Manual Reservation
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Dashboard");
+            }}
+          >
+            Open Dashboard
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Calendar");
+              setSelectedCalendarHome("all");
+            }}
+          >
+            View Full Calendar
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Reservation Board");
+              setSelectedStatus("New");
+            }}
+          >
+            Unassigned / New
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Properties");
+              setShowPropertyForm(true);
+            }}
+          >
+            Create Home Profile
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Maintenance");
+              setWorkOrderFilter("after-hours");
+            }}
+          >
+            Maintenance Risks
+          </button>
+          <button
+            onClick={() => {
+              setActivePage("Reservation Board");
+              setSelectedStatus("Needs Review");
+            }}
+          >
+            Needs Owner Review
+          </button>
+        </div>
+      </aside>
+
+      <main className="mainContent">
+        {activePage === "Reservation Board" && renderReservationBoard()}
+        {activePage === "Calendar" && renderCalendar()}
+        {activePage === "Dashboard" && renderDashboard()}
+        {activePage === "Reservation Board" && renderReservationBoard()}
+        {activePage === "Calendar" && renderCalendar()}
+        {activePage === "Properties" && renderProperties()}
+        {activePage === "Cleaners" && renderCleaners()}
+        {activePage === "Maintenance" && renderMaintenance()}
+        {activePage === "Notification Center" && renderNotificationCenter()}
+        {!["Dashboard", "Reservation Board", "Calendar", "Properties", "Cleaners", "Maintenance", "Notification Center"].includes(activePage) && renderPlaceholder()}
       </main>
     </div>
   );
