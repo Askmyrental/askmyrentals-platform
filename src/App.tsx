@@ -494,6 +494,14 @@ export default function App() {
   });
   const [selectedCleanerId, setSelectedCleanerId] = useState(starterCleaners[0]?.id ?? "");
   const [notificationFilter, setNotificationFilter] = useState("all");
+  const [cleanerPortalId, setCleanerPortalId] = useState(starterCleaners[0]?.id ?? "");
+  const [cleanerIssueForm, setCleanerIssueForm] = useState({
+    reservationId: "",
+    title: "",
+    category: "General",
+    urgency: "Medium" as WorkOrderUrgency,
+    notes: "",
+  });
   const [manualForm, setManualForm] = useState({
     guestName: "",
     homeId: homes[0]?.id ?? "",
@@ -2043,6 +2051,350 @@ export default function App() {
     );
   }
 
+
+  function updateReservationFromCleaner(id: string, status: ReservationStatus, note: string) {
+    setReservations((current) =>
+      current.map((reservation) =>
+        reservation.id === id
+          ? {
+              ...reservation,
+              status,
+              timeline: [...reservation.timeline, note],
+            }
+          : reservation
+      )
+    );
+
+    const reservation = reservations.find((item) => item.id === id);
+    if (reservation) {
+      setNotifications((current) => [
+        {
+          id: `note-${Date.now()}`,
+          type: "Cleaner",
+          priority: status === "Needs Review" ? "High" : "Normal",
+          title: `Cleaner update: ${status}`,
+          message: `${reservation.guestName} was updated by the cleaner. ${note}`,
+          relatedHomeId: reservation.homeId,
+          relatedCleanerId: reservation.cleanerId,
+          createdAt: new Date().toLocaleString(),
+          read: false,
+        },
+        ...current,
+      ]);
+    }
+  }
+
+  function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!cleanerIssueForm.reservationId || !cleanerIssueForm.title.trim()) return;
+
+    const reservation = reservations.find((item) => item.id === cleanerIssueForm.reservationId);
+    if (!reservation) return;
+
+    const cleaner = cleaners.find((item) => item.id === cleanerPortalId);
+    const nextWorkOrder: WorkOrder = {
+      id: `wo-${Date.now()}`,
+      homeId: reservation.homeId,
+      title: cleanerIssueForm.title,
+      category: cleanerIssueForm.category,
+      urgency: cleanerIssueForm.urgency,
+      status: "Owner Review",
+      createdDate: toInputDate(new Date()),
+      notes: `${cleanerIssueForm.notes || "No additional notes."} Reported by ${cleaner?.name ?? "Cleaner"} from the cleaner portal. Photo upload placeholder captured for future storage.`,
+      timeline: [
+        "Cleaner reported maintenance issue",
+        "Owner notification created",
+        "Work order moved to owner review",
+      ],
+    };
+
+    setWorkOrders((current) => [nextWorkOrder, ...current]);
+    setNotifications((current) => [
+      {
+        id: `note-${Date.now()}`,
+        type: "Maintenance",
+        priority: cleanerIssueForm.urgency === "After Hours" || cleanerIssueForm.urgency === "High" ? "Critical" : "High",
+        title: "Cleaner reported maintenance issue",
+        message: `${cleaner?.name ?? "Cleaner"} reported: ${cleanerIssueForm.title}`,
+        relatedHomeId: reservation.homeId,
+        relatedCleanerId: cleanerPortalId,
+        createdAt: new Date().toLocaleString(),
+        read: false,
+      },
+      ...current,
+    ]);
+
+    updateReservationFromCleaner(
+      reservation.id,
+      "Needs Review",
+      `Cleaner reported maintenance issue: ${cleanerIssueForm.title}`
+    );
+
+    setCleanerIssueForm({
+      reservationId: "",
+      title: "",
+      category: "General",
+      urgency: "Medium",
+      notes: "",
+    });
+  }
+
+  function renderCleanerPortal() {
+    const activeCleaner = cleaners.find((cleaner) => cleaner.id === cleanerPortalId) ?? cleaners[0];
+    const cleanerTasks = reservations
+      .filter((reservation) => reservation.cleanerId === activeCleaner?.id)
+      .sort((a, b) => a.arrival.localeCompare(b.arrival));
+    const urgentTasks = cleanerTasks.filter((reservation) => {
+      const urgency = getUrgency(reservation.arrival);
+      return urgency.label === "Today" || urgency.label === "Tomorrow" || urgency.className === "watch";
+    });
+
+    const activeTask = cleanerTasks.find((reservation) => reservation.id === cleanerIssueForm.reservationId) ?? cleanerTasks[0];
+    const activeHome = activeTask ? homes.find((home) => home.id === activeTask.homeId) : undefined;
+
+    return (
+      <>
+        <header className="pageHeader cleanerPortalHero">
+          <div>
+            <p className="eyebrow">Mobile cleaner experience</p>
+            <h2>Cleaner Portal</h2>
+            <p className="headerSubtext">
+              Cleaner-friendly workflow for assignments, acceptance, ETA updates, completion, and maintenance reporting.
+            </p>
+          </div>
+
+          <button className="primaryButton" onClick={() => setActivePage("Reservation Board")}>
+            Owner Board
+          </button>
+        </header>
+
+        <section className="cleanerPortalShell">
+          <div className="cleanerPhonePanel">
+            <div className="cleanerPortalTop">
+              <div className="cleanerAvatar large">{activeCleaner?.name.slice(0, 2).toUpperCase()}</div>
+              <div>
+                <p className="eyebrow">Signed in as</p>
+                <h3>{activeCleaner?.name}</h3>
+                <span>{activeCleaner?.serviceArea} · {activeCleaner?.status}</span>
+              </div>
+            </div>
+
+            <label className="cleanerSwitcher">
+              Test cleaner view
+              <select value={cleanerPortalId} onChange={(event) => setCleanerPortalId(event.target.value)}>
+                {cleaners.map((cleaner) => (
+                  <option key={cleaner.id} value={cleaner.id}>
+                    {cleaner.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="cleanerQuickStats">
+              <div>
+                <span>Assigned</span>
+                <strong>{cleanerTasks.length}</strong>
+              </div>
+              <div>
+                <span>Urgent</span>
+                <strong>{urgentTasks.length}</strong>
+              </div>
+              <div>
+                <span>Ready</span>
+                <strong>{cleanerTasks.filter((task) => task.status === "Ready").length}</strong>
+              </div>
+            </div>
+
+            <div className="cleanerTaskStack">
+              <h4>My assigned cleanings</h4>
+
+              {cleanerTasks.length === 0 ? (
+                <p className="mutedText">No assigned cleanings yet.</p>
+              ) : (
+                cleanerTasks.map((reservation) => {
+                  const home = homes.find((item) => item.id === reservation.homeId);
+                  const urgency = getUrgency(reservation.arrival);
+
+                  return (
+                    <article key={reservation.id} className="cleanerTaskCard">
+                      <div className="cleanerTaskHeader">
+                        <div>
+                          <h3>{home?.name ?? "Unknown home"}</h3>
+                          <p>{reservation.guestName}</p>
+                        </div>
+                        <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
+                      </div>
+
+                      <div className="cleanerTaskDetails">
+                        <div>
+                          <span>Arrival</span>
+                          <strong>{formatDate(reservation.arrival)}</strong>
+                        </div>
+                        <div>
+                          <span>Departure</span>
+                          <strong>{formatDate(reservation.departure)}</strong>
+                        </div>
+                        <div>
+                          <span>Status</span>
+                          <strong>{reservation.status}</strong>
+                        </div>
+                      </div>
+
+                      {reservation.notes && <p className="notesBox">{reservation.notes}</p>}
+
+                      <div className="cleanerActionGrid">
+                        <button onClick={() => updateReservationFromCleaner(reservation.id, "Accepted", "Cleaner accepted the assignment")}>
+                          Accept
+                        </button>
+                        <button onClick={() => updateReservationFromCleaner(reservation.id, "Cleaning", "Cleaner started cleaning")}>
+                          Start
+                        </button>
+                        <button onClick={() => updateReservationFromCleaner(reservation.id, "Ready", "Cleaner marked the home ready")}>
+                          Mark Ready
+                        </button>
+                        <button
+                          className="warningAction"
+                          onClick={() => {
+                            setCleanerIssueForm((current) => ({ ...current, reservationId: reservation.id }));
+                            document.getElementById("cleanerIssueForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }}
+                        >
+                          Report Issue
+                        </button>
+                      </div>
+
+                      <div className="etaRow">
+                        <button onClick={() => updateReservationFromCleaner(reservation.id, "Accepted", "Cleaner ETA: on time")}>
+                          ETA On Time
+                        </button>
+                        <button onClick={() => updateReservationFromCleaner(reservation.id, "Needs Review", "Cleaner running late; owner review recommended")}>
+                          Running Late
+                        </button>
+                        <button onClick={() => updateReservationFromCleaner(reservation.id, "Needs Review", "Cleaner requested owner message")}>
+                          Message Owner
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <aside className="cleanerOpsPanel">
+            <section className="cleanerChecklistBox">
+              <p className="eyebrow">Readiness checklist</p>
+              <h3>{activeHome?.name ?? "Select a cleaning"}</h3>
+              <div className="checklistItems">
+                {[
+                  "Beds reset and photographed",
+                  "Bathrooms cleaned and stocked",
+                  "Kitchen reset",
+                  "Floors checked",
+                  "Trash removed",
+                  "Hot tub / outdoor areas checked",
+                  "Supplies reported",
+                  "Final walkthrough complete",
+                ].map((item) => (
+                  <label key={item}>
+                    <input type="checkbox" />
+                    {item}
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section className="cleanerIssueBox" id="cleanerIssueForm">
+              <p className="eyebrow">Maintenance reporting</p>
+              <h3>Report an Issue</h3>
+              <p className="mutedText">
+                This creates an owner notification and a maintenance work order automatically.
+              </p>
+
+              <form className="cleanerIssueForm" onSubmit={submitCleanerMaintenanceIssue}>
+                <label>
+                  Related cleaning
+                  <select
+                    value={cleanerIssueForm.reservationId}
+                    onChange={(event) => setCleanerIssueForm({ ...cleanerIssueForm, reservationId: event.target.value })}
+                  >
+                    <option value="">Select cleaning</option>
+                    {cleanerTasks.map((reservation) => {
+                      const home = homes.find((item) => item.id === reservation.homeId);
+                      return (
+                        <option key={reservation.id} value={reservation.id}>
+                          {home?.name ?? "Home"} · {reservation.guestName}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+
+                <label>
+                  Issue title
+                  <input
+                    value={cleanerIssueForm.title}
+                    onChange={(event) => setCleanerIssueForm({ ...cleanerIssueForm, title: event.target.value })}
+                    placeholder="Example: Loose railing, leak under sink"
+                  />
+                </label>
+
+                <label>
+                  Category
+                  <select
+                    value={cleanerIssueForm.category}
+                    onChange={(event) => setCleanerIssueForm({ ...cleanerIssueForm, category: event.target.value })}
+                  >
+                    <option value="General">General</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="HVAC">HVAC</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Appliance">Appliance</option>
+                    <option value="Supplies">Supplies</option>
+                  </select>
+                </label>
+
+                <label>
+                  Urgency
+                  <select
+                    value={cleanerIssueForm.urgency}
+                    onChange={(event) =>
+                      setCleanerIssueForm({ ...cleanerIssueForm, urgency: event.target.value as WorkOrderUrgency })
+                    }
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="After Hours">After Hours</option>
+                  </select>
+                </label>
+
+                <label>
+                  Photo upload placeholder
+                  <input type="file" accept="image/*" />
+                </label>
+
+                <label>
+                  Notes
+                  <textarea
+                    value={cleanerIssueForm.notes}
+                    onChange={(event) => setCleanerIssueForm({ ...cleanerIssueForm, notes: event.target.value })}
+                    placeholder="What happened? Where is it? Does it impact the next guest?"
+                  />
+                </label>
+
+                <button className="primaryButton" type="submit">
+                  Send to Owner + Create Work Order
+                </button>
+              </form>
+            </section>
+          </aside>
+        </section>
+      </>
+    );
+  }
+
   function renderPlaceholder() {
     return (
       <section className="placeholderPage">
@@ -2070,7 +2422,7 @@ export default function App() {
         </div>
 
         <nav className="nav">
-          {["Dashboard", "Reservation Board", "Calendar", "Properties", "Cleaners", "Maintenance", "Notification Center"].map(
+          {["Dashboard", "Reservation Board", "Calendar", "Properties", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center"].map(
             (item) => (
               <button
                 key={item}
@@ -2118,6 +2470,13 @@ export default function App() {
           </button>
           <button
             onClick={() => {
+              setActivePage("Cleaner Portal");
+            }}
+          >
+            Cleaner Portal
+          </button>
+          <button
+            onClick={() => {
               setActivePage("Properties");
               setShowPropertyForm(true);
             }}
@@ -2144,16 +2503,15 @@ export default function App() {
       </aside>
 
       <main className="mainContent">
-        {activePage === "Reservation Board" && renderReservationBoard()}
         {activePage === "Calendar" && renderCalendar()}
         {activePage === "Dashboard" && renderDashboard()}
         {activePage === "Reservation Board" && renderReservationBoard()}
-        {activePage === "Calendar" && renderCalendar()}
         {activePage === "Properties" && renderProperties()}
         {activePage === "Cleaners" && renderCleaners()}
+        {activePage === "Cleaner Portal" && renderCleanerPortal()}
         {activePage === "Maintenance" && renderMaintenance()}
         {activePage === "Notification Center" && renderNotificationCenter()}
-        {!["Dashboard", "Reservation Board", "Calendar", "Properties", "Cleaners", "Maintenance", "Notification Center"].includes(activePage) && renderPlaceholder()}
+        {!["Dashboard", "Reservation Board", "Calendar", "Properties", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center"].includes(activePage) && renderPlaceholder()}
       </main>
     </div>
   );

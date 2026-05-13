@@ -1296,328 +1296,255 @@ textarea:focus {
 }
 
 
-/* Mobile usability fix: convert the desktop sidebar into a compact top navigation. */
-@media (max-width: 760px) {
-  html,
-  body,
-  #root {
-    width: 100%;
-    min-height: 100%;
-    overflow-x: hidden;
-  }
+.cleanerPortalHero {
+  align-items: center;
+}
 
-  .appShell {
-    display: block;
-    min-height: 100vh;
-    width: 100%;
-  }
+.cleanerPortalShell {
+  display: grid;
+  grid-template-columns: minmax(360px, 520px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
 
-  .sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    width: 100%;
-    min-height: auto;
-    padding: 12px;
-    gap: 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  }
+.cleanerPhonePanel,
+.cleanerOpsPanel > section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  border-radius: 28px;
+}
 
-  .brand {
-    gap: 10px;
-  }
+.cleanerPhonePanel {
+  padding: 18px;
+}
 
-  .brandIcon {
-    width: 38px;
-    height: 38px;
-    border-radius: 13px;
-    font-size: 13px;
-  }
+.cleanerPortalTop {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 22px;
+  background: #111827;
+  color: white;
+  margin-bottom: 14px;
+}
 
-  .brand h1 {
-    font-size: 15px;
-  }
+.cleanerPortalTop .eyebrow {
+  color: #93c5fd;
+}
 
-  .brand p {
-    font-size: 11px;
-    margin-top: 2px;
-  }
+.cleanerPortalTop h3 {
+  margin: 0;
+  font-size: 24px;
+}
 
-  .nav {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
+.cleanerPortalTop span {
+  color: #d1d5db;
+}
 
-  .nav::-webkit-scrollbar,
-  .quickLinksBox::-webkit-scrollbar {
-    display: none;
-  }
+.cleanerSwitcher {
+  display: grid;
+  gap: 7px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 14px;
+}
 
-  .nav button {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    padding: 10px 12px;
-    border-radius: 999px;
-    font-size: 13px;
-  }
+.cleanerQuickStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
 
-  .quickLinksBox {
-    margin-top: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    overflow-x: auto;
-    padding: 10px;
-    border-radius: 16px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
+.cleanerQuickStats div {
+  background: #f8fafc;
+  border-radius: 18px;
+  padding: 12px;
+}
 
-  .quickLinksHeader {
-    flex: 0 0 auto;
-    margin: 0 2px 0 0;
-    font-size: 10px;
-  }
+.cleanerQuickStats span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+}
 
-  .quickLinksBox button {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    padding: 9px 11px;
-    border-radius: 999px;
-    font-size: 12px;
-  }
+.cleanerQuickStats strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 26px;
+}
 
-  .mainContent {
-    width: 100%;
-    padding: 14px;
-    overflow: visible;
-  }
+.cleanerTaskStack {
+  display: grid;
+  gap: 14px;
+}
 
-  .pageHeader {
-    margin-bottom: 16px;
-    gap: 12px;
-  }
+.cleanerTaskStack h4,
+.cleanerChecklistBox h3,
+.cleanerIssueBox h3 {
+  margin: 0;
+}
 
-  .pageHeader h2,
-  .placeholderPage h2 {
-    font-size: 26px;
-  }
+.cleanerTaskCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  padding: 16px;
+  background: #ffffff;
+}
 
-  .headerSubtext,
-  .placeholderPage p,
-  .mutedText {
-    font-size: 14px;
-  }
+.cleanerTaskHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
 
-  .statsGrid,
-  .dashboardGrid,
-  .reservationGrid,
-  .propertiesLayout,
-  .cleanersLayout,
-  .maintenanceLayout,
-  .calendarLayout,
-  .filtersPanel,
-  .manualForm,
-  .propertyForm,
-  .calendarToolbar {
-    grid-template-columns: 1fr !important;
-  }
+.cleanerTaskHeader h3 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.03em;
+}
 
-  .statCard,
-  .reservationCard,
-  .dashboardPanel,
-  .propertyCard,
-  .cleanerCard,
-  .workOrderCard,
-  .notificationCard,
-  .calendarPanel,
-  .calendarDetailPanel,
-  .propertyDetailPanel,
-  .cleanerDetailPanel,
-  .maintenanceDetailPanel,
-  .manualPanel,
-  .filtersPanel,
-  .calendarToolbar,
-  .placeholderPage {
-    border-radius: 18px;
-  }
+.cleanerTaskHeader p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
 
-  .calendarDetailPanel,
-  .propertyDetailPanel,
-  .cleanerDetailPanel,
-  .maintenanceDetailPanel {
-    position: static;
-  }
+.cleanerTaskDetails {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin: 14px 0;
+}
 
-  .calendarPanel {
-    overflow-x: auto;
-  }
+.cleanerTaskDetails div {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 10px;
+}
 
-  .weekdayGrid,
-  .calendarGrid {
-    min-width: 720px;
-  }
+.cleanerTaskDetails span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+}
 
-  .calendarDay {
-    min-height: 120px;
-  }
+.cleanerTaskDetails strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+}
 
-  .reservationMeta,
-  .assignmentRow,
-  .propertyDataGrid,
-  .propertyLinkedOps {
-    grid-template-columns: 1fr !important;
-  }
+.cleanerActionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+  margin-top: 12px;
+}
 
-  .cardTop,
-  .workOrderTop,
-  .propertyCardTop,
-  .notificationTop,
-  .panelHeader {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+.cleanerActionGrid button,
+.etaRow button {
+  border: 0;
+  border-radius: 16px;
+  padding: 13px 12px;
+  font-weight: 900;
+  background: #eef2ff;
+  color: #1e3a8a;
+}
 
-  .urgencyBadge,
-  .propertyStatus {
-    margin-left: 0;
+.cleanerActionGrid .warningAction {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.etaRow {
+  display: grid;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.etaRow button {
+  background: #f8fafc;
+  color: #475569;
+  text-align: left;
+}
+
+.cleanerOpsPanel {
+  display: grid;
+  gap: 18px;
+}
+
+.cleanerOpsPanel > section {
+  padding: 20px;
+}
+
+.checklistItems {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.checklistItems label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 12px;
+  font-weight: 800;
+  color: #334155;
+}
+
+.checklistItems input {
+  width: auto;
+}
+
+.cleanerIssueForm {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.cleanerIssueForm label {
+  display: grid;
+  gap: 7px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 1050px) {
+  .cleanerPortalShell {
+    grid-template-columns: 1fr;
   }
 }
-@media (max-width: 768px) {
-  .appShell {
-    display: block;
+
+@media (max-width: 640px) {
+  .cleanerPortalShell {
+    gap: 14px;
   }
 
-  .sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    width: 100%;
-    padding: 12px;
-    gap: 10px;
-  }
-
-  .brand {
-    justify-content: center;
-  }
-
-  .brandIcon {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
-  }
-
-  .brand h1 {
-    font-size: 16px;
-  }
-
-  .brand p {
-    display: none;
-  }
-
-  .nav {
-    display: flex;
-    overflow-x: auto;
-    gap: 8px;
-    padding-bottom: 4px;
-  }
-
-  .nav button {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    padding: 10px 12px;
-  }
-
-  .quickLinksBox {
-    display: none;
-  }
-
-  .mainContent {
-    padding: 16px;
-  }
-}@media (max-width: 768px) {
-  .appShell {
-    display: block;
-  }
-
-  .sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    width: 100%;
-    min-height: 0;
-    height: auto;
-    padding: 10px 12px;
-    display: block;
-  }
-
-  .brand {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-
-  .brandIcon {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    font-size: 12px;
-  }
-
-  .brand h1 {
-    font-size: 18px;
-    margin: 0;
-  }
-
-  .brand p {
-    display: none;
-  }
-
-  .nav {
-    display: flex;
-    flex-direction: row;
-    overflow-x: auto;
-    gap: 8px;
-    padding-bottom: 6px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .nav button {
-    flex: 0 0 auto;
-    width: auto;
-    min-width: max-content;
-    padding: 9px 12px;
-    font-size: 14px;
-    border-radius: 999px;
-  }
-
-  .quickLinksBox {
-    display: none;
-  }
-
-  .mainContent {
+  .cleanerPhonePanel,
+  .cleanerOpsPanel > section {
+    border-radius: 22px;
     padding: 14px;
   }
 
-  .pageHeader {
-    gap: 12px;
-    margin-bottom: 16px;
+  .cleanerTaskDetails,
+  .cleanerActionGrid {
+    grid-template-columns: 1fr;
   }
 
-  .pageHeader h2 {
-    font-size: 30px;
+  .cleanerQuickStats {
+    grid-template-columns: repeat(3, 1fr);
   }
+}
 
-  .headerSubtext {
-    font-size: 16px;
-  }
-}@media screen and (max-width: 768px) {
+/* Forced production mobile navigation override */
+@media screen and (max-width: 768px) {
   .appShell {
     display: block !important;
     grid-template-columns: none !important;
