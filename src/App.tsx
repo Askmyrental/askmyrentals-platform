@@ -2654,9 +2654,6 @@ export default function App() {
       return urgency.label === "Today" || urgency.label === "Tomorrow" || urgency.className === "watch";
     });
 
-    const activeTask = cleanerTasks.find((reservation) => reservation.id === cleanerIssueForm.reservationId) ?? cleanerTasks[0];
-    const activeHome = activeTask ? homes.find((home) => home.id === activeTask.homeId) : undefined;
-
     return (
       <>
         <header className="pageHeader cleanerPortalHero">
@@ -2787,27 +2784,6 @@ export default function App() {
           </div>
 
           <aside className="cleanerOpsPanel">
-            <section className="cleanerChecklistBox">
-              <p className="eyebrow">Readiness checklist</p>
-              <h3>{activeHome?.name ?? "Select a cleaning"}</h3>
-              <div className="checklistItems">
-                {[
-                  "Beds reset and photographed",
-                  "Bathrooms cleaned and stocked",
-                  "Kitchen reset",
-                  "Floors checked",
-                  "Trash removed",
-                  "Hot tub / outdoor areas checked",
-                  "Supplies reported",
-                  "Final walkthrough complete",
-                ].map((item) => (
-                  <label key={item}>
-                    <input type="checkbox" />
-                    {item}
-                  </label>
-                ))}
-              </div>
-            </section>
 
             <section className="cleanerIssueBox" id="cleanerIssueForm">
               <p className="eyebrow">Maintenance reporting</p>
@@ -3202,87 +3178,6 @@ export default function App() {
             )
           )}
         </nav>
-
-        <div className="quickLinksBox">
-          <div className="quickLinksHeader">Quick Links</div>
-          <button
-            onClick={() => {
-              setActivePage("Reservation Board");
-              setShowManualForm(true);
-            }}
-          >
-            Add Manual Reservation
-          </button>
-          <button
-            onClick={() => {
-              setActivePage("Dashboard");
-            }}
-          >
-            Open Dashboard
-          </button>
-          <button
-            onClick={() => {
-              setActivePage("Calendar");
-              setSelectedCalendarHome("all");
-            }}
-          >
-            View Full Calendar
-          </button>
-          <button
-            onClick={() => {
-              setActivePage("Reservation Board");
-              setSelectedStatus("New");
-            }}
-          >
-            Unassigned / New
-          </button>
-          <button
-            onClick={() => {
-              setActivePage("Cleaner Portal");
-            }}
-          >
-            Cleaner Portal
-          </button>
-          <button
-            onClick={() => {
-              setActivePage("Properties");
-              setEditingPropertyId(null);
-              setPropertyForm({
-                name: "",
-                city: "",
-                address: "",
-                setupMode: "VRBO",
-                vrboId: "",
-                airbnbUrl: "",
-                iCalUrl: "",
-                defaultCleanerId: "",
-                bedrooms: "3",
-                bathrooms: "2",
-                maxGuests: "8",
-                notes: "",
-              });
-              setShowPropertyForm(true);
-            }}
-          >
-            Create Home Profile
-          </button>
-          <button
-            onClick={() => {
-              setActivePage("Maintenance");
-              setWorkOrderFilter("after-hours");
-            }}
-          >
-            Maintenance Risks
-          </button>
-          <button
-            onClick={() => {
-              setActivePage("Reservation Board");
-              setSelectedStatus("Needs Review");
-            }}
-          >
-            Needs Owner Review
-          </button>
-        </div>
       </aside>
 
       <main className="mainContent">

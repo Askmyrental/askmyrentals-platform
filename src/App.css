@@ -69,8 +69,7 @@ button {
   gap: 8px;
 }
 
-.nav button,
-.quickLinksBox button {
+.nav button {
   border: 0;
   border-radius: 14px;
   padding: 12px 14px;
@@ -80,28 +79,11 @@ button {
 }
 
 .nav button:hover,
-.quickLinksBox button:hover,
 .nav button.active {
   background: rgba(255, 255, 255, 0.1);
   color: white;
 }
 
-.quickLinksBox {
-  margin-top: auto;
-  display: grid;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.quickLinksHeader {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #9ca3af;
-  margin-bottom: 4px;
-}
 
 .mainContent {
   padding: 32px;
@@ -1383,7 +1365,6 @@ textarea:focus {
 }
 
 .cleanerTaskStack h4,
-.cleanerChecklistBox h3,
 .cleanerIssueBox h3 {
   margin: 0;
 }
@@ -1481,26 +1462,6 @@ textarea:focus {
   padding: 20px;
 }
 
-.checklistItems {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.checklistItems label {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  background: #f8fafc;
-  border-radius: 16px;
-  padding: 12px;
-  font-weight: 800;
-  color: #334155;
-}
-
-.checklistItems input {
-  width: auto;
-}
 
 .cleanerIssueForm {
   display: grid;
@@ -1601,10 +1562,6 @@ textarea:focus {
     padding: 9px 12px !important;
     font-size: 14px !important;
     border-radius: 999px !important;
-  }
-
-  .quickLinksBox {
-    display: none !important;
   }
 
   .mainContent {
