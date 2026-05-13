@@ -415,32 +415,13 @@ function getUrgency(arrival: string) {
 }
 
 function makeTimelineNote(status: ReservationStatus, cleanerId?: string) {
-  const cleaner = starterCleaners.find((item) => item.id === cleanerId);
-
-  if (status === "Assigned" && cleaner) {
-    return `Assigned to ${cleaner.name}`;
-  }
-
-  if (status === "Accepted" && cleaner) {
-    return `${cleaner.name} accepted assignment`;
-  }
-
-  if (status === "Cleaning") {
-    return "Cleaner marked cleaning in progress";
-  }
-
-  if (status === "Ready") {
-    return "Cleaner marked home ready";
-  }
-
-  if (status === "Needs Review") {
-    return "Flagged for owner review";
-  }
-
-  if (status === "Completed") {
-    return "Turnover completed";
-  }
-
+  const cleaner = starterCleaners.find((item: Cleaner) => item.id === cleanerId);
+  if (status === "Assigned" && cleaner) return `Assigned to ${cleaner.name}`;
+  if (status === "Accepted" && cleaner) return `${cleaner.name} accepted assignment`;
+  if (status === "Cleaning") return "Cleaner marked cleaning in progress";
+  if (status === "Ready") return "Cleaner marked home ready";
+  if (status === "Needs Review") return "Flagged for owner review";
+  if (status === "Completed") return "Turnover completed";
   return "Status updated";
 }
 
