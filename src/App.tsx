@@ -478,6 +478,7 @@ export default function App() {
   const [workOrderFilter, setWorkOrderFilter] = useState("all");
   const [selectedPropertyId, setSelectedPropertyId] = useState(starterHomes[0]?.id ?? "");
   const [showPropertyForm, setShowPropertyForm] = useState(false);
+  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [propertyForm, setPropertyForm] = useState({
     name: "",
     city: "",
@@ -1162,6 +1163,25 @@ export default function App() {
     setHomes((current) => current.map((home) => (home.id === id ? { ...home, ...updates } : home)));
   }
 
+  function startEditingProperty(home: Home) {
+    setEditingPropertyId(home.id);
+    setPropertyForm({
+      name: home.name,
+      city: home.city,
+      address: home.address ?? "",
+      setupMode: home.setupMode,
+      vrboId: home.vrboId ?? "",
+      airbnbUrl: home.airbnbUrl ?? "",
+      iCalUrl: home.iCalUrl ?? "",
+      defaultCleanerId: home.defaultCleanerId ?? "",
+      bedrooms: String(home.bedrooms),
+      bathrooms: String(home.bathrooms),
+      maxGuests: String(home.maxGuests),
+      notes: home.notes ?? "",
+    });
+    setShowPropertyForm(true);
+  }
+
   function renderProperties() {
     const selectedProperty = homes.find((home) => home.id === selectedPropertyId) ?? homes[0];
     const selectedReservations = selectedProperty
@@ -1184,7 +1204,27 @@ export default function App() {
             </p>
           </div>
 
-          <button className="primaryButton" onClick={() => setShowPropertyForm(true)}>
+          <button
+            className="primaryButton"
+            onClick={() => {
+              setEditingPropertyId(null);
+              setPropertyForm({
+                name: "",
+                city: "",
+                address: "",
+                setupMode: "VRBO",
+                vrboId: "",
+                airbnbUrl: "",
+                iCalUrl: "",
+                defaultCleanerId: "",
+                bedrooms: "3",
+                bathrooms: "2",
+                maxGuests: "8",
+                notes: "",
+              });
+              setShowPropertyForm(true);
+            }}
+          >
             + Create Home Profile
           </button>
         </header>
@@ -1212,15 +1252,50 @@ export default function App() {
           <section className="manualPanel">
             <div className="panelHeader">
               <div>
-                <p className="eyebrow">Create home profile</p>
-                <h3>Add Property</h3>
+                <p className="eyebrow">{editingPropertyId ? "Edit home profile" : "Create home profile"}</p>
+                <h3>{editingPropertyId ? "Edit Property" : "Add Property"}</h3>
               </div>
-              <button className="ghostButton" onClick={() => setShowPropertyForm(false)}>
+              <button
+                className="ghostButton"
+                onClick={() => {
+                  setEditingPropertyId(null);
+                  setShowPropertyForm(false);
+                }}
+              >
                 Close
               </button>
             </div>
 
-            <form className="propertyForm" onSubmit={createProperty}>
+            <form
+              className="propertyForm"
+              onSubmit={(event) => {
+                if (editingPropertyId) {
+                  event.preventDefault();
+
+                  updateProperty(editingPropertyId, {
+                    name: propertyForm.name,
+                    city: propertyForm.city,
+                    address: propertyForm.address,
+                    setupMode: propertyForm.setupMode,
+                    vrboId: propertyForm.vrboId,
+                    airbnbUrl: propertyForm.airbnbUrl,
+                    iCalUrl: propertyForm.iCalUrl,
+                    defaultCleanerId: propertyForm.defaultCleanerId || undefined,
+                    bedrooms: Number(propertyForm.bedrooms) || 0,
+                    bathrooms: Number(propertyForm.bathrooms) || 0,
+                    maxGuests: Number(propertyForm.maxGuests) || 0,
+                    status: propertyForm.iCalUrl || propertyForm.vrboId || propertyForm.airbnbUrl ? "Active" : "Setup Needed",
+                    notes: propertyForm.notes,
+                  });
+
+                  setEditingPropertyId(null);
+                  setShowPropertyForm(false);
+                  return;
+                }
+
+                createProperty(event);
+              }}
+            >
               <label>
                 Home name
                 <input
@@ -1339,7 +1414,7 @@ export default function App() {
               </label>
 
               <button className="primaryButton" type="submit">
-                Save Home Profile
+                {editingPropertyId ? "Save Property Changes" : "Save Home Profile"}
               </button>
             </form>
           </section>
@@ -1473,6 +1548,12 @@ export default function App() {
                     <span>Open work orders</span>
                     <strong>{selectedWorkOrders.filter((order) => order.status !== "Completed").length}</strong>
                   </div>
+                </div>
+
+                <div className="cardActions">
+                  <button onClick={() => startEditingProperty(selectedProperty)}>
+                    Edit Property
+                  </button>
                 </div>
 
                 {selectedProperty.notes && <p className="notesBox">{selectedProperty.notes}</p>}
@@ -2150,6 +2231,8 @@ export default function App() {
       return urgency.label === "Today" || urgency.label === "Tomorrow" || urgency.className === "watch";
     });
 
+    const activeTask = cleanerTasks.find((reservation) => reservation.id === cleanerIssueForm.reservationId) ?? cleanerTasks[0];
+    const activeHome = activeTask ? homes.find((home) => home.id === activeTask.homeId) : undefined;
 
     return (
       <>
@@ -2281,48 +2364,27 @@ export default function App() {
           </div>
 
           <aside className="cleanerOpsPanel">
-           <section className="cleanerScheduleBox">
-  <p className="eyebrow">Upcoming schedule</p>
-  <h3>Next 30 Days</h3>
-
-  <div className="cleanerTaskStack">
-    {cleanerTasks.slice(0, 12).map((reservation) => {
-      const home = homes.find((item) => item.id === reservation.homeId);
-
-      return (
-        <article key={`schedule-${reservation.id}`} className="cleanerTaskCard">
-          <div className="cleanerTaskHeader">
-            <div>
-              <h3>{home?.name ?? "Unknown home"}</h3>
-              <p>{reservation.guestName}</p>
-            </div>
-
-            <span className={`urgencyBadge ${getUrgency(reservation.arrival).className}`}>
-              {getUrgency(reservation.arrival).label}
-            </span>
-          </div>
-
-          <div className="cleanerTaskDetails">
-            <div>
-              <span>Arrival</span>
-              <strong>{formatDate(reservation.arrival)}</strong>
-            </div>
-
-            <div>
-              <span>Departure</span>
-              <strong>{formatDate(reservation.departure)}</strong>
-            </div>
-
-            <div>
-              <span>Status</span>
-              <strong>{reservation.status}</strong>
-            </div>
-          </div>
-        </article>
-      );
-    })}
-  </div>
-</section>
+            <section className="cleanerChecklistBox">
+              <p className="eyebrow">Readiness checklist</p>
+              <h3>{activeHome?.name ?? "Select a cleaning"}</h3>
+              <div className="checklistItems">
+                {[
+                  "Beds reset and photographed",
+                  "Bathrooms cleaned and stocked",
+                  "Kitchen reset",
+                  "Floors checked",
+                  "Trash removed",
+                  "Hot tub / outdoor areas checked",
+                  "Supplies reported",
+                  "Final walkthrough complete",
+                ].map((item) => (
+                  <label key={item}>
+                    <input type="checkbox" />
+                    {item}
+                  </label>
+                ))}
+              </div>
+            </section>
 
             <section className="cleanerIssueBox" id="cleanerIssueForm">
               <p className="eyebrow">Maintenance reporting</p>
@@ -2497,6 +2559,21 @@ export default function App() {
           <button
             onClick={() => {
               setActivePage("Properties");
+              setEditingPropertyId(null);
+              setPropertyForm({
+                name: "",
+                city: "",
+                address: "",
+                setupMode: "VRBO",
+                vrboId: "",
+                airbnbUrl: "",
+                iCalUrl: "",
+                defaultCleanerId: "",
+                bedrooms: "3",
+                bathrooms: "2",
+                maxGuests: "8",
+                notes: "",
+              });
               setShowPropertyForm(true);
             }}
           >
