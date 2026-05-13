@@ -70,38 +70,7 @@ button {
 }
 
 .nav button,
-.quickLinksBox button {
-  border: 0;
-  border-radius: 14px;
-  padding: 12px 14px;
-  text-align: left;
-  background: transparent;
-  color: #d1d5db;
-}
 
-.nav button:hover,
-.quickLinksBox button:hover,
-.nav button.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-.quickLinksBox {
-  margin-top: auto;
-  display: grid;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.quickLinksHeader {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #9ca3af;
-  margin-bottom: 4px;
-}
 
 .mainContent {
   padding: 32px;
