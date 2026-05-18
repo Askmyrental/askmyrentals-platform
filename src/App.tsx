@@ -816,20 +816,20 @@ export default function App()
       ? `Conflict warning: overlaps ${conflictCount} existing reservation/block for ${home?.name ?? "this home"}.`
       : "";
 
-    const nextReservation: Reservation = {
-      id: `res-${Date.now()}`,
-      guestName: manualForm.guestName,
-      homeId: manualForm.homeId,
-      source: manualForm.source,
-      arrival: manualForm.arrival,
-      departure: manualForm.departure,
-      status: conflictCount > 0 ? "Needs Review" : "New",
-      notes: [manualForm.notes, conflictNote].filter(Boolean).join("
-"),
-      timeline: conflictCount > 0
-        ? ["Manual reservation created", conflictNote, "Saved with conflict for owner review"]
-        : ["Manual reservation created"],
-    };
+   const nextReservation: Reservation = {
+  id: `res-${Date.now()}`,
+  guestName: manualForm.guestName,
+  homeId: manualForm.homeId,
+  source: manualForm.source,
+  arrival: manualForm.arrival,
+  departure: manualForm.departure,
+  status: conflictCount > 0 ? "Needs Review" : "New",
+  notes: [manualForm.notes, conflictNote].filter(Boolean).join("\n"),
+  timeline:
+    conflictCount > 0
+      ? ["Manual reservation created", conflictNote, "Saved with conflict for owner review"]
+      : ["Manual reservation created"],
+};
 
     setReservations((current) => [nextReservation, ...current]);
 
