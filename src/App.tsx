@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
 type ReservationStatus =
@@ -459,7 +459,115 @@ function isSameDay(date: Date, dateString: string) {
   return toInputDate(date) === dateString;
 }
 
-export default function App() {
+function doDateRangesOverlap(startA: string, endA: string, startB: string, endB: string) {
+  return startA <= endB && endA >= startB;
+}
+
+function getReservationConflictCount(candidate: Pick<Reservation, "homeId" | "arrival" | "departure">, reservations: Reservation[]) {
+  return reservations.filter(
+    (reservation) =>
+      reservation.homeId === candidate.homeId &&
+      doDateRangesOverlap(candidate.arrival, candidate.departure, reservation.arrival, reservation.departure)
+  ).length;
+}
+
+function isImportedReservation(reservation: Reservation) {
+  return reservation.source === "VRBO" || reservation.source === "Airbnb";
+}
+
+function getSourceControlledMessage(source: ReservationSource) {
+  return `Imported from ${source}. To change or remove this reservation, update it in ${source} and re-sync.`;
+}
+
+function unfoldICalLines(icalText: string) {
+  return icalText
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .reduce<string[]>((lines, line) => {
+      if ((line.startsWith(" ") || line.startsWith("\t")) && lines.length > 0) {
+        lines[lines.length - 1] += line.slice(1);
+      } else {
+        lines.push(line);
+      }
+      return lines;
+    }, []);
+}
+
+function getICalValue(lines: string[], field: string) {
+  const line = lines.find((item) => item.startsWith(`${field}:`) || item.startsWith(`${field};`));
+  if (!line) return "";
+  const colonIndex = line.indexOf(":");
+  return colonIndex >= 0 ? line.slice(colonIndex + 1).trim() : "";
+}
+
+function parseICalDate(value: string) {
+  if (!value) return "";
+  const cleanValue = value.trim();
+  const datePart = cleanValue.includes("T") ? cleanValue.split("T")[0] : cleanValue.slice(0, 8);
+
+  if (datePart.length !== 8) return "";
+
+  return `${datePart.slice(0, 4)}-${datePart.slice(4, 6)}-${datePart.slice(6, 8)}`;
+}
+
+function cleanICalText(value: string) {
+  return value
+    .replace(/\\,/g, ",")
+    .replace(/\\;/g, ";")
+    .replace(/\\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseICalReservations(icalText: string, homeId: string, source: Extract<ReservationSource, "VRBO" | "Airbnb">) {
+  const lines = unfoldICalLines(icalText);
+  const reservations: Reservation[] = [];
+  let currentEvent: string[] = [];
+  let insideEvent = false;
+
+  lines.forEach((line) => {
+    if (line === "BEGIN:VEVENT") {
+      insideEvent = true;
+      currentEvent = [];
+      return;
+    }
+
+    if (line === "END:VEVENT") {
+      const uid = getICalValue(currentEvent, "UID") || `${source}-${homeId}-${reservations.length}`;
+      const summary = cleanICalText(getICalValue(currentEvent, "SUMMARY")) || `${source} Reservation`;
+      const arrival = parseICalDate(getICalValue(currentEvent, "DTSTART"));
+      const departure = parseICalDate(getICalValue(currentEvent, "DTEND"));
+      const description = cleanICalText(getICalValue(currentEvent, "DESCRIPTION"));
+
+      if (arrival && departure) {
+        reservations.push({
+          id: `${source.toLowerCase()}-${homeId}-${uid}`.replace(/[^a-zA-Z0-9-_]/g, "-"),
+          guestName: summary,
+          homeId,
+          source,
+          arrival,
+          departure,
+          status: "New",
+          notes: description ? `Imported calendar note: ${description}` : "",
+          timeline: [`Imported from ${source} iCal`],
+        });
+      }
+
+      insideEvent = false;
+      currentEvent = [];
+      return;
+    }
+
+    if (insideEvent) currentEvent.push(line);
+  });
+
+  return reservations;
+}
+
+export default function App() 
+
+{
   const [activePage, setActivePage] = useState("Reservation Board");
   const [homes, setHomes] = useState<Home[]>(starterHomes);
   const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
@@ -502,8 +610,10 @@ export default function App() {
     market: "",
     vrboId: "",
     vrboICalUrl: "",
+    vrboICalText: "",
     airbnbUrl: "",
     airbnbICalUrl: "",
+    airbnbICalText: "",
   });
   const [importMessage, setImportMessage] = useState("Demo data is active. Switch to Live Mode when you are ready to start from real VRBO/iCal sources.");
   const [cleanerPortalId, setCleanerPortalId] = useState(starterCleaners[0]?.id ?? "");
@@ -522,6 +632,99 @@ export default function App() {
     departure: "",
     notes: "",
   });
+  const [showWorkOrderForm, setShowWorkOrderForm] = useState(false);
+  const [ownerWorkOrderForm, setOwnerWorkOrderForm] = useState({
+    homeId: homes[0]?.id ?? "",
+    title: "",
+    category: "General",
+    urgency: "Medium" as WorkOrderUrgency,
+    vendorId: "",
+    scheduledDate: "",
+    notes: "",
+  });
+
+  const [hasLoadedSavedData, setHasLoadedSavedData] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("Not saved yet");
+
+  useEffect(() => {
+    async function loadSavedData() {
+      try {
+        const response = await fetch("http://localhost:4000/api/app-data");
+        const result = await response.json();
+
+        if (result.exists && result.data) {
+          if (result.data.homes) setHomes(result.data.homes);
+          if (result.data.cleaners) setCleaners(result.data.cleaners);
+          if (result.data.reservations) setReservations(result.data.reservations);
+          if (result.data.calendarBlocks) setCalendarBlocks(result.data.calendarBlocks);
+          if (result.data.workOrders) setWorkOrders(result.data.workOrders);
+          if (result.data.notifications) setNotifications(result.data.notifications);
+          if (result.data.dismissedDiscrepancies) setDismissedDiscrepancies(result.data.dismissedDiscrepancies);
+          if (result.data.dataMode) setDataMode(result.data.dataMode);
+          if (result.data.importMessage) setImportMessage(result.data.importMessage);
+
+          setSaveStatus(`Loaded saved data from ${result.data.savedAt ?? "server"}`);
+        } else {
+          setSaveStatus("No saved data yet. Using starter data.");
+        }
+      } catch {
+        setSaveStatus("Backend not connected. Using starter data.");
+      } finally {
+        setHasLoadedSavedData(true);
+      }
+    }
+
+    loadSavedData();
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedSavedData) return;
+
+    const saveTimer = window.setTimeout(async () => {
+      try {
+        const payload = {
+          homes,
+          cleaners,
+          reservations,
+          calendarBlocks,
+          workOrders,
+          notifications,
+          dismissedDiscrepancies,
+          dataMode,
+          importMessage,
+        };
+
+        const response = await fetch("http://localhost:4000/api/app-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+
+        if (result.ok) {
+          setSaveStatus(`Saved ${new Date().toLocaleTimeString()}`);
+        } else {
+          setSaveStatus("Save failed");
+        }
+      } catch {
+        setSaveStatus("Save failed — backend offline");
+      }
+    }, 800);
+
+    return () => window.clearTimeout(saveTimer);
+  }, [
+    homes,
+    cleaners,
+    reservations,
+    calendarBlocks,
+    workOrders,
+    notifications,
+    dismissedDiscrepancies,
+    dataMode,
+    importMessage,
+    hasLoadedSavedData,
+  ]);
 
   const filteredReservations = useMemo(() => {
     return reservations
@@ -582,6 +785,13 @@ export default function App() {
   }
 
   function deleteReservation(id: string) {
+    const reservationToDelete = reservations.find((reservation) => reservation.id === id);
+
+    if (reservationToDelete && isImportedReservation(reservationToDelete)) {
+      window.alert(getSourceControlledMessage(reservationToDelete.source));
+      return;
+    }
+
     setReservations((current) => current.filter((reservation) => reservation.id !== id));
     if (selectedCalendarItem && "guestName" in selectedCalendarItem && selectedCalendarItem.id === id) {
       setSelectedCalendarItem(null);
@@ -593,6 +803,19 @@ export default function App() {
 
     if (!manualForm.guestName || !manualForm.arrival || !manualForm.departure) return;
 
+    const conflictCount = getReservationConflictCount(
+      {
+        homeId: manualForm.homeId,
+        arrival: manualForm.arrival,
+        departure: manualForm.departure,
+      },
+      reservations
+    );
+    const home = homes.find((item) => item.id === manualForm.homeId);
+    const conflictNote = conflictCount > 0
+      ? `Conflict warning: overlaps ${conflictCount} existing reservation/block for ${home?.name ?? "this home"}.`
+      : "";
+
     const nextReservation: Reservation = {
       id: `res-${Date.now()}`,
       guestName: manualForm.guestName,
@@ -600,12 +823,32 @@ export default function App() {
       source: manualForm.source,
       arrival: manualForm.arrival,
       departure: manualForm.departure,
-      status: "New",
-      notes: manualForm.notes,
-      timeline: ["Manual reservation created"],
+      status: conflictCount > 0 ? "Needs Review" : "New",
+      notes: [manualForm.notes, conflictNote].filter(Boolean).join("
+"),
+      timeline: conflictCount > 0
+        ? ["Manual reservation created", conflictNote, "Saved with conflict for owner review"]
+        : ["Manual reservation created"],
     };
 
     setReservations((current) => [nextReservation, ...current]);
+
+    if (conflictCount > 0) {
+      setNotifications((current) => [
+        {
+          id: `note-${Date.now()}`,
+          type: "Reservation",
+          priority: "High",
+          title: "Calendar conflict saved",
+          message: `${manualForm.guestName} overlaps ${conflictCount} existing reservation/block on ${home?.name ?? "this home"}.`,
+          relatedHomeId: manualForm.homeId,
+          createdAt: new Date().toLocaleString(),
+          read: false,
+        },
+        ...current,
+      ]);
+    }
+
     setManualForm({
       guestName: "",
       homeId: homes[0]?.id ?? "",
@@ -766,7 +1009,24 @@ export default function App() {
                   ))}
                 </div>
 
-                {reservation.notes && <p className="notesBox">{reservation.notes}</p>}
+                <label className="cleanerReminderField">
+                  Cleaner Reminder / Notes
+                  <textarea
+                    value={reservation.notes ?? ""}
+                    onChange={(event) =>
+                      updateReservation(reservation.id, {
+                        notes: event.target.value,
+                      })
+                    }
+                    placeholder="Add cleaner instructions, reminders, parking notes, supply notes, or guest-specific details"
+                  />
+                </label>
+
+                {isImportedReservation(reservation) && (
+                  <p className="sourceControlledNotice">
+                    {getSourceControlledMessage(reservation.source)}
+                  </p>
+                )}
 
                 <div className="timeline">
                   <h4>Timeline</h4>
@@ -789,9 +1049,15 @@ export default function App() {
                     {reservation.status === "Needs Review" ? "Mark Ready" : "Needs Review"}
                   </button>
                   <button onClick={() => updateReservation(reservation.id, { status: "Completed" })}>Complete</button>
-                  <button className="dangerButton" onClick={() => deleteReservation(reservation.id)}>
-                    Delete
-                  </button>
+                  {isImportedReservation(reservation) ? (
+                    <button className="disabledButton" disabled title={getSourceControlledMessage(reservation.source)}>
+                      Source Controlled
+                    </button>
+                  ) : (
+                    <button className="dangerButton" onClick={() => deleteReservation(reservation.id)}>
+                      Delete
+                    </button>
+                  )}
                 </div>
 
                 <div className="cleanerFooter">
@@ -850,8 +1116,6 @@ export default function App() {
             >
               <option value="Manual">Manual</option>
               <option value="Owner Block">Owner Block</option>
-              <option value="VRBO">VRBO</option>
-              <option value="Airbnb">Airbnb</option>
             </select>
           </label>
 
@@ -898,7 +1162,7 @@ export default function App() {
             <p className="eyebrow">Phase 2</p>
             <h2>Calendar</h2>
             <p className="headerSubtext">
-              See property stays, same-day turnovers, owner blocks, maintenance blocks, and cleaner visibility.
+              See every reservation source in one place: VRBO, Airbnb, manual reservations, owner blocks, maintenance blocks, conflicts, and cleaner visibility.
             </p>
           </div>
 
@@ -954,16 +1218,29 @@ export default function App() {
                 const arrivals = visibleCalendarReservations.filter((reservation) => isSameDay(day.date, reservation.arrival));
                 const departures = visibleCalendarReservations.filter((reservation) => isSameDay(day.date, reservation.departure));
                 const isB2B = arrivals.length > 0 && departures.length > 0;
+                const sameHomeReservationCounts = dayReservations.reduce<Record<string, number>>((counts, reservation) => {
+                  counts[reservation.homeId] = (counts[reservation.homeId] ?? 0) + 1;
+                  return counts;
+                }, {});
+                const hasCalendarConflict =
+                  Object.values(sameHomeReservationCounts).some((count) => count > 1) ||
+                  dayBlocks.some((block) => dayReservations.some((reservation) => reservation.homeId === block.homeId));
+                const visibleReservationEvents = dayReservations.slice(0, 4);
+                const visibleBlockEvents = dayBlocks.slice(0, Math.max(0, 5 - visibleReservationEvents.length));
+                const hiddenEventCount = Math.max(0, dayReservations.length + dayBlocks.length - visibleReservationEvents.length - visibleBlockEvents.length);
 
                 return (
                   <div className={`calendarDay ${day.inMonth ? "" : "mutedDay"}`} key={dateKey}>
                     <div className="dayTop">
                       <span>{day.date.getDate()}</span>
-                      {isB2B && <strong className="b2bBadge">B2B</strong>}
+                      <div className="dayBadges">
+                        {isB2B && <strong className="b2bBadge">B2B</strong>}
+                        {hasCalendarConflict && <strong className="conflictBadge">Conflict</strong>}
+                      </div>
                     </div>
 
                     <div className="dayEvents">
-                      {dayReservations.slice(0, 3).map((reservation) => {
+                      {visibleReservationEvents.map((reservation) => {
                         const home = homes.find((item) => item.id === reservation.homeId);
                         const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
 
@@ -980,7 +1257,7 @@ export default function App() {
                         );
                       })}
 
-                      {dayBlocks.map((block) => (
+                      {visibleBlockEvents.map((block) => (
                         <button
                           key={`${dateKey}-${block.id}`}
                           className={`calendarEvent block${block.type.replace(/\s/g, "")}`}
@@ -992,7 +1269,7 @@ export default function App() {
                         </button>
                       ))}
 
-                      {dayReservations.length > 3 && <p className="moreEvents">+{dayReservations.length - 3} more</p>}
+                      {hiddenEventCount > 0 && <p className="moreEvents">+{hiddenEventCount} more</p>}
                     </div>
                   </div>
                 );
@@ -1038,6 +1315,12 @@ export default function App() {
                 </div>
 
                 {selectedCalendarItem.notes && <p className="notesBox">{selectedCalendarItem.notes}</p>}
+
+                {getReservationConflictCount(selectedCalendarItem, reservations.filter((reservation) => reservation.id !== selectedCalendarItem.id)) > 0 && (
+                  <p className="conflictWarningBox">
+                    This item overlaps another reservation, owner block, or imported booking for the same property. Review before confirming cleaner timing.
+                  </p>
+                )}
 
                 <div className="cardActions">
                   <button
@@ -1118,6 +1401,66 @@ export default function App() {
       .filter((vendor) => vendor.category === category || vendor.category === "General")
       .filter((vendor) => urgency !== "After Hours" || vendor.afterHours)
       .sort((a, b) => b.rating - a.rating);
+  }
+
+  function createOwnerWorkOrder(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!ownerWorkOrderForm.homeId || !ownerWorkOrderForm.title.trim()) return;
+
+    const selectedVendor = vendors.find((vendor) => vendor.id === ownerWorkOrderForm.vendorId);
+    const nextWorkOrder: WorkOrder = {
+      id: `wo-${Date.now()}`,
+      homeId: ownerWorkOrderForm.homeId,
+      title: ownerWorkOrderForm.title.trim(),
+      category: ownerWorkOrderForm.category,
+      urgency: ownerWorkOrderForm.urgency,
+      status: ownerWorkOrderForm.vendorId ? "Assigned" : "New",
+      vendorId: ownerWorkOrderForm.vendorId || undefined,
+      createdDate: toInputDate(new Date()),
+      scheduledDate: ownerWorkOrderForm.scheduledDate || undefined,
+      notes: ownerWorkOrderForm.notes || "Owner-created maintenance work order.",
+      timeline: [
+        "Owner created work order",
+        ownerWorkOrderForm.vendorId
+          ? `Vendor assigned: ${selectedVendor?.name ?? "Vendor"}`
+          : "No vendor assigned yet",
+        ownerWorkOrderForm.scheduledDate
+          ? `Scheduled for ${formatDate(ownerWorkOrderForm.scheduledDate)}`
+          : "Schedule pending",
+      ],
+    };
+
+    setWorkOrders((current) => [nextWorkOrder, ...current]);
+    setSelectedWorkOrder(nextWorkOrder);
+    setWorkOrderFilter("all");
+    setNotifications((current) => [
+      {
+        id: `note-${Date.now()}`,
+        type: "Maintenance",
+        priority:
+          ownerWorkOrderForm.urgency === "After Hours" || ownerWorkOrderForm.urgency === "High"
+            ? "Critical"
+            : "Normal",
+        title: "Owner created work order",
+        message: `${nextWorkOrder.title} was created from the Maintenance tab.`,
+        relatedHomeId: nextWorkOrder.homeId,
+        createdAt: new Date().toLocaleString(),
+        read: false,
+      },
+      ...current,
+    ]);
+
+    setOwnerWorkOrderForm({
+      homeId: homes[0]?.id ?? "",
+      title: "",
+      category: "General",
+      urgency: "Medium",
+      vendorId: "",
+      scheduledDate: "",
+      notes: "",
+    });
+    setShowWorkOrderForm(false);
   }
 
 
@@ -1245,7 +1588,7 @@ export default function App() {
     setImportMessage("Demo data restored. Switch back to Live Mode when you want a clean import workspace.");
   }
 
-  function createLivePropertyShell(event: React.FormEvent<HTMLFormElement>) {
+  async function createLivePropertyShell(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!sourceForm.propertyName.trim() && !sourceForm.vrboId.trim()) return;
@@ -1274,18 +1617,67 @@ export default function App() {
       notes: `Live data shell created. VRBO iCal: ${sourceForm.vrboICalUrl || "missing"}. Airbnb iCal: ${sourceForm.airbnbICalUrl || "missing"}.`,
     };
 
+    const importedReservations: Reservation[] = [];
+    const importWarnings: string[] = [];
+
+    async function getCalendarText(url: string, pastedText: string, source: "VRBO" | "Airbnb") {
+      if (pastedText.trim()) return pastedText;
+      if (!url.trim()) return "";
+
+      try {
+        const response = await fetch("http://localhost:4000/api/fetch-ical", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: url.trim(), source }),
+        });
+
+        if (!response.ok) throw new Error(`Backend calendar request failed with ${response.status}`);
+
+        const data = await response.json();
+        if (!data.icalText) throw new Error("Backend did not return calendar text");
+
+        return data.icalText as string;
+      } catch {
+        importWarnings.push(`${source} calendar URL could not be fetched through the local sync server. Make sure node server.cjs is running, or paste the raw .ics text for browser-safe import.`);
+        return "";
+      }
+    }
+
+    const vrboText = await getCalendarText(sourceForm.vrboICalUrl, sourceForm.vrboICalText, "VRBO");
+    const airbnbText = await getCalendarText(sourceForm.airbnbICalUrl, sourceForm.airbnbICalText, "Airbnb");
+
+    if (vrboText.trim()) {
+      importedReservations.push(...parseICalReservations(vrboText, nextHome.id, "VRBO"));
+    }
+
+    if (airbnbText.trim()) {
+      importedReservations.push(...parseICalReservations(airbnbText, nextHome.id, "Airbnb"));
+    }
+
     setDataMode("Live");
     setHomes((current) => [...current, nextHome]);
+    setReservations((current) => [...importedReservations, ...current]);
     setSelectedPropertyId(nextHome.id);
     setSelectedCalendarHome(nextHome.id);
-    setImportMessage("Live property shell created. Calendar parsing will be connected in the next integration step.");
+    setSelectedHome("all");
+
+    const importedCount = importedReservations.length;
+    const warningText = importWarnings.length ? ` ${importWarnings.join(" ")}` : "";
+    setImportMessage(
+      importedCount > 0
+        ? `Live property created and ${importedCount} source-controlled calendar reservations imported. Imported reservations cannot be deleted inside the app.${warningText}`
+        : `Live property shell created. No reservations were imported yet.${warningText}`
+    );
+
     setSourceForm({
       propertyName: "",
       market: "",
       vrboId: "",
       vrboICalUrl: "",
+      vrboICalText: "",
       airbnbUrl: "",
       airbnbICalUrl: "",
+      airbnbICalText: "",
     });
   }
 
@@ -1369,6 +1761,15 @@ export default function App() {
             />
           </label>
 
+          <label className="fullWidth">
+            Paste VRBO .ics text (optional for browser-safe import)
+            <textarea
+              value={sourceForm.vrboICalText}
+              onChange={(event) => setSourceForm({ ...sourceForm, vrboICalText: event.target.value })}
+              placeholder="Paste BEGIN:VCALENDAR... content here if the URL cannot be fetched from the browser"
+            />
+          </label>
+
           <label>
             Airbnb listing URL
             <input
@@ -1387,8 +1788,17 @@ export default function App() {
             />
           </label>
 
+          <label className="fullWidth">
+            Paste Airbnb .ics text (optional for browser-safe import)
+            <textarea
+              value={sourceForm.airbnbICalText}
+              onChange={(event) => setSourceForm({ ...sourceForm, airbnbICalText: event.target.value })}
+              placeholder="Paste BEGIN:VCALENDAR... content here if the URL cannot be fetched from the browser"
+            />
+          </label>
+
           <button className="primaryButton" type="submit">
-            Create Live Property Shell
+            Create Live Property + Import Calendars
           </button>
         </form>
       </section>
@@ -2012,9 +2422,14 @@ export default function App() {
             </p>
           </div>
 
-          <button className="primaryButton" onClick={() => setWorkOrderFilter("after-hours")}>
-            After-Hours Risks
-          </button>
+          <div className="calendarHeaderActions">
+            <button className="primaryButton" onClick={() => setShowWorkOrderForm(true)}>
+              + Create Work Order
+            </button>
+            <button className="ghostButton" onClick={() => setWorkOrderFilter("after-hours")}>
+              After-Hours Risks
+            </button>
+          </div>
         </header>
 
         <section className="statsGrid">
@@ -2035,6 +2450,118 @@ export default function App() {
             <strong>{scheduledCount}</strong>
           </div>
         </section>
+
+        {showWorkOrderForm && (
+          <section className="manualPanel">
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Owner-created work order</p>
+                <h3>Create Maintenance Work Order</h3>
+                <p className="mutedText">
+                  Create issues directly from the owner side when a cleaner, guest, owner, or vendor reports something outside the cleaner portal.
+                </p>
+              </div>
+              <button className="ghostButton" onClick={() => setShowWorkOrderForm(false)} type="button">
+                Close
+              </button>
+            </div>
+
+            <form className="manualForm" onSubmit={createOwnerWorkOrder}>
+              <label>
+                Property
+                <select
+                  value={ownerWorkOrderForm.homeId}
+                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, homeId: event.target.value })}
+                >
+                  {homes.map((home) => (
+                    <option key={home.id} value={home.id}>
+                      {home.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Issue title
+                <input
+                  value={ownerWorkOrderForm.title}
+                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, title: event.target.value })}
+                  placeholder="Example: Replace broken blinds"
+                />
+              </label>
+
+              <label>
+                Category
+                <select
+                  value={ownerWorkOrderForm.category}
+                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, category: event.target.value })}
+                >
+                  <option value="General">General</option>
+                  <option value="Plumbing">Plumbing</option>
+                  <option value="HVAC">HVAC</option>
+                  <option value="Electrical">Electrical</option>
+                  <option value="Appliance">Appliance</option>
+                  <option value="Supplies">Supplies</option>
+                </select>
+              </label>
+
+              <label>
+                Urgency
+                <select
+                  value={ownerWorkOrderForm.urgency}
+                  onChange={(event) =>
+                    setOwnerWorkOrderForm({
+                      ...ownerWorkOrderForm,
+                      urgency: event.target.value as WorkOrderUrgency,
+                    })
+                  }
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="After Hours">After Hours</option>
+                </select>
+              </label>
+
+              <label>
+                Vendor
+                <select
+                  value={ownerWorkOrderForm.vendorId}
+                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, vendorId: event.target.value })}
+                >
+                  <option value="">No vendor assigned yet</option>
+                  {vendors.map((vendor) => (
+                    <option key={vendor.id} value={vendor.id}>
+                      {vendor.name} · {vendor.category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Scheduled date
+                <input
+                  type="date"
+                  value={ownerWorkOrderForm.scheduledDate}
+                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, scheduledDate: event.target.value })}
+                />
+              </label>
+
+              <label className="fullWidth">
+                Notes
+                <textarea
+                  value={ownerWorkOrderForm.notes}
+                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, notes: event.target.value })}
+                  placeholder="Describe the issue, guest impact, location, owner approval notes, or vendor instructions"
+                />
+              </label>
+
+              <button className="primaryButton" type="submit" disabled={!homes.length}>
+                Save Work Order
+              </button>
+            </form>
+          </section>
+        )}
 
         <section className="maintenanceLayout">
           <div>
@@ -3162,6 +3689,7 @@ export default function App() {
           <div>
             <h1>Ask My Rentals</h1>
             <p>Owner Operations</p>
+            <small className="saveStatus">{saveStatus}</small>
           </div>
         </div>
 

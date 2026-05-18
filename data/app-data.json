@@ -1,327 +1,329 @@
 {
-  "properties": [
+  "homes": [
     {
-      "id": 1,
-      "name": "Sea Otz",
-      "location": "Beach Property",
-      "description": "A beautiful vacation home ready for guest turnovers and owner stays.",
-      "cleaner": "Libby",
-      "icalUrl": "https://www.vrbo.com/icalendar/a5c6161baf9b4c92aabf095fe1abd4c1.ics?nonTentative",
-      "vrboId": "",
-      "airbnbUrl": "",
-      "imageUrl": "",
-      "syncStatus": "56 reservations synced at 3:38 PM"
+      "id": "coates",
+      "name": "Coates Cabin",
+      "city": "Broken Bow",
+      "shortName": "CO",
+      "address": "Broken Bow, OK",
+      "vrboId": "1234567",
+      "iCalUrl": "https://example.com/coates.ics",
+      "setupMode": "VRBO",
+      "defaultCleanerId": "aarthi",
+      "bedrooms": 3,
+      "bathrooms": 2,
+      "maxGuests": 8,
+      "status": "Active",
+      "notes": "Primary test property. VRBO ID will eventually support listing intelligence and occupancy comparisons."
+    },
+    {
+      "id": "pine",
+      "name": "Pine Ridge Lodge",
+      "city": "Gatlinburg",
+      "shortName": "PR",
+      "address": "Gatlinburg, TN",
+      "airbnbUrl": "https://airbnb.com/rooms/example",
+      "iCalUrl": "https://example.com/pine.ics",
+      "setupMode": "Airbnb",
+      "defaultCleanerId": "maria",
+      "bedrooms": 4,
+      "bathrooms": 3,
+      "maxGuests": 10,
+      "status": "Active",
+      "notes": "Needs stronger vendor coverage during peak season."
+    },
+    {
+      "id": "lake",
+      "name": "Lakeview Retreat",
+      "city": "Branson",
+      "shortName": "LR",
+      "address": "Branson, MO",
+      "setupMode": "Manual",
+      "defaultCleanerId": "jordan",
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "maxGuests": 6,
+      "status": "Setup Needed",
+      "notes": "Manual setup started. Add calendar feed when available."
     }
   ],
-  "cleanings": [
+  "cleaners": [
     {
-      "id": 1778625982046,
-      "propertyId": 1,
-      "property": "Sea Otz",
-      "cleaner": "Libby",
-      "arrival": "2026-05-13",
-      "departure": "2026-05-15",
-      "type": "Guest Booking",
+      "id": "aarthi",
+      "name": "Aarthi",
+      "phone": "555-0134",
+      "status": "Offline",
+      "serviceArea": "Broken Bow",
+      "rating": 4.9,
+      "activeJobs": 1,
+      "specialties": [
+        "B2B turnovers",
+        "Hot tub reset",
+        "Restock"
+      ],
+      "notes": "Strong default cleaner for Coates Cabin."
+    },
+    {
+      "id": "maria",
+      "name": "Maria",
+      "phone": "555-0198",
+      "status": "Busy",
+      "serviceArea": "Gatlinburg",
+      "rating": 4.8,
+      "activeJobs": 2,
+      "specialties": [
+        "Large cabins",
+        "Inspection photos",
+        "Laundry coordination"
+      ],
+      "notes": "Best for larger homes and detail-heavy resets."
+    },
+    {
+      "id": "jordan",
+      "name": "Jordan",
+      "phone": "555-0147",
+      "status": "Available",
+      "serviceArea": "Branson",
+      "rating": 4.7,
+      "activeJobs": 1,
+      "specialties": [
+        "Quick turnovers",
+        "Guest-ready checks",
+        "Supply reporting"
+      ],
+      "notes": "Good backup cleaner for urgent same-day needs."
+    }
+  ],
+  "reservations": [
+    {
+      "id": "res-1779125651101",
+      "guestName": "Test",
+      "homeId": "coates",
+      "source": "Manual",
+      "arrival": "2026-06-06",
+      "departure": "2026-06-09",
+      "status": "New",
+      "notes": "Connect and test wifi",
+      "timeline": [
+        "Manual reservation created"
+      ]
+    },
+    {
+      "id": "res-1001",
+      "guestName": "Miller Family",
+      "homeId": "coates",
+      "source": "VRBO",
+      "arrival": "2026-05-16",
+      "departure": "2026-05-19",
+      "status": "Needs Review",
+      "cleanerId": "aarthi",
+      "notes": "Back-to-back turnover. Check hot tub towels.",
+      "timeline": [
+        "Imported from VRBO",
+        "Turnover created",
+        "Assigned to Aarthi",
+        "Cleaner reported maintenance issue: Loose handle on front door test"
+      ]
+    },
+    {
+      "id": "res-1002",
+      "guestName": "Owner Deep Clean",
+      "homeId": "pine",
+      "source": "Manual",
+      "arrival": "2026-05-20",
+      "departure": "2026-05-20",
+      "status": "New",
+      "notes": "Manual reservation for deep clean and restock.",
+      "timeline": [
+        "Manual reservation created"
+      ]
+    },
+    {
+      "id": "res-1003",
+      "guestName": "Thompson Stay",
+      "homeId": "lake",
+      "source": "Airbnb",
+      "arrival": "2026-05-22",
+      "departure": "2026-05-26",
       "status": "Accepted",
-      "lastUpdate": "5:46 PM",
-      "guestName": "test",
-      "urgencyLevel": "normal",
-      "urgencyReasons": [],
-      "lastUrgencyCheck": "2026-05-13T01:54:36.365Z",
-      "cleanerStatus": "Accepted"
+      "cleanerId": "jordan",
+      "notes": "Guest requested early check-in if possible.",
+      "timeline": [
+        "Imported from Airbnb",
+        "Assigned to Jordan",
+        "Jordan accepted"
+      ]
+    },
+    {
+      "id": "res-1004",
+      "guestName": "Rivera Group",
+      "homeId": "coates",
+      "source": "VRBO",
+      "arrival": "2026-05-19",
+      "departure": "2026-05-23",
+      "status": "New",
+      "notes": "Same-day arrival after Miller departure.",
+      "timeline": [
+        "Imported from VRBO",
+        "B2B risk detected"
+      ]
     }
   ],
-  "records": [
+  "calendarBlocks": [
     {
-      "id": 1778632315791,
-      "time": "May 12, 2026, 7:31 PM",
-      "event": "Homeowner message sent to Libby for Sea Otz: Urgent: please update Sea Otz for 2025-05-21. Turnover is overdue • Cleaner has not accepted yet",
-      "source": "Homeowner",
-      "createdAt": "2026-05-13T00:31:55.036Z"
+      "id": "block-1",
+      "homeId": "coates",
+      "type": "Owner Block",
+      "title": "Owner Weekend",
+      "start": "2026-05-29",
+      "end": "2026-05-31",
+      "notes": "Owner using property."
     },
     {
-      "id": 1778621448651,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Ready.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:48.130Z"
-    },
-    {
-      "id": 1778621448381,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Cleaning.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:47.634Z"
-    },
-    {
-      "id": 1778621447651,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to On The Way.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:47.474Z"
-    },
-    {
-      "id": 1778621447996,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:47.290Z"
-    },
-    {
-      "id": 1778621447944,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:47.035Z"
-    },
-    {
-      "id": 1778621447052,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:46.842Z"
-    },
-    {
-      "id": 1778621447285,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:46.546Z"
-    },
-    {
-      "id": 1778621446587,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:46.042Z"
-    },
-    {
-      "id": 1778621440251,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:39.986Z"
-    },
-    {
-      "id": 1778621439108,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:38.178Z"
-    },
-    {
-      "id": 1778621437939,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:37.170Z"
-    },
-    {
-      "id": 1778621436728,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:36.194Z"
-    },
-    {
-      "id": 1778621434888,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:34.850Z"
-    },
-    {
-      "id": 1778621430253,
-      "time": "May 12, 2026, 4:30 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T21:30:30.004Z"
-    },
-    {
-      "id": 1778619923760,
-      "time": "May 12, 2026, 4:05 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T21:05:23.092Z"
-    },
-    {
-      "id": 1778618496587,
-      "time": "May 12, 2026, 3:41 PM",
-      "event": "Sea Otz status changed to On The Way.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:41:36.571Z"
-    },
-    {
-      "id": 1778618489684,
-      "time": "May 12, 2026, 3:41 PM",
-      "event": "Sea Otz status changed to Cleaning.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:41:28.779Z"
-    },
-    {
-      "id": 1778618482408,
-      "time": "May 12, 2026, 3:41 PM",
-      "event": "Cleaner message sent to Libby for Sea Otz: Sea Otz is ready for the next guest.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:41:21.884Z"
-    },
-    {
-      "id": 1778618482458,
-      "time": "May 12, 2026, 3:41 PM",
-      "event": "Sea Otz status changed to Ready.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:41:21.884Z"
-    },
-    {
-      "id": 1778618479443,
-      "time": "May 12, 2026, 3:41 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:41:18.970Z"
-    },
-    {
-      "id": 1778618478356,
-      "time": "May 12, 2026, 3:41 PM",
-      "event": "Sea Otz status changed to Cleaning.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:41:18.210Z"
-    },
-    {
-      "id": 1778618477736,
-      "time": "May 12, 2026, 3:41 PM",
-      "event": "Sea Otz status changed to On The Way.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:41:17.282Z"
-    },
-    {
-      "id": 1778618476285,
-      "time": "May 12, 2026, 3:41 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:41:15.954Z"
-    },
-    {
-      "id": 1778618469529,
-      "time": "May 12, 2026, 3:41 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:41:09.139Z"
-    },
-    {
-      "id": 1778618418903,
-      "time": "May 12, 2026, 3:40 PM",
-      "event": "Manual reservation added for Sea Otz: 2026-05-12 to 2026-05-14.",
-      "source": "Homeowner",
-      "createdAt": "2026-05-12T20:40:18.258Z"
-    },
-    {
-      "id": 1778618366286,
-      "time": "May 12, 2026, 3:39 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:39:25.675Z"
-    },
-    {
-      "id": 1778618343911,
-      "time": "May 12, 2026, 3:39 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:39:02.979Z"
-    },
-    {
-      "id": 1778618341463,
-      "time": "May 12, 2026, 3:39 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:39:01.187Z"
-    },
-    {
-      "id": 1778618340061,
-      "time": "May 12, 2026, 3:38 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:38:59.787Z"
-    },
-    {
-      "id": 1778618338684,
-      "time": "May 12, 2026, 3:38 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:38:57.794Z"
-    },
-    {
-      "id": 1778618336684,
-      "time": "May 12, 2026, 3:38 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:38:56.466Z"
-    },
-    {
-      "id": 1778618336039,
-      "time": "May 12, 2026, 3:38 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:38:55.235Z"
-    },
-    {
-      "id": 1778618332634,
-      "time": "May 12, 2026, 3:38 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:38:51.955Z"
-    },
-    {
-      "id": 1778618331309,
-      "time": "May 12, 2026, 3:38 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:38:50.972Z"
-    },
-    {
-      "id": 1778618326835,
-      "time": "May 12, 2026, 3:38 PM",
-      "event": "Sea Otz status changed to Accepted.",
-      "source": "Cleaner",
-      "createdAt": "2026-05-12T20:38:45.932Z"
-    },
-    {
-      "id": 1778618320116,
-      "time": "May 12, 2026, 3:38 PM",
-      "event": "56 reservations imported from iCal for Sea Otz.",
-      "source": "System",
-      "createdAt": "2026-05-12T20:38:39.251Z"
-    },
-    {
-      "id": 1778618192957,
-      "time": "May 12, 2026, 3:36 PM",
-      "event": "App opened. No reservations loaded yet.",
-      "source": "System",
-      "createdAt": "2026-05-12T20:36:32.900Z"
+      "id": "block-2",
+      "homeId": "pine",
+      "type": "Maintenance",
+      "title": "HVAC Service",
+      "start": "2026-05-23",
+      "end": "2026-05-23",
+      "notes": "Vendor window 10 AM - 2 PM."
     }
   ],
-  "messages": [
+  "workOrders": [
     {
-      "id": 1778632315964,
-      "time": "May 12, 2026, 7:31 PM",
-      "createdAt": "2026-05-13T00:31:55.008Z",
-      "property": "Sea Otz",
-      "cleaner": "Libby",
-      "sender": "Homeowner",
-      "text": "Urgent: please update Sea Otz for 2025-05-21. Turnover is overdue • Cleaner has not accepted yet",
-      "category": "General"
+      "id": "wo-1779125794341",
+      "homeId": "coates",
+      "title": "Loose handle on front door test",
+      "category": "General",
+      "urgency": "High",
+      "status": "Owner Review",
+      "createdDate": "2026-05-18",
+      "notes": "No additional notes. Reported by Aarthi from the cleaner portal. Photo upload placeholder captured for future storage.",
+      "timeline": [
+        "Cleaner reported maintenance issue",
+        "Owner notification created",
+        "Work order moved to owner review"
+      ]
     },
     {
-      "id": 1778618481902,
-      "time": "May 12, 2026, 3:41 PM",
-      "createdAt": "2026-05-12T20:41:21.878Z",
-      "property": "Sea Otz",
-      "cleaner": "Libby",
-      "sender": "Cleaner",
-      "text": "Sea Otz is ready for the next guest.",
-      "category": "Ready Update"
+      "id": "wo-1001",
+      "homeId": "pine",
+      "title": "HVAC not cooling consistently",
+      "category": "HVAC",
+      "urgency": "High",
+      "status": "Scheduled",
+      "vendorId": "vendor-hvac",
+      "createdDate": "2026-05-12",
+      "scheduledDate": "2026-05-23",
+      "notes": "Guest reported warm upstairs bedroom. Vendor window already added to calendar.",
+      "timeline": [
+        "Issue created",
+        "Vendor recommended",
+        "Service scheduled"
+      ]
+    },
+    {
+      "id": "wo-1002",
+      "homeId": "coates",
+      "title": "Loose deck railing",
+      "category": "General",
+      "urgency": "Medium",
+      "status": "Owner Review",
+      "vendorId": "vendor-handyman",
+      "createdDate": "2026-05-11",
+      "notes": "Cleaner flagged during turnover. Needs owner approval before dispatch.",
+      "timeline": [
+        "Cleaner reported issue",
+        "Photo review requested",
+        "Owner review needed"
+      ]
+    },
+    {
+      "id": "wo-1003",
+      "homeId": "lake",
+      "title": "Kitchen sink slow drain",
+      "category": "Plumbing",
+      "urgency": "After Hours",
+      "status": "Completed",
+      "createdDate": "2026-05-12",
+      "notes": "Potential guest-impacting issue. Recommend after-hours plumber if guest is currently in home.",
+      "timeline": [
+        "Issue created",
+        "After-hours risk detected",
+        "Status changed to Assigned",
+        "Status changed to Completed"
+      ],
+      "vendorId": "vendor-hvac"
     }
   ],
-  "savedAt": "2026-05-13T01:54:36.489Z",
-  "turnovers": [],
-  "updatedAt": "2026-05-13T01:54:36.493Z"
+  "notifications": [
+    {
+      "id": "note-1779125794343",
+      "type": "Cleaner",
+      "priority": "High",
+      "title": "Cleaner update: Needs Review",
+      "message": "Miller Family was updated by the cleaner. Cleaner reported maintenance issue: Loose handle on front door test",
+      "relatedHomeId": "coates",
+      "relatedCleanerId": "aarthi",
+      "createdAt": "5/18/2026, 12:36:34 PM",
+      "read": false
+    },
+    {
+      "id": "note-1779125794343",
+      "type": "Maintenance",
+      "priority": "Critical",
+      "title": "Cleaner reported maintenance issue",
+      "message": "Aarthi reported: Loose handle on front door test",
+      "relatedHomeId": "coates",
+      "relatedCleanerId": "aarthi",
+      "createdAt": "5/18/2026, 12:36:34 PM",
+      "read": false
+    },
+    {
+      "id": "note-1",
+      "type": "Reservation",
+      "priority": "High",
+      "title": "B2B turnover detected",
+      "message": "Coates Cabin has a same-day departure and arrival on May 19. Confirm cleaner timing.",
+      "relatedHomeId": "coates",
+      "relatedCleanerId": "aarthi",
+      "createdAt": "2026-05-12 09:10",
+      "read": false
+    },
+    {
+      "id": "note-2",
+      "type": "Maintenance",
+      "priority": "Critical",
+      "title": "After-hours maintenance risk",
+      "message": "Lakeview Retreat has a slow kitchen drain flagged as after-hours risk.",
+      "relatedHomeId": "lake",
+      "createdAt": "2026-05-12 10:25",
+      "read": false
+    },
+    {
+      "id": "note-3",
+      "type": "Cleaner",
+      "priority": "Normal",
+      "title": "Cleaner accepted assignment",
+      "message": "Jordan accepted the Thompson Stay turnover.",
+      "relatedHomeId": "lake",
+      "relatedCleanerId": "jordan",
+      "createdAt": "2026-05-12 11:05",
+      "read": true
+    },
+    {
+      "id": "note-4",
+      "type": "Property",
+      "priority": "Normal",
+      "title": "Property setup incomplete",
+      "message": "Lakeview Retreat is missing an iCal feed.",
+      "relatedHomeId": "lake",
+      "createdAt": "2026-05-12 12:00",
+      "read": false
+    }
+  ],
+  "dismissedDiscrepancies": [],
+  "dataMode": "Demo",
+  "importMessage": "Demo data is active. Switch to Live Mode when you are ready to start from real VRBO/iCal sources.",
+  "savedAt": "2026-05-18T17:52:54.609Z"
 }
