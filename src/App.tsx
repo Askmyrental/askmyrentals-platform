@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import PropertyOperationsHub from "./components/PropertyOperationsHub";
 
 type ReservationStatus =
   | "New"
@@ -30,6 +31,13 @@ type Home = {
   maxGuests: number;
   status: "Active" | "Setup Needed" | "Paused";
   notes?: string;
+    operations?: {
+    access?: string;
+    wifiName?: string;
+    wifiPassword?: string;
+    trashInstructions?: string;
+    cleanerNotes?: string;
+  };
 };
 
 type Cleaner = {
@@ -471,6 +479,33 @@ function getReservationConflictCount(candidate: Pick<Reservation, "homeId" | "ar
   ).length;
 }
 
+function getDateAvailabilityClass(
+  date: Date,
+  homeId: string,
+  reservations: Reservation[],
+  calendarBlocks: CalendarBlock[]
+) {
+  const dateKey = toInputDate(date);
+  const reservationHits = reservations.filter(
+    (reservation) => reservation.homeId === homeId && dateKey >= reservation.arrival && dateKey <= reservation.departure
+  );
+  const blockHits = calendarBlocks.filter(
+    (block) => block.homeId === homeId && dateKey >= block.start && dateKey <= block.end
+  );
+
+  const hasReservation = reservationHits.some((reservation) => reservation.source !== "Owner Block");
+  const hasOwnerBlock = reservationHits.some((reservation) => reservation.source === "Owner Block") ||
+    blockHits.some((block) => block.type === "Owner Block");
+  const hasMaintenance = blockHits.some((block) => block.type === "Maintenance");
+  const hasConflict = reservationHits.length + blockHits.length > 1;
+
+  if (hasConflict) return "previewConflict";
+  if (hasMaintenance) return "previewMaintenance";
+  if (hasOwnerBlock) return "previewOwnerBlock";
+  if (hasReservation) return "previewReservation";
+  return "previewOpen";
+}
+
 function isImportedReservation(reservation: Reservation) {
   return reservation.source === "VRBO" || reservation.source === "Airbnb";
 }
@@ -564,11 +599,66 @@ function parseICalReservations(icalText: string, homeId: string, source: Extract
 
   return reservations;
 }
+function mergeImportedReservations(reservations: Reservation[]) {
+  const merged: Reservation[] = [];
 
+  reservations.forEach((reservation) => {
+    const existing = merged.find((item) => {
+      const sameHome = item.homeId === reservation.homeId;
+
+      const sameArrival =
+        item.arrival === reservation.arrival;
+
+      const sameDeparture =
+        item.departure === reservation.departure;
+
+      const guestA = item.guestName
+        .replace(/reserved|blocked|reservation/gi, "")
+        .trim()
+        .toLowerCase();
+
+      const guestB = reservation.guestName
+        .replace(/reserved|blocked|reservation/gi, "")
+        .trim()
+        .toLowerCase();
+
+      const similarGuest =
+        guestA &&
+        guestB &&
+        (guestA.includes(guestB) || guestB.includes(guestA));
+
+      return sameHome && sameArrival && sameDeparture && similarGuest;
+    });
+
+    if (existing) {
+     
+        existing.source === reservation.source
+          ? existing.source
+          : "Merged";
+
+      existing.notes = [
+        existing.notes,
+        reservation.notes,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      existing.timeline = [
+        ...(existing.timeline ?? []),
+        `Merged ${reservation.source} calendar match`,
+      ];
+    } else {
+      merged.push({ ...reservation });
+    }
+  });
+
+  return merged;
+}
 export default function App() 
 
 {
-  const [activePage, setActivePage] = useState("Reservation Board");
+  const [activePage, setActivePage] = useState("Task Board");
+  const [showOwnerMobileMenu, setShowOwnerMobileMenu] = useState(false);
   const [homes, setHomes] = useState<Home[]>(starterHomes);
   const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
   const [reservations, setReservations] = useState<Reservation[]>(starterReservations);
@@ -579,7 +669,7 @@ export default function App()
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [showManualForm, setShowManualForm] = useState(false);
-  const [selectedCalendarHome, setSelectedCalendarHome] = useState(homes[0]?.id ?? "all");
+  const [selectedCalendarHome, setSelectedCalendarHome] = useState("all");
   const [calendarDate, setCalendarDate] = useState(new Date(2026, 4, 1));
   const [selectedCalendarItem, setSelectedCalendarItem] = useState<Reservation | CalendarBlock | null>(null);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(starterWorkOrders[0]);
@@ -741,7 +831,12 @@ export default function App()
       })
       .sort((a, b) => a.arrival.localeCompare(b.arrival));
   }, [reservations, search, selectedHome, selectedStatus]);
-
+const selectedTaskBoardReservation =
+  selectedCalendarItem && "guestName" in selectedCalendarItem
+    ? filteredReservations.find(
+        (reservation) => reservation.id === selectedCalendarItem.id
+      )
+    : null;
   const boardStats = useMemo(() => {
     return {
       total: reservations.length,
@@ -751,18 +846,10 @@ export default function App()
     };
   }, [reservations]);
 
-  const calendarDays = useMemo(
-    () => getMonthDays(calendarDate.getFullYear(), calendarDate.getMonth()),
-    [calendarDate]
-  );
+ 
 
-  const visibleCalendarReservations = useMemo(() => {
-    return reservations.filter((reservation) => selectedCalendarHome === "all" || reservation.homeId === selectedCalendarHome);
-  }, [reservations, selectedCalendarHome]);
-
-  const visibleCalendarBlocks = useMemo(() => {
-    return calendarBlocks.filter((block) => selectedCalendarHome === "all" || block.homeId === selectedCalendarHome);
-  }, [calendarBlocks, selectedCalendarHome]);
+  
+  
 
   function updateReservation(id: string, updates: Partial<Reservation>) {
     setReservations((current) =>
@@ -816,20 +903,19 @@ export default function App()
       ? `Conflict warning: overlaps ${conflictCount} existing reservation/block for ${home?.name ?? "this home"}.`
       : "";
 
-   const nextReservation: Reservation = {
-  id: `res-${Date.now()}`,
-  guestName: manualForm.guestName,
-  homeId: manualForm.homeId,
-  source: manualForm.source,
-  arrival: manualForm.arrival,
-  departure: manualForm.departure,
-  status: conflictCount > 0 ? "Needs Review" : "New",
-  notes: [manualForm.notes, conflictNote].filter(Boolean).join("\n"),
-  timeline:
-    conflictCount > 0
-      ? ["Manual reservation created", conflictNote, "Saved with conflict for owner review"]
-      : ["Manual reservation created"],
-};
+    const nextReservation: Reservation = {
+      id: `res-${Date.now()}`,
+      guestName: manualForm.guestName,
+      homeId: manualForm.homeId,
+      source: manualForm.source,
+      arrival: manualForm.arrival,
+      departure: manualForm.departure,
+      status: conflictCount > 0 ? "Needs Review" : "New",
+      notes: [manualForm.notes, conflictNote].filter(Boolean).join("\\n"),
+      timeline: conflictCount > 0
+        ? ["Manual reservation created", conflictNote, "Saved with conflict for owner review"]
+        : ["Manual reservation created"],
+    };
 
     setReservations((current) => [nextReservation, ...current]);
 
@@ -860,9 +946,144 @@ export default function App()
     setShowManualForm(false);
   }
 
-  function moveCalendarMonth(direction: number) {
-    setCalendarDate((current) => new Date(current.getFullYear(), current.getMonth() + direction, 1));
+  function getStackedCalendarMonths(anchorDate: Date, count = 12) {
+    const anchor = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
+
+    return Array.from({ length: count }, (_item, index) => new Date(anchor.getFullYear(), anchor.getMonth() + index, 1));
   }
+
+  function getCalendarDayData(date: Date, homeFilter: string) {
+    const dayReservations = reservations.filter(
+      (reservation) =>
+        (homeFilter === "all" || reservation.homeId === homeFilter) &&
+        isDateInRange(date, reservation.arrival, reservation.departure)
+    );
+
+    const dayBlocks = calendarBlocks.filter(
+      (block) =>
+        (homeFilter === "all" || block.homeId === homeFilter) &&
+        isDateInRange(date, block.start, block.end)
+    );
+
+    const arrivals = dayReservations.filter((reservation) => isSameDay(date, reservation.arrival));
+    const departures = dayReservations.filter((reservation) => isSameDay(date, reservation.departure));
+    const sameHomeReservationCounts = dayReservations.reduce<Record<string, number>>((counts, reservation) => {
+      counts[reservation.homeId] = (counts[reservation.homeId] ?? 0) + 1;
+      return counts;
+    }, {});
+
+    return {
+      dayReservations,
+      dayBlocks,
+      isB2B: arrivals.length > 0 && departures.length > 0,
+      hasConflict:
+        Object.values(sameHomeReservationCounts).some((count) => count > 1) ||
+        dayBlocks.some((block) => dayReservations.some((reservation) => reservation.homeId === block.homeId)),
+    };
+  }
+
+  function renderScrollableCalendarStack(options?: { homeFilter?: string; anchorDate?: Date; monthCount?: number; compact?: boolean }) {
+    const homeFilter = options?.homeFilter ?? "all";
+    const anchorDate = options?.anchorDate ?? calendarDate;
+    const monthCount = options?.monthCount ?? 12;
+    const months = getStackedCalendarMonths(anchorDate, monthCount);
+
+    return (
+      <div className={`stackedCalendarScroller ${options?.compact ? "compactStackedCalendar" : ""}`}>
+        {months.map((monthDate) => {
+          const monthDays = getMonthDays(monthDate.getFullYear(), monthDate.getMonth());
+
+          return (
+            <section className="stackedMonthCard" key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}>
+              <div className="stackedMonthHeader">
+                <h3>
+                  {monthNames[monthDate.getMonth()]} {monthDate.getFullYear()}
+                </h3>
+              </div>
+
+              <div className="stackedWeekdayGrid">
+                {[
+                  "Sun",
+                  "Mon",
+                  "Tue",
+                  "Wed",
+                  "Thu",
+                  "Fri",
+                  "Sat",
+                ].map((day) => (
+                  <span key={`${monthDate.toISOString()}-${day}`}>{day}</span>
+                ))}
+              </div>
+
+              <div className="stackedCalendarGrid">
+                {monthDays.map((day) => {
+                  const dateKey = toInputDate(day.date);
+                  const { dayReservations, dayBlocks, isB2B, hasConflict } = getCalendarDayData(day.date, homeFilter);
+                  const visibleReservationEvents = dayReservations.slice(0, options?.compact ? 2 : 4);
+                  const visibleBlockEvents = dayBlocks.slice(0, Math.max(0, (options?.compact ? 3 : 5) - visibleReservationEvents.length));
+                  const hiddenEventCount = Math.max(
+                    0,
+                    dayReservations.length + dayBlocks.length - visibleReservationEvents.length - visibleBlockEvents.length
+                  );
+
+                  return (
+                    <div className={`stackedCalendarDay ${day.inMonth ? "" : "mutedDay"}`} key={`stacked-${dateKey}`}>
+                      <div className="dayTop">
+                        <span>{day.date.getDate()}</span>
+                        <div className="dayBadges">
+                          {isB2B && <strong className="b2bBadge">B2B</strong>}
+                          {hasConflict && <strong className="conflictBadge">Conflict</strong>}
+                        </div>
+                      </div>
+
+                      <div className="dayEvents">
+                        {visibleReservationEvents.map((reservation) => {
+                          const home = homes.find((item) => item.id === reservation.homeId);
+                          const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+
+                          return (
+                            <button
+                              type="button"
+                              key={`${dateKey}-${reservation.id}`}
+                              className={`calendarEvent stackedCalendarEvent source${reservation.source.replace(/\s/g, "")}`}
+                            onClick={() => {
+  
+  setSelectedCalendarItem(reservation);
+}}
+                              title={`${reservation.guestName} · ${home?.name ?? ""}`}
+                            >
+                              <span>{home?.shortName ? `${home.shortName} · ${reservation.guestName}` : reservation.guestName}</span>
+                              <small>{cleaner?.name ?? reservation.source}</small>
+                            </button>
+                          );
+                        })}
+
+                        {visibleBlockEvents.map((block) => (
+                          <button
+                            type="button"
+                            key={`${dateKey}-${block.id}`}
+                            className={`calendarEvent block${block.type.replace(/\s/g, "")}`}
+                            onClick={() => setSelectedCalendarItem(block)}
+                            title={block.title}
+                          >
+                            <span>{block.title}</span>
+                            <small>{block.type}</small>
+                          </button>
+                        ))}
+
+                        {hiddenEventCount > 0 && <p className="moreEvents">+{hiddenEventCount} more</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    );
+  }
+
 
   function renderReservationBoard() {
     return (
@@ -870,7 +1091,7 @@ export default function App()
         <header className="pageHeader">
           <div>
             <p className="eyebrow">Phase 1</p>
-            <h2>Reservation Board</h2>
+            <h2>Task Board</h2>
             <p className="headerSubtext">
               Track stays, cleaner assignments, turnover status, manual reservations, and owner review items.
             </p>
@@ -928,8 +1149,26 @@ export default function App()
 
         {renderManualForm()}
 
+        <section className="operationsCalendarPanel">
+          <div className="panelHeader compact">
+            <div>
+              <p className="eyebrow">Operations calendar</p>
+              <h3>Scrollable Reservation Calendar</h3>
+              <p className="mutedText">Scroll through upcoming months without clicking next. Use the filters above to focus this calendar by property.</p>
+            </div>
+          </div>
+         <div className="taskBoardCalendarBox">
+  {renderScrollableCalendarStack({
+    homeFilter: selectedHome,
+    anchorDate: new Date(),
+    monthCount: 12,
+    compact: true,
+  })}
+</div>
+        </section>
+
         <section className="reservationGrid">
-          {filteredReservations.map((reservation) => {
+          {selectedTaskBoardReservation ? [selectedTaskBoardReservation].map((reservation) => { 
             const home = homes.find((item) => item.id === reservation.homeId);
             const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
             const urgency = getUrgency(reservation.arrival);
@@ -1066,7 +1305,11 @@ export default function App()
                 </div>
               </article>
             );
-          })}
+          }) : (
+            <div className="emptyState">
+              Select a reservation from the calendar to view or edit it.
+            </div>
+          )}
         </section>
       </>
     );
@@ -1074,6 +1317,46 @@ export default function App()
 
   function renderManualForm() {
     if (!showManualForm) return null;
+
+    const selectedPreviewHome = homes.find((home) => home.id === manualForm.homeId);
+    const selectedDateRangeActive = Boolean(manualForm.arrival && manualForm.departure);
+    const selectedConflictCount = selectedDateRangeActive
+      ? getReservationConflictCount(
+          {
+            homeId: manualForm.homeId,
+            arrival: manualForm.arrival,
+            departure: manualForm.departure,
+          },
+          reservations
+        )
+      : 0;
+
+    const currentMonthAnchor = manualForm.arrival ? toDate(manualForm.arrival) : new Date();
+    currentMonthAnchor.setDate(1);
+    currentMonthAnchor.setHours(12, 0, 0, 0);
+
+    const availabilityMonths = Array.from({ length: 6 }, (_item, index) => {
+      const monthDate = new Date(currentMonthAnchor.getFullYear(), currentMonthAnchor.getMonth() + index, 1);
+      return {
+        key: `${monthDate.getFullYear()}-${monthDate.getMonth()}`,
+        label: monthDate.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
+        days: getMonthDays(monthDate.getFullYear(), monthDate.getMonth()),
+      };
+    });
+
+    function handleAvailabilityDateClick(dateKey: string) {
+      if (!manualForm.arrival || (manualForm.arrival && manualForm.departure)) {
+        setManualForm({ ...manualForm, arrival: dateKey, departure: "" });
+        return;
+      }
+
+      if (dateKey < manualForm.arrival) {
+        setManualForm({ ...manualForm, arrival: dateKey, departure: manualForm.arrival });
+        return;
+      }
+
+      setManualForm({ ...manualForm, departure: dateKey });
+    }
 
     return (
       <section className="manualPanel">
@@ -1120,22 +1403,90 @@ export default function App()
           </label>
 
           <label>
-            Arrival / start
+            Arrival date
             <input
               type="date"
               value={manualForm.arrival}
-              onChange={(event) => setManualForm({ ...manualForm, arrival: event.target.value })}
+              onChange={(event) =>
+                setManualForm({
+                  ...manualForm,
+                  arrival: event.target.value,
+                  departure: manualForm.departure && event.target.value > manualForm.departure ? event.target.value : manualForm.departure,
+                })
+              }
             />
           </label>
 
           <label>
-            Departure / end
+            Departure date
             <input
               type="date"
               value={manualForm.departure}
               onChange={(event) => setManualForm({ ...manualForm, departure: event.target.value })}
+              min={manualForm.arrival || undefined}
             />
           </label>
+
+          <div className="availabilityPreview fullWidth largeAvailabilityCalendar">
+            <div className="availabilityPreviewHeader">
+              <div>
+                <p className="eyebrow">Availability calendar</p>
+                <h4>{selectedPreviewHome ? selectedPreviewHome.name : "Select a home"}</h4>
+                <p className="mutedText">Scroll down to future months. Click once for the start date, then click again for the end date.</p>
+              </div>
+              {selectedConflictCount > 0 && (
+                <span className="conflictWarningPill">{selectedConflictCount} conflict{selectedConflictCount === 1 ? "" : "s"}</span>
+              )}
+            </div>
+
+            <div className="availabilityLegend">
+              <span><i className="legendReservation" /> Reservation</span>
+              <span><i className="legendOwner" /> Owner block</span>
+              <span><i className="legendMaintenance" /> Maintenance</span>
+              <span><i className="legendConflict" /> Conflict</span>
+              <span><i className="legendSelected" /> Selected range</span>
+            </div>
+
+            <div className="availabilityMonthScroller">
+              {availabilityMonths.map((month) => (
+                <section className="availabilityMonth" key={month.key}>
+                  <h5>{month.label}</h5>
+                  <div className="availabilityWeekdays">
+                    {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+                      <span key={`${month.key}-${day}-${index}`}>{day}</span>
+                    ))}
+                  </div>
+
+                  <div className="availabilityGrid">
+                    {month.days.map((day) => {
+                      const dateKey = toInputDate(day.date);
+                      const availabilityClass = getDateAvailabilityClass(day.date, manualForm.homeId, reservations, calendarBlocks);
+                      const isSelectedRange = selectedDateRangeActive && dateKey >= manualForm.arrival && dateKey <= manualForm.departure;
+
+                      return (
+                        <button
+                          type="button"
+                          key={`preview-${dateKey}`}
+                          className={`availabilityDay ${day.inMonth ? "" : "mutedPreviewDay"} ${availabilityClass} ${isSelectedRange ? "selectedPreviewRange" : ""}`}
+                          onClick={() => handleAvailabilityDateClick(dateKey)}
+                          title={dateKey}
+                        >
+                          {day.date.getDate()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            {manualForm.arrival && manualForm.departure && (
+              <p className={selectedConflictCount > 0 ? "conflictWarningBox" : "sourceControlledNotice"}>
+                Selected range: {formatDate(manualForm.arrival)} → {formatDate(manualForm.departure)}
+                {selectedConflictCount > 0 ? ` · overlaps ${selectedConflictCount} existing item${selectedConflictCount === 1 ? "" : "s"}` : " · no conflicts found"}
+              </p>
+            )}
+          </div>
 
           <label className="fullWidth">
             Notes
@@ -1162,29 +1513,21 @@ export default function App()
             <p className="eyebrow">Phase 2</p>
             <h2>Calendar</h2>
             <p className="headerSubtext">
-              See every reservation source in one place: VRBO, Airbnb, manual reservations, owner blocks, maintenance blocks, conflicts, and cleaner visibility.
+              See every reservation source in one scrollable operations calendar: VRBO, Airbnb, manual reservations, owner blocks, maintenance blocks, conflicts, and cleaner visibility.
             </p>
           </div>
 
           <div className="calendarHeaderActions">
-            <button className="ghostButton" onClick={() => moveCalendarMonth(-1)}>
-              Previous
-            </button>
-            <button className="ghostButton" onClick={() => setCalendarDate(new Date(2026, 4, 1))}>
-              May 2026
-            </button>
-            <button className="ghostButton" onClick={() => moveCalendarMonth(1)}>
-              Next
+            <button className="ghostButton" onClick={() => setCalendarDate(new Date())}>
+              Jump to Current Month
             </button>
           </div>
         </header>
 
         <section className="calendarToolbar">
           <div>
-            <span>Calendar month</span>
-            <strong>
-              {monthNames[calendarDate.getMonth()]} {calendarDate.getFullYear()}
-            </strong>
+            <span>Calendar view</span>
+            <strong>Scrollable month stack</strong>
           </div>
 
           <label>
@@ -1201,169 +1544,53 @@ export default function App()
         </section>
 
         <section className="calendarLayout">
-          <div className="calendarPanel">
-            <div className="weekdayGrid">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div key={day}>{day}</div>
-              ))}
-            </div>
-
-            <div className="calendarGrid">
-              {calendarDays.map((day) => {
-                const dateKey = toInputDate(day.date);
-                const dayReservations = visibleCalendarReservations.filter((reservation) =>
-                  isDateInRange(day.date, reservation.arrival, reservation.departure)
-                );
-                const dayBlocks = visibleCalendarBlocks.filter((block) => isDateInRange(day.date, block.start, block.end));
-                const arrivals = visibleCalendarReservations.filter((reservation) => isSameDay(day.date, reservation.arrival));
-                const departures = visibleCalendarReservations.filter((reservation) => isSameDay(day.date, reservation.departure));
-                const isB2B = arrivals.length > 0 && departures.length > 0;
-                const sameHomeReservationCounts = dayReservations.reduce<Record<string, number>>((counts, reservation) => {
-                  counts[reservation.homeId] = (counts[reservation.homeId] ?? 0) + 1;
-                  return counts;
-                }, {});
-                const hasCalendarConflict =
-                  Object.values(sameHomeReservationCounts).some((count) => count > 1) ||
-                  dayBlocks.some((block) => dayReservations.some((reservation) => reservation.homeId === block.homeId));
-                const visibleReservationEvents = dayReservations.slice(0, 4);
-                const visibleBlockEvents = dayBlocks.slice(0, Math.max(0, 5 - visibleReservationEvents.length));
-                const hiddenEventCount = Math.max(0, dayReservations.length + dayBlocks.length - visibleReservationEvents.length - visibleBlockEvents.length);
-
-                return (
-                  <div className={`calendarDay ${day.inMonth ? "" : "mutedDay"}`} key={dateKey}>
-                    <div className="dayTop">
-                      <span>{day.date.getDate()}</span>
-                      <div className="dayBadges">
-                        {isB2B && <strong className="b2bBadge">B2B</strong>}
-                        {hasCalendarConflict && <strong className="conflictBadge">Conflict</strong>}
-                      </div>
-                    </div>
-
-                    <div className="dayEvents">
-                      {visibleReservationEvents.map((reservation) => {
-                        const home = homes.find((item) => item.id === reservation.homeId);
-                        const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
-
-                        return (
-                          <button
-                            key={`${dateKey}-${reservation.id}`}
-                            className={`calendarEvent source${reservation.source.replace(/\s/g, "")}`}
-                            onClick={() => setSelectedCalendarItem(reservation)}
-                            title={`${reservation.guestName} · ${home?.name ?? ""}`}
-                          >
-                            <span>{reservation.guestName}</span>
-                            <small>{cleaner?.name ?? "Unassigned"}</small>
-                          </button>
-                        );
-                      })}
-
-                      {visibleBlockEvents.map((block) => (
-                        <button
-                          key={`${dateKey}-${block.id}`}
-                          className={`calendarEvent block${block.type.replace(/\s/g, "")}`}
-                          onClick={() => setSelectedCalendarItem(block)}
-                          title={block.title}
-                        >
-                          <span>{block.title}</span>
-                          <small>{block.type}</small>
-                        </button>
-                      ))}
-
-                      {hiddenEventCount > 0 && <p className="moreEvents">+{hiddenEventCount} more</p>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="calendarPanel stackedCalendarPanel">
+            {renderScrollableCalendarStack({ homeFilter: selectedCalendarHome, anchorDate: calendarDate, monthCount: 12 })}
           </div>
 
-          <aside className="calendarDetailPanel">
+         <aside className="calendarDetailPanel" id="calendarDetailPanel">
             <p className="eyebrow">Selected item</p>
-            {!selectedCalendarItem ? (
-              <>
-                <h3>Click a reservation or block</h3>
-                <p className="mutedText">Details will show here without leaving the calendar.</p>
-              </>
-            ) : "guestName" in selectedCalendarItem ? (
-              <>
-                <h3>{selectedCalendarItem.guestName}</h3>
-                <p className="mutedText">
-                  {homes.find((home) => home.id === selectedCalendarItem.homeId)?.name ?? "Unknown home"}
-                </p>
+          {selectedCalendarItem ? (
+  <>
+    <h3>
+      {"guestName" in selectedCalendarItem
+        ? selectedCalendarItem.guestName
+        : selectedCalendarItem.title}
+    </h3>
 
-                <div className="detailStack">
-                  <div>
-                    <span>Stay</span>
-                    <strong>
-                      {formatDate(selectedCalendarItem.arrival)} → {formatDate(selectedCalendarItem.departure)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Status</span>
-                    <strong>{selectedCalendarItem.status}</strong>
-                  </div>
-                  <div>
-                    <span>Cleaner</span>
-                    <strong>
-                      {cleaners.find((cleaner) => cleaner.id === selectedCalendarItem.cleanerId)?.name ?? "Unassigned"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Source</span>
-                    <strong>{selectedCalendarItem.source}</strong>
-                  </div>
-                </div>
+    <p className="mutedText">
+      {"guestName" in selectedCalendarItem
+        ? homes.find((home) => home.id === selectedCalendarItem.homeId)?.name
+        : selectedCalendarItem.type}
+    </p>
 
-                {selectedCalendarItem.notes && <p className="notesBox">{selectedCalendarItem.notes}</p>}
+    {"guestName" in selectedCalendarItem && (
+      <div className="detailStack">
+        <div>
+          <span>Arrival</span>
+          <strong>{formatDate(selectedCalendarItem.arrival)}</strong>
+        </div>
 
-                {getReservationConflictCount(selectedCalendarItem, reservations.filter((reservation) => reservation.id !== selectedCalendarItem.id)) > 0 && (
-                  <p className="conflictWarningBox">
-                    This item overlaps another reservation, owner block, or imported booking for the same property. Review before confirming cleaner timing.
-                  </p>
-                )}
+        <div>
+          <span>Departure</span>
+          <strong>{formatDate(selectedCalendarItem.departure)}</strong>
+        </div>
 
-                <div className="cardActions">
-                  <button
-                    onClick={() => {
-                      updateReservation(selectedCalendarItem.id, { status: "Needs Review" });
-                      setSelectedCalendarItem({ ...selectedCalendarItem, status: "Needs Review" });
-                    }}
-                  >
-                    Needs Review
-                  </button>
-                  <button
-                    onClick={() => {
-                      updateReservation(selectedCalendarItem.id, { status: "Completed" });
-                      setSelectedCalendarItem({ ...selectedCalendarItem, status: "Completed" });
-                    }}
-                  >
-                    Complete
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3>{selectedCalendarItem.title}</h3>
-                <p className="mutedText">
-                  {homes.find((home) => home.id === selectedCalendarItem.homeId)?.name ?? "Unknown home"}
-                </p>
-
-                <div className="detailStack">
-                  <div>
-                    <span>Type</span>
-                    <strong>{selectedCalendarItem.type}</strong>
-                  </div>
-                  <div>
-                    <span>Dates</span>
-                    <strong>
-                      {formatDate(selectedCalendarItem.start)} → {formatDate(selectedCalendarItem.end)}
-                    </strong>
-                  </div>
-                </div>
-
-                {selectedCalendarItem.notes && <p className="notesBox">{selectedCalendarItem.notes}</p>}
-              </>
-            )}
+        <div>
+          <span>Status</span>
+          <strong>{selectedCalendarItem.status}</strong>
+        </div>
+      </div>
+    )}
+  </>
+) : (
+  <>
+    <h3>Click a reservation or block</h3>
+    <p className="mutedText">
+      Details will show here without leaving the calendar.
+    </p>
+  </>
+)}  
           </aside>
         </section>
       </>
@@ -1587,6 +1814,62 @@ export default function App()
     setDismissedDiscrepancies([]);
     setImportMessage("Demo data restored. Switch back to Live Mode when you want a clean import workspace.");
   }
+  async function autoFillListing() {
+    const lookupInput =
+      propertyForm.setupMode === "VRBO"
+        ? propertyForm.vrboId
+        : propertyForm.airbnbUrl;
+
+    if (!lookupInput.trim()) {
+      alert("Please enter a VRBO ID or Airbnb URL first.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:4000/api/lookup-listing", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          input: lookupInput,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(result.error || "Unable to auto-fill listing.");
+        return;
+      }
+
+      const property = result.property;
+
+      setPropertyForm((current) => ({
+        ...current,
+        name: property.name || current.name,
+        city: property.city || current.city,
+        address: property.address || current.address,
+        vrboId:
+          property.sourceType === "VRBO"
+            ? property.listingId || current.vrboId
+            : current.vrboId,
+        airbnbUrl:
+          property.sourceType === "Airbnb"
+            ? property.listingUrl || current.airbnbUrl
+            : current.airbnbUrl,
+        bedrooms: property.bedrooms || current.bedrooms,
+        bathrooms: property.bathrooms || current.bathrooms,
+        maxGuests: property.maxGuests || current.maxGuests,
+        notes: property.notes || current.notes,
+      }));
+
+      alert(`${property.sourceType} listing detected successfully.`);
+    } catch (error) {
+      console.error(error);
+      alert("Backend lookup failed. Make sure the backend server is running.");
+    }
+  }
 
   async function createLivePropertyShell(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1656,7 +1939,12 @@ export default function App()
 
     setDataMode("Live");
     setHomes((current) => [...current, nextHome]);
-    setReservations((current) => [...importedReservations, ...current]);
+    setReservations((current) => {
+  return mergeImportedReservations([
+    ...importedReservations,
+    ...current,
+  ]);
+});
     setSelectedPropertyId(nextHome.id);
     setSelectedCalendarHome(nextHome.id);
     setSelectedHome("all");
@@ -1903,8 +2191,7 @@ export default function App()
                   <option value="Manual">Manually Set Up House</option>
                 </select>
               </label>
-
-              <label>
+              <label className="fullWidth">
                 VRBO property ID
                 <input
                   value={propertyForm.vrboId}
@@ -1913,7 +2200,7 @@ export default function App()
                 />
               </label>
 
-              <label>
+              <label className="fullWidth">
                 Airbnb listing URL
                 <input
                   value={propertyForm.airbnbUrl}
@@ -1921,6 +2208,16 @@ export default function App()
                   placeholder="https://airbnb.com/rooms/..."
                 />
               </label>
+
+              <div className="cardActions fullWidth">
+                <button
+                  type="button"
+                  className="secondaryButton"
+                  onClick={autoFillListing}
+                >
+                  Auto Fill Listing
+                </button>
+              </div>
 
               <label>
                 iCal link
@@ -1990,6 +2287,10 @@ export default function App()
                   placeholder="Owner notes, parking, supplies, access, known issues"
                 />
               </label>
+              <PropertyOperationsHub
+  property={propertyForm}
+  onChange={setPropertyForm}
+/>
 
               <div className="cardActions fullWidth">
                 <button className="primaryButton" type="submit">
@@ -2061,27 +2362,6 @@ export default function App()
             + Create Home Profile
           </button>
         </header>
-
-        {renderDataIntegrationPanel()}
-
-        <section className="statsGrid">
-          <div className="statCard">
-            <span>Total homes</span>
-            <strong>{homes.length}</strong>
-          </div>
-          <div className="statCard">
-            <span>Active</span>
-            <strong>{activeHomes}</strong>
-          </div>
-          <div className="statCard warning">
-            <span>Setup needed</span>
-            <strong>{setupNeeded}</strong>
-          </div>
-          <div className="statCard">
-            <span>Calendar feeds</span>
-            <strong>{homes.filter((home) => home.iCalUrl).length}</strong>
-          </div>
-        </section>
 
         {showPropertyForm && (
           <section className="manualPanel">
@@ -2160,8 +2440,7 @@ export default function App()
                   <option value="Manual">Manually Set Up House</option>
                 </select>
               </label>
-
-              <label>
+              <label className="fullWidth">
                 VRBO property ID
                 <input
                   value={propertyForm.vrboId}
@@ -2170,7 +2449,7 @@ export default function App()
                 />
               </label>
 
-              <label>
+              <label className="fullWidth">
                 Airbnb listing URL
                 <input
                   value={propertyForm.airbnbUrl}
@@ -2178,6 +2457,16 @@ export default function App()
                   placeholder="https://airbnb.com/rooms/..."
                 />
               </label>
+
+              <div className="cardActions fullWidth">
+                <button
+                  type="button"
+                  className="secondaryButton"
+                  onClick={autoFillListing}
+                >
+                  Auto Fill Listing
+                </button>
+              </div>
 
               <label>
                 iCal link
@@ -2254,6 +2543,28 @@ export default function App()
             </form>
           </section>
         )}
+
+
+        {renderDataIntegrationPanel()}
+
+        <section className="statsGrid">
+          <div className="statCard">
+            <span>Total homes</span>
+            <strong>{homes.length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Active</span>
+            <strong>{activeHomes}</strong>
+          </div>
+          <div className="statCard warning">
+            <span>Setup needed</span>
+            <strong>{setupNeeded}</strong>
+          </div>
+          <div className="statCard">
+            <span>Calendar feeds</span>
+            <strong>{homes.filter((home) => home.iCalUrl).length}</strong>
+          </div>
+        </section>
 
         <section className="propertiesLayout">
           <div className="propertyCardGrid">
@@ -2716,6 +3027,42 @@ export default function App()
     setCleaners((current) => current.map((cleaner) => (cleaner.id === id ? { ...cleaner, ...updates } : cleaner)));
   }
 
+  function deleteCleaner(id: string) {
+    const cleaner = cleaners.find((item) => item.id === id);
+
+    const confirmation = window.prompt(
+      `Type DELETE to permanently remove ${cleaner?.name ?? "this cleaner"}.`
+    );
+
+    if (confirmation !== "DELETE") return;
+
+    setCleaners((current) => current.filter((cleaner) => cleaner.id !== id));
+
+    setReservations((current) =>
+      current.map((reservation) =>
+        reservation.cleanerId === id
+          ? {
+              ...reservation,
+              cleanerId: undefined,
+              status: reservation.status === "Assigned" ? "New" : reservation.status,
+              timeline: [...reservation.timeline, "Cleaner removed from reservation"],
+            }
+          : reservation
+      )
+    );
+
+    setHomes((current) =>
+      current.map((home) =>
+        home.defaultCleanerId === id
+          ? { ...home, defaultCleanerId: undefined }
+          : home
+      )
+    );
+
+  const remaining = cleaners.filter((cleaner) => cleaner.id !== id);
+setSelectedCleanerId(remaining[0]?.id ?? "");
+  }
+
   function markNotificationRead(id: string) {
     setNotifications((current) =>
       current.map((notification) => (notification.id === id ? { ...notification, read: true } : notification))
@@ -2742,8 +3089,8 @@ export default function App()
             </p>
           </div>
 
-          <button className="primaryButton" onClick={() => setActivePage("Reservation Board")}>
-            Open Reservation Board
+          <button className="primaryButton" onClick={() => setActivePage("Task Board")}>
+            Open Task Board
           </button>
         </header>
 
@@ -2782,7 +3129,7 @@ export default function App()
                 const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
 
                 return (
-                  <button key={reservation.id} onClick={() => setActivePage("Reservation Board")}>
+                  <button key={reservation.id} onClick={() => setActivePage("Task Board")}>
                     <strong>{reservation.guestName}</strong>
                     <span>{home?.name ?? "Unknown home"} · {formatDate(reservation.arrival)}</span>
                     <small>{cleaner?.name ?? "Unassigned"} · {reservation.status}</small>
@@ -2880,7 +3227,7 @@ export default function App()
             </p>
           </div>
 
-          <button className="primaryButton" onClick={() => setActivePage("Reservation Board")}>
+          <button className="primaryButton" onClick={() => setActivePage("Task Board")}>
             Assign Turnovers
           </button>
         </header>
@@ -2997,6 +3344,15 @@ export default function App()
                 </div>
 
                 {selectedCleaner.notes && <p className="notesBox">{selectedCleaner.notes}</p>}
+
+                <div className="cardActions">
+                  <button
+                    className="dangerButton"
+                    onClick={() => deleteCleaner(selectedCleaner.id)}
+                  >
+                    Delete Cleaner
+                  </button>
+                </div>
               </>
             )}
           </aside>
@@ -3069,7 +3425,7 @@ export default function App()
 
                 <div className="cardActions">
                   {!notification.read && <button onClick={() => markNotificationRead(notification.id)}>Mark Read</button>}
-                  {notification.type === "Reservation" && <button onClick={() => setActivePage("Reservation Board")}>Open Reservations</button>}
+                  {notification.type === "Reservation" && <button onClick={() => setActivePage("Task Board")}>Open Reservations</button>}
                   {notification.type === "Maintenance" && <button onClick={() => setActivePage("Maintenance")}>Open Maintenance</button>}
                   {notification.type === "Property" && <button onClick={() => setActivePage("Properties")}>Open Properties</button>}
                   {notification.type === "Cleaner" && <button onClick={() => setActivePage("Cleaners")}>Open Cleaners</button>}
@@ -3192,8 +3548,8 @@ export default function App()
             </p>
           </div>
 
-          <button className="primaryButton" onClick={() => setActivePage("Reservation Board")}>
-            Owner Board
+          <button className="primaryButton" onClick={() => setActivePage("Task Board")}>
+            Task Board
           </button>
         </header>
 
@@ -3270,7 +3626,40 @@ export default function App()
                       </div>
 
                       {reservation.notes && <p className="notesBox">{reservation.notes}</p>}
+{home && (
+  <section className="cleanerPropertyInfo">
+    <p className="eyebrow">Property info</p>
 
+    {home.operations?.access && (
+      <div className="cleanerInfoCard">
+        <strong>Access</strong>
+        <p>{home.operations.access}</p>
+      </div>
+    )}
+
+    {home.operations?.wifiName && (
+      <div className="cleanerInfoCard">
+        <strong>WiFi</strong>
+        <p>{home.operations.wifiName}</p>
+        {home.operations?.wifiPassword && <small>Password: {home.operations.wifiPassword}</small>}
+      </div>
+    )}
+
+    {home.operations?.trashInstructions && (
+      <div className="cleanerInfoCard">
+        <strong>Trash</strong>
+        <p>{home.operations.trashInstructions}</p>
+      </div>
+    )}
+
+    {home.operations?.cleanerNotes && (
+      <div className="cleanerInfoCard">
+        <strong>Notes to Cleaner</strong>
+        <p>{home.operations.cleanerNotes}</p>
+      </div>
+    )}
+  </section>
+)}
                       <div className="cleanerActionGrid">
                         <button onClick={() => updateReservationFromCleaner(reservation.id, "Accepted", "Cleaner accepted the assignment")}>
                           Accept
@@ -3398,6 +3787,44 @@ export default function App()
             </section>
           </aside>
         </section>
+
+        <nav className="cleanerMobileNav" aria-label="Cleaner mobile navigation">
+          <button
+            type="button"
+            onClick={() => document.querySelector(".cleanerTaskStack")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <span>✓</span>
+            Tasks
+          </button>
+          <button
+            type="button"
+            onClick={() => document.querySelector(".cleanerQuickStats")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <span>◷</span>
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("cleanerIssueForm")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <span>⚠</span>
+            Issues
+          </button>
+          <button
+            type="button"
+            onClick={() => window.alert("Cleaner messaging is the next build step.")}
+          >
+            <span>✉</span>
+            Messages
+          </button>
+          <button
+            type="button"
+            onClick={() => document.querySelector(".cleanerPortalTop")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <span>●</span>
+            Profile
+          </button>
+        </nav>
       </>
     );
   }
@@ -3672,17 +4099,17 @@ export default function App()
         <p className="eyebrow">Stable checkpoint</p>
         <h2>{activePage}</h2>
         <p>
-          This module is parked for a later phase so the Reservation Board and Calendar can stay stable.
+          This module is parked for a later phase so the Task Board and Calendar can stay stable.
         </p>
-        <button className="primaryButton" onClick={() => setActivePage("Reservation Board")}>
-          Go to Reservation Board
+        <button className="primaryButton" onClick={() => setActivePage("Task Board")}>
+          Go to Task Board
         </button>
       </section>
     );
   }
 
   return (
-    <div className="appShell">
+    <div className={`appShell ${activePage === "Cleaner Portal" ? "cleanerAppMode" : ""}`}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brandIcon">AMR</div>
@@ -3693,25 +4120,102 @@ export default function App()
           </div>
         </div>
 
-        <nav className="nav">
-          {["Dashboard", "Reservation Board", "Calendar", "Properties", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].map(
+        <nav className="nav desktopNav">
+          {["Dashboard", "Task Board", "Calendar", "Properties", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].map(
             (item) => (
               <button
                 key={item}
                 className={activePage === item ? "active" : ""}
-                onClick={() => setActivePage(item)}
+                onClick={() => {
+                  setActivePage(item);
+                  setShowOwnerMobileMenu(false);
+                }}
+                
               >
                 {item}
               </button>
             )
           )}
         </nav>
+
+        <nav className="ownerMobileNav" aria-label="Owner mobile navigation">
+          {[
+            { label: "Home", page: "Dashboard", icon: "⌂" },
+            { label: "Tasks", page: "Task Board", icon: "▦" },
+            { label: "Calendar", page: "Calendar", icon: "◷" },
+          ].map((item) => (
+            <button
+              key={item.page}
+              type="button"
+              className={activePage === item.page ? "active" : ""}
+              onClick={() => {
+                setActivePage(item.page);
+                setShowOwnerMobileMenu(false);
+              }}
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            className={showOwnerMobileMenu ? "active" : ""}
+            onClick={() => setShowOwnerMobileMenu((current) => !current)}
+          >
+            <span>☰</span>
+            Menu
+          </button>
+        </nav>
+
       </aside>
+
+      {showOwnerMobileMenu && (
+        <div className="ownerMobileMenuOverlay" onClick={() => setShowOwnerMobileMenu(false)}>
+          <section className="ownerMobileMenuSheet" onClick={(event) => event.stopPropagation()}>
+            <div className="ownerMobileMenuHeader">
+              <div>
+                <p className="eyebrow">More options</p>
+                <h3>Owner Menu</h3>
+              </div>
+              <button className="ghostButton" type="button" onClick={() => setShowOwnerMobileMenu(false)}>
+                Close
+              </button>
+            </div>
+
+            <div className="ownerMobileMenuGrid">
+              {[
+                "Notification Center",
+                "Properties",
+                "Occupancy",
+                "Maintenance",
+                "Cleaners",
+                "Cleaner Portal",
+                "Records",
+                "Messages",
+                "Settings",
+              ].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={activePage === item ? "active" : ""}
+                  onClick={() => {
+                    setActivePage(item);
+                    setShowOwnerMobileMenu(false);
+                  }}
+                >
+                  {item === "Notification Center" ? "Notifications" : item}
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
 
       <main className="mainContent">
         {activePage === "Calendar" && renderCalendar()}
         {activePage === "Dashboard" && renderDashboard()}
-        {activePage === "Reservation Board" && renderReservationBoard()}
+        {activePage === "Task Board" && renderReservationBoard()}
         {activePage === "Properties" && renderProperties()}
         {activePage === "Occupancy" && renderOccupancy()}
         {activePage === "Cleaners" && renderCleaners()}
@@ -3719,8 +4223,37 @@ export default function App()
         {activePage === "Maintenance" && renderMaintenance()}
         {activePage === "Notification Center" && renderNotificationCenter()}
         {activePage === "Records" && renderRecords()}
-        {!["Dashboard", "Reservation Board", "Calendar", "Properties", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].includes(activePage) && renderPlaceholder()}
+        {!["Dashboard", "Task Board", "Calendar", "Properties", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].includes(activePage) && renderPlaceholder()}
       </main>
+      <nav className="mobileBottomNav" aria-label="Owner mobile bottom navigation">
+        {[
+          { label: "Home", page: "Dashboard", icon: "⌂" },
+          { label: "Tasks", page: "Task Board", icon: "▦" },
+          { label: "Calendar", page: "Calendar", icon: "◷" },
+        ].map((item) => (
+          <button
+            key={item.label}
+            className={activePage === item.page ? "active" : ""}
+            onClick={() => {
+              setActivePage(item.page);
+              setShowOwnerMobileMenu(false);
+            }}
+            type="button"
+          >
+            <span>{item.icon}</span>
+            <small>{item.label}</small>
+          </button>
+        ))}
+
+        <button
+          type="button"
+          className={showOwnerMobileMenu ? "active" : ""}
+          onClick={() => setShowOwnerMobileMenu((current) => !current)}
+        >
+          <span>☰</span>
+          <small>More</small>
+        </button>
+      </nav>
     </div>
   );
 }

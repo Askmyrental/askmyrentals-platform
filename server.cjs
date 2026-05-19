@@ -31,7 +31,59 @@ app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     service: "Ask My Rentals backend server",
-    features: ["ical-fetch", "local-persistence"],
+    features: ["ical-fetch", "local-persistence", "listing-lookup"],
+  });
+});
+
+app.post("/api/lookup-listing", async (req, res) => {
+  const { input } = req.body || {};
+
+  if (!input || typeof input !== "string") {
+    return res.status(400).json({
+      error: "Missing listing input.",
+    });
+  }
+
+  const trimmed = input.trim();
+  const isAirbnb = trimmed.toLowerCase().includes("airbnb.com");
+  const isVrbo = /^\d{5,}$/.test(trimmed);
+
+  if (!isAirbnb && !isVrbo) {
+    return res.status(400).json({
+      error: "Input must be a VRBO ID or Airbnb URL.",
+    });
+  }
+
+  if (isVrbo) {
+    return res.json({
+      ok: true,
+      property: {
+        sourceType: "VRBO",
+        listingId: trimmed,
+        name: `VRBO Property ${trimmed}`,
+        city: "Broken Bow",
+        address: "Auto-detected from VRBO ID",
+        bedrooms: "3",
+        bathrooms: "2",
+        maxGuests: "8",
+        notes: "Demo VRBO auto-fill completed.",
+      },
+    });
+  }
+
+  return res.json({
+    ok: true,
+    property: {
+      sourceType: "Airbnb",
+      listingUrl: trimmed,
+      name: "Airbnb Listing Auto Fill",
+      city: "Nashville",
+      address: "Auto-detected from Airbnb URL",
+      bedrooms: "2",
+      bathrooms: "1",
+      maxGuests: "4",
+      notes: "Demo Airbnb auto-fill completed.",
+    },
   });
 });
 

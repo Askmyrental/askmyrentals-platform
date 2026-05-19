@@ -1504,71 +1504,6 @@ textarea:focus {
   }
 }
 
-/* Forced production mobile navigation override */
-@media screen and (max-width: 768px) {
-  .appShell {
-    display: block !important;
-    grid-template-columns: none !important;
-  }
-
-  .sidebar {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 999 !important;
-    width: 100% !important;
-    min-height: 0 !important;
-    height: auto !important;
-    padding: 10px 12px !important;
-    display: block !important;
-  }
-
-  .brand {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 10px !important;
-    margin-bottom: 10px !important;
-  }
-
-  .brandIcon {
-    width: 36px !important;
-    height: 36px !important;
-    border-radius: 12px !important;
-    font-size: 12px !important;
-  }
-
-  .brand h1 {
-    font-size: 18px !important;
-    margin: 0 !important;
-  }
-
-  .brand p {
-    display: none !important;
-  }
-
-  .nav {
-    display: flex !important;
-    flex-direction: row !important;
-    overflow-x: auto !important;
-    gap: 8px !important;
-    padding-bottom: 6px !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  .nav button {
-    flex: 0 0 auto !important;
-    width: auto !important;
-    min-width: max-content !important;
-    padding: 9px 12px !important;
-    font-size: 14px !important;
-    border-radius: 999px !important;
-  }
-
-  .mainContent {
-    padding: 14px !important;
-  }
-}
-
 /* Occupancy + Records phase */
 .occupancyStatsGrid {
   display: grid;
@@ -1875,25 +1810,161 @@ button:disabled {
 .dataSourceForm textarea:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-}.saveStatus {
+}
+
+/* Clean compact scrollable availability calendar */
+.saveStatus {
   display: block;
   margin-top: 6px;
   color: #9ca3af;
   font-size: 11px;
   line-height: 1.3;
 }
-.dayBadges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+
+.availabilityPreview {
+  margin-top: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 14px;
+  background: #ffffff;
+  max-width: 460px;
 }
 
-.conflictBadge {
-  background: #fee2e2;
-  color: #991b1b;
+.availabilityLegend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
-  padding: 4px 7px;
-  font-size: 10px;
+}
+
+.legendReservation,
+.legendDot.legendReservation {
+  background: #2563eb;
+}
+
+.legendOwner,
+.legendDot.legendOwner {
+  background: #6b7280;
+}
+
+.legendMaintenance,
+.legendDot.legendMaintenance {
+  background: #f97316;
+}
+
+.legendConflict,
+.legendDot.legendConflict {
+  background: #dc2626;
+}
+
+.availabilityMonthScroller {
+  max-height: 620px;
+  overflow-y: auto;
+  display: grid;
+  gap: 18px;
+  padding-right: 6px;
+  width: fit-content;
+}
+
+.availabilityMonth {
+  margin-bottom: 22px;
+}
+
+.availabilityMonth h5 {
+  margin: 10px 0;
+  font-size: 16px;
+}
+
+.availabilityWeekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 44px);
+  gap: 5px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 800;
+  text-align: center;
+}
+
+.availabilityGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 44px);
+  gap: 5px;
+}
+
+.availabilityDay {
+  width: 44px;
+  height: 44px;
+  min-height: unset;
+  border-radius: 11px;
+  border: 1px solid #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: white;
+  cursor: pointer;
+  transition: 0.15s ease;
+  padding: 0;
+}
+
+.availabilityDay:hover {
+  transform: scale(1.03);
+}
+
+.availabilityDay.mutedDay,
+.mutedPreviewDay {
+  opacity: 0.35;
+  background: #f8fafc;
+}
+
+.previewReservation,
+.availabilityDay.reservation {
+  background: #2563eb !important;
+  color: white !important;
+  border-color: #1d4ed8 !important;
+}
+
+.previewOwnerBlock,
+.availabilityDay.owner {
+  background: #6b7280 !important;
+  color: white !important;
+  border-color: #4b5563 !important;
+}
+
+.previewMaintenance,
+.availabilityDay.maintenance {
+  background: #f97316 !important;
+  color: white !important;
+  border-color: #ea580c !important;
+}
+
+.previewConflict,
+.availabilityDay.conflict {
+  background: #dc2626 !important;
+  color: white !important;
+  border-color: #991b1b !important;
+}
+
+.selectedPreviewRange,
+.availabilityDay.selected {
+  outline: 3px solid #111827;
+  outline-offset: 1px;
 }
 
 .conflictWarningBox {
@@ -1904,4 +1975,2160 @@ button:disabled {
   border-radius: 18px;
   padding: 12px;
   font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .availabilityPreview {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .availabilityWeekdays,
+  .availabilityGrid {
+    grid-template-columns: repeat(7, 40px);
+  }
+
+  .availabilityDay {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Reservation Board manual add calendar upgrade
+   Paste at the bottom of src/App.css, or replace any older availability calendar override block. */
+
+.manualPanel .manualForm {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.2fr) minmax(260px, 1fr) minmax(180px, 0.65fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.manualPanel .manualForm > label:nth-of-type(1),
+.manualPanel .manualForm > label:nth-of-type(2),
+.manualPanel .manualForm > label:nth-of-type(3) {
+  min-width: 0;
+}
+
+.manualPanel .manualForm .fullWidth,
+.manualPanel .manualForm .largeAvailabilityCalendar {
+  grid-column: 1 / -1;
+}
+
+.largeAvailabilityCalendar {
+  width: 100%;
+  max-width: none;
+  padding: 24px;
+  margin-top: 0;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+}
+
+.largeAvailabilityCalendar .availabilityPreviewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.largeAvailabilityCalendar .availabilityPreviewHeader h4 {
+  margin: 8px 0 6px;
+  font-size: 20px;
+}
+
+.largeAvailabilityCalendar .availabilityLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 22px;
+  align-items: center;
+  margin: 10px 0 24px;
+  font-size: 13px;
+}
+
+.largeAvailabilityCalendar .availabilityLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.largeAvailabilityCalendar .availabilityLegend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.largeAvailabilityCalendar .availabilityMonthScroller {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(230px, 1fr));
+  gap: 14px;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+}
+
+.largeAvailabilityCalendar .availabilityMonth {
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 14px;
+  padding: 14px;
+  background: #ffffff;
+  min-width: 0;
+}
+
+.largeAvailabilityCalendar .availabilityMonth h5 {
+  text-align: center;
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.largeAvailabilityCalendar .availabilityWeekdays,
+.largeAvailabilityCalendar .availabilityGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.largeAvailabilityCalendar .availabilityWeekdays {
+  margin-bottom: 8px;
+}
+
+.largeAvailabilityCalendar .availabilityWeekdays span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.largeAvailabilityCalendar .availabilityDay {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.largeAvailabilityCalendar .availabilityDay:hover {
+  outline: 2px solid rgba(37, 99, 235, 0.25);
+}
+
+.largeAvailabilityCalendar .mutedPreviewDay {
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.largeAvailabilityCalendar .previewReservation {
+  background: #0b75df;
+  color: #ffffff;
+}
+
+.largeAvailabilityCalendar .previewOwnerBlock {
+  background: #22c55e;
+  color: #ffffff;
+}
+
+.largeAvailabilityCalendar .previewMaintenance {
+  background: #f97316;
+  color: #ffffff;
+}
+
+.largeAvailabilityCalendar .previewConflict {
+  background: #ef233c;
+  color: #ffffff;
+}
+
+.largeAvailabilityCalendar .selectedPreviewRange {
+  background: #93c5fd !important;
+  color: #0f172a !important;
+  outline: 2px solid #2563eb;
+}
+
+.largeAvailabilityCalendar .legendReservation { background: #0b75df; }
+.largeAvailabilityCalendar .legendOwner { background: #22c55e; }
+.largeAvailabilityCalendar .legendMaintenance { background: #f97316; }
+.largeAvailabilityCalendar .legendConflict { background: #ef233c; }
+.largeAvailabilityCalendar .legendSelected { background: #93c5fd; }
+
+@media (max-width: 1250px) {
+  .largeAvailabilityCalendar .availabilityMonthScroller {
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 950px) {
+  .manualPanel .manualForm {
+    grid-template-columns: 1fr;
+  }
+
+  .largeAvailabilityCalendar .availabilityMonthScroller {
+    grid-template-columns: repeat(2, minmax(210px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .largeAvailabilityCalendar .availabilityMonthScroller {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   Ask My Rentals — Mobile Owner App Shell
+   Paste this at the VERY BOTTOM of src/App.css.
+   This is CSS-only and safe to test without changing App.tsx.
+   ========================================================= */
+
+@media screen and (max-width: 768px) {
+  body {
+    background: #f8fafc !important;
+  }
+
+  .appShell {
+    display: block !important;
+    grid-template-columns: none !important;
+    min-height: 100vh !important;
+  }
+
+  /* Turn desktop sidebar into a compact mobile header */
+  .sidebar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 12px 16px 10px !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    color: #0f172a !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06) !important;
+    backdrop-filter: blur(14px) !important;
+  }
+
+  .brand {
+    justify-content: center !important;
+    margin-bottom: 10px !important;
+    gap: 10px !important;
+  }
+
+  .brandIcon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 12px !important;
+    background: #2563eb !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+  }
+
+  .brand h1 {
+    font-size: 18px !important;
+    color: #0f172a !important;
+  }
+
+  .brand p,
+  .saveStatus {
+    display: none !important;
+  }
+
+  /* Temporary mobile nav: horizontal pills until we add real bottom nav in App.tsx */
+  .nav {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    padding: 0 2px 4px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .nav button {
+    flex: 0 0 auto !important;
+    min-width: max-content !important;
+    padding: 9px 13px !important;
+    border-radius: 999px !important;
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+  }
+
+  .nav button.active {
+    background: #2563eb !important;
+    color: #ffffff !important;
+  }
+
+  .mainContent {
+    padding: 18px 14px 96px !important;
+  }
+
+  .pageHeader {
+    margin-bottom: 18px !important;
+    gap: 12px !important;
+  }
+
+  .pageHeader h2,
+  .placeholderPage h2 {
+    font-size: 28px !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .headerSubtext,
+  .placeholderPage p,
+  .mutedText {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+  }
+
+  .statsGrid,
+  .occupancyStatsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .statCard,
+  .occupancyCard {
+    border-radius: 20px !important;
+    padding: 16px !important;
+    min-height: 116px !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .statCard strong,
+  .occupancyCard strong {
+    font-size: 30px !important;
+  }
+
+  .filtersPanel,
+  .manualPanel,
+  .dashboardPanel,
+  .calendarToolbar,
+  .calendarPanel,
+  .calendarDetailPanel,
+  .propertyCard,
+  .propertyDetailPanel,
+  .cleanerCard,
+  .cleanerDetailPanel,
+  .notificationCard,
+  .workOrderCard,
+  .maintenanceDetailPanel,
+  .occupancyPanel,
+  .recordsPanel,
+  .dataIntegrationPanel {
+    border-radius: 22px !important;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .filtersPanel,
+  .manualPanel,
+  .calendarToolbar,
+  .dataIntegrationPanel {
+    padding: 14px !important;
+  }
+
+  .reservationGrid,
+  .dashboardGrid,
+  .propertiesLayout,
+  .cleanersLayout,
+  .maintenanceLayout,
+  .occupancyLayout,
+  .calendarLayout,
+  .propertyForm,
+  .dataSourceForm {
+    grid-template-columns: 1fr !important;
+  }
+
+  .reservationCard {
+    border-radius: 24px !important;
+    padding: 16px !important;
+  }
+
+  .cardTop h3,
+  .dashboardPanel h3,
+  .cleanerCard h3,
+  .notificationCard h3 {
+    font-size: 20px !important;
+  }
+
+  .reservationMeta {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  .assignmentRow,
+  .cleanerTaskDetails,
+  .cleanerActionGrid,
+  .propertyDataGrid,
+  .propertyLinkedOps {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cardActions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .cardActions button,
+  .primaryButton,
+  .ghostButton {
+    min-height: 44px !important;
+  }
+
+  /* Cleaner portal mobile cards */
+  .cleanerPortalShell {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .cleanerPhonePanel,
+  .cleanerOpsPanel > section {
+    border-radius: 24px !important;
+    padding: 14px !important;
+  }
+
+  .cleanerQuickStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .cleanerQuickStats strong {
+    font-size: 24px !important;
+  }
+
+  /* Reservation manual add calendar mobile refinement */
+  .manualPanel .manualForm {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .largeAvailabilityCalendar {
+    padding: 14px !important;
+    border-radius: 22px !important;
+    overflow: hidden !important;
+  }
+
+  .largeAvailabilityCalendar .availabilityPreviewHeader {
+    display: block !important;
+    margin-bottom: 12px !important;
+  }
+
+  .largeAvailabilityCalendar .availabilityLegend {
+    gap: 10px 12px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .largeAvailabilityCalendar .availabilityMonthScroller {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .largeAvailabilityCalendar .availabilityMonth {
+    padding: 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .largeAvailabilityCalendar .availabilityDay {
+    min-height: 42px !important;
+    border-radius: 10px !important;
+    font-size: 12px !important;
+  }
+
+  /* Existing full calendar page becomes horizontally scrollable on mobile */
+  .calendarPanel {
+    overflow-x: auto !important;
+  }
+
+  .weekdayGrid,
+  .calendarGrid {
+    min-width: 760px !important;
+  }
+
+  .calendarDay {
+    min-height: 118px !important;
+  }
+
+  /* Make forms feel more app-like */
+  input,
+  select,
+  textarea {
+    min-height: 44px !important;
+    border-radius: 14px !important;
+  }
+
+  textarea {
+    min-height: 96px !important;
+  }
+}
+
+@media screen and (max-width: 430px) {
+  .statsGrid,
+  .occupancyStatsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .statCard,
+  .occupancyCard {
+    padding: 14px !important;
+  }
+
+  .statCard span,
+  .occupancyCard span {
+    font-size: 12px !important;
+  }
+
+  .statCard strong,
+  .occupancyCard strong {
+    font-size: 28px !important;
+  }
+
+  .reservationMeta {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cardActions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .largeAvailabilityCalendar .availabilityDay {
+    min-height: 38px !important;
+  }
+}
+
+/* Ask My Rentals mobile app shell upgrade
+   Paste this at the very bottom of src/App.css.
+   This is CSS-only and safe to remove if needed. */
+
+@media screen and (max-width: 768px) {
+  body {
+    background: #f5f7fb !important;
+  }
+
+  .appShell {
+    display: block !important;
+    min-height: 100vh !important;
+    background: #f5f7fb !important;
+  }
+
+  .mainContent {
+    padding: 82px 14px 92px !important;
+    max-width: 430px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Mobile top app header */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 1000 !important;
+    width: min(100%, 430px) !important;
+    height: 70px !important;
+    min-height: 70px !important;
+    padding: 12px 16px !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    color: #0f172a !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    backdrop-filter: blur(14px) !important;
+  }
+
+  .brand {
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+  }
+
+  .brandIcon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 12px !important;
+    background: #2563eb !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22) !important;
+  }
+
+  .brand h1 {
+    font-size: 17px !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .brand p,
+  .saveStatus {
+    display: none !important;
+  }
+
+  /* Convert desktop nav into fixed bottom tab bar */
+  .nav {
+    position: fixed !important;
+    left: 50% !important;
+    bottom: 0 !important;
+    transform: translateX(-50%) !important;
+    z-index: 1001 !important;
+    width: min(100%, 430px) !important;
+    height: 74px !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 0 !important;
+    padding: 8px 8px 10px !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-top: 1px solid #e5e7eb !important;
+    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.10) !important;
+    backdrop-filter: blur(14px) !important;
+    overflow: hidden !important;
+  }
+
+  .nav button {
+    min-width: 0 !important;
+    width: 100% !important;
+    height: 56px !important;
+    padding: 30px 2px 4px !important;
+    border-radius: 16px !important;
+    background: transparent !important;
+    color: #475569 !important;
+    text-align: center !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    line-height: 1.1 !important;
+    position: relative !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+  }
+
+  .nav button.active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+  }
+
+  .nav button:hover {
+    background: #f8fafc !important;
+    color: #2563eb !important;
+  }
+
+  .nav button::before {
+    position: absolute !important;
+    top: 7px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    font-size: 19px !important;
+    line-height: 1 !important;
+  }
+
+  .nav button:nth-child(1)::before { content: "⌂"; }
+  .nav button:nth-child(2)::before { content: "▦"; }
+  .nav button:nth-child(3)::before { content: "◷"; }
+  .nav button:nth-child(4)::before { content: "▱"; }
+  .nav button:nth-child(5)::before { content: "☷"; }
+
+  /* Hide extra nav tabs from the bottom bar for mobile.
+     They still exist on desktop and can later move into a Menu screen. */
+  .nav button:nth-child(n+6) {
+    display: none !important;
+  }
+
+  /* Mobile page header polish */
+  .pageHeader {
+    margin: 8px 0 16px !important;
+    gap: 8px !important;
+  }
+
+  .pageHeader h2,
+  .placeholderPage h2 {
+    font-size: 28px !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.05em !important;
+  }
+
+  .headerSubtext,
+  .placeholderPage p,
+  .mutedText {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+  }
+
+  .eyebrow {
+    font-size: 11px !important;
+    margin-bottom: 7px !important;
+  }
+
+  /* App-like cards */
+  .statCard,
+  .dashboardPanel,
+  .reservationCard,
+  .manualPanel,
+  .filtersPanel,
+  .calendarPanel,
+  .calendarDetailPanel,
+  .notificationCard,
+  .propertyCard,
+  .propertyDetailPanel,
+  .cleanerCard,
+  .cleanerDetailPanel,
+  .workOrderCard,
+  .maintenanceDetailPanel,
+  .occupancyCard,
+  .occupancyPanel,
+  .recordsPanel,
+  .dataIntegrationPanel,
+  .cleanerPhonePanel,
+  .cleanerOpsPanel > section {
+    border-radius: 22px !important;
+    border: 1px solid #e8edf5 !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07) !important;
+  }
+
+  .statsGrid,
+  .occupancyStatsGrid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .statCard,
+  .occupancyCard {
+    padding: 15px !important;
+    min-height: 118px !important;
+  }
+
+  .statCard span,
+  .occupancyCard span {
+    font-size: 12px !important;
+    font-weight: 800 !important;
+  }
+
+  .statCard strong,
+  .occupancyCard strong {
+    font-size: 30px !important;
+  }
+
+  .reservationGrid,
+  .dashboardGrid,
+  .cleanerCardGrid,
+  .propertyCardGrid,
+  .workOrderList,
+  .notificationList {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .reservationCard {
+    padding: 16px !important;
+  }
+
+  .cardTop h3,
+  .dashboardPanel h3,
+  .notificationCard h3,
+  .cleanerCard h3,
+  .propertyCardTop h3 {
+    font-size: 19px !important;
+  }
+
+  .homeBadge,
+  .cleanerAvatar {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 15px !important;
+  }
+
+  .reservationMeta {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    margin: 14px 0 !important;
+  }
+
+  .reservationMeta div,
+  .cleanerFooter,
+  .detailStack div {
+    border-radius: 15px !important;
+    padding: 11px !important;
+  }
+
+  .filtersPanel,
+  .manualPanel,
+  .calendarToolbar,
+  .propertyForm,
+  .dataSourceForm {
+    grid-template-columns: 1fr !important;
+  }
+
+  .filtersPanel,
+  .manualPanel {
+    padding: 14px !important;
+  }
+
+  input,
+  select,
+  textarea {
+    border-radius: 14px !important;
+    min-height: 46px !important;
+  }
+
+  .primaryButton,
+  .ghostButton,
+  .cardActions button {
+    min-height: 44px !important;
+    border-radius: 14px !important;
+  }
+
+  .cardActions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Calendar stays usable instead of crushed */
+  .largeAvailabilityCalendar {
+    padding: 14px !important;
+    border-radius: 20px !important;
+  }
+
+  .largeAvailabilityCalendar .availabilityMonthScroller {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .largeAvailabilityCalendar .availabilityMonth {
+    border-radius: 16px !important;
+    padding: 12px !important;
+  }
+
+  .largeAvailabilityCalendar .availabilityDay {
+    min-height: 40px !important;
+    border-radius: 10px !important;
+  }
+
+  .availabilityLegend {
+    gap: 8px !important;
+  }
+
+  .legendItem {
+    font-size: 11px !important;
+  }
+
+  /* Menu/placeholder screens feel less desktop-like */
+  .placeholderPage {
+    min-height: auto !important;
+    padding: 22px !important;
+    align-content: start !important;
+  }
+}
+
+@media screen and (max-width: 390px) {
+  .mainContent {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .nav button {
+    font-size: 9px !important;
+  }
+
+  .statsGrid,
+  .occupancyStatsGrid {
+    gap: 10px !important;
+  }
+}
+
+/* FORCE MOBILE NAV TO BOTTOM - paste at VERY bottom of App.css */
+
+@media screen and (max-width: 768px) {
+  .appShell {
+    display: block !important;
+    min-height: 100vh !important;
+  }
+
+  .sidebar {
+    position: static !important;
+    width: 100% !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  .brand {
+    position: fixed !important;
+    top: 0 !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 1002 !important;
+    width: min(100%, 430px) !important;
+    height: 64px !important;
+    padding: 12px 16px !important;
+    margin: 0 !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .brandIcon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 12px !important;
+    background: #2563eb !important;
+    color: white !important;
+    font-size: 11px !important;
+  }
+
+  .brand h1 {
+    margin: 0 !important;
+    font-size: 17px !important;
+    color: #0f172a !important;
+  }
+
+  .brand p,
+  .saveStatus {
+    display: none !important;
+  }
+
+  .nav {
+    position: fixed !important;
+    top: auto !important;
+    right: auto !important;
+    left: 50% !important;
+    bottom: 0 !important;
+    transform: translateX(-50%) !important;
+    z-index: 99999 !important;
+    width: min(100%, 430px) !important;
+    height: 78px !important;
+    padding: 8px 8px 12px !important;
+    margin: 0 !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-top: 1px solid #e5e7eb !important;
+    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12) !important;
+    backdrop-filter: blur(14px) !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    grid-auto-flow: column !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .nav button {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 58px !important;
+    padding: 31px 2px 4px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    background: transparent !important;
+    color: #475569 !important;
+    text-align: center !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    line-height: 1.05 !important;
+    position: relative !important;
+    white-space: nowrap !important;
+  }
+
+  .nav button.active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+  }
+
+  .nav button::before {
+    position: absolute !important;
+    top: 8px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+  }
+
+  .nav button:nth-child(1)::before { content: "⌂"; }
+  .nav button:nth-child(2)::before { content: "▦"; }
+  .nav button:nth-child(3)::before { content: "◷"; }
+  .nav button:nth-child(4)::before { content: "▱"; }
+  .nav button:nth-child(5)::before { content: "☰"; }
+
+  .nav button:nth-child(n+6) {
+    display: none !important;
+  }
+
+  .mainContent {
+    padding-top: 80px !important;
+    padding-bottom: 104px !important;
+    max-width: 430px !important;
+    margin: 0 auto !important;
+  }
+}
+/* MOBILE CALENDAR FIX */
+@media screen and (max-width: 768px) {
+  .calendarLayout {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .calendarPanel {
+    width: 100% !important;
+    overflow: hidden !important;
+    padding: 10px !important;
+    border-radius: 20px !important;
+  }
+
+  .weekdayGrid,
+  .calendarGrid {
+    width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+  }
+
+  .weekdayGrid div {
+    font-size: 9px !important;
+    text-align: center !important;
+    padding: 0 !important;
+  }
+
+  .calendarDay {
+    min-height: 56px !important;
+    height: 56px !important;
+    padding: 3px !important;
+    border-radius: 9px !important;
+    overflow: hidden !important;
+  }
+
+  .dayTop {
+    margin-bottom: 2px !important;
+  }
+
+  .dayTop span {
+    font-size: 10px !important;
+  }
+
+  .calendarEvent {
+    padding: 2px 3px !important;
+    border-radius: 5px !important;
+    min-height: 12px !important;
+  }
+
+  .calendarEvent span {
+    font-size: 7px !important;
+    line-height: 1 !important;
+  }
+
+  .calendarEvent small,
+  .b2bBadge {
+    display: none !important;
+  }
+
+  .moreEvents {
+    font-size: 7px !important;
+  }
+
+  .calendarDetailPanel {
+    position: static !important;
+    margin-top: 14px !important;
+    width: 100% !important;
+  }
+}/* ===== OPERATIONS CALENDAR GRID FIX ===== */
+
+.operationsCalendarMonth {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.operationsCalendarWeekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.operationsCalendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.operationsCalendarDay {
+  min-height: 120px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 8px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.operationsCalendarDate {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.operationsReservationBadge {
+  font-size: 10px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .operationsCalendarGrid {
+    gap: 4px;
+  }
+
+  .operationsCalendarDay {
+    min-height: 80px;
+    padding: 4px;
+  }
+
+  .operationsReservationBadge {
+    font-size: 8px;
+  }
+}/* ===== STACKED CALENDAR FIX ===== */
+
+.ownerMobileNav,
+.ownerMobileMenuOverlay {
+  display: none;
+
+}
+
+.stackedCalendarMonth {
+  margin-bottom: 36px;
+}
+
+.stackedCalendarWeekdays {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin-bottom: 8px;
+}
+
+.stackedCalendarWeekdays span {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.stackedCalendarGrid {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.stackedCalendarDay {
+  min-height: 120px !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 8px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.stackedCalendarDate {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.stackedCalendarEvent {
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  background: #dbeafe;
+  color: #1e40af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media screen and (max-width: 768px) {
+  .ownerMobileNav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    background: #ffffff;
+    border-top: 1px solid #e5e7eb;
+    z-index: 9999;
+    padding: 8px 6px;
+  }
+
+  .mainContent {
+    padding-bottom: 90px;
+  }
+
+  .stackedCalendarGrid {
+    gap: 4px !important;
+  }
+
+  .stackedCalendarDay {
+    min-height: 78px !important;
+    padding: 4px;
+    border-radius: 10px;
+  }
+
+  .stackedCalendarEvent {
+    font-size: 8px;
+    padding: 2px 4px;
+  }
+}/* ===== CALENDAR POLISH PHASE ===== */
+
+.stackedCalendarMonth {
+  margin-bottom: 28px;
+}
+
+.stackedCalendarMonth h3 {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: #f8fafc;
+  padding: 10px 0;
+  margin-bottom: 10px;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.stackedCalendarWeekdays {
+  margin-bottom: 10px;
+}
+
+.stackedCalendarWeekdays span {
+  padding: 8px 0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.stackedCalendarGrid {
+  gap: 6px !important;
+}
+
+.stackedCalendarDay {
+  min-height: 92px !important;
+  border-radius: 14px;
+  transition: 0.18s ease;
+  cursor: pointer;
+}
+
+.stackedCalendarDay:hover {
+  transform: translateY(-1px);
+  border-color: #3b82f6;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.12);
+}
+
+.stackedCalendarDate {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.stackedCalendarEvent {
+  font-size: 9px;
+  padding: 3px 6px;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stackedCalendarEvent.airbnb {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.stackedCalendarEvent.vrbo {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.stackedCalendarEvent.manual {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.stackedCalendarEvent.blocked {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.calendarDetailPanel {
+  border-radius: 24px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+@media screen and (max-width: 768px) {
+  .stackedCalendarMonth h3 {
+    font-size: 18px;
+  }
+
+  .stackedCalendarGrid {
+    gap: 4px !important;
+  }
+
+  .stackedCalendarDay {
+    min-height: 64px !important;
+    padding: 4px;
+  }
+
+  .stackedCalendarEvent {
+    font-size: 7px;
+    padding: 2px 4px;
+  }
+}/* ===== CALENDAR EVENT VISIBILITY FIX ===== */
+
+.dayEvents {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  margin-top: 6px;
+}
+
+.calendarEvent {
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: left;
+  display: flex !important;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.calendarEvent span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendarEvent small {
+  font-size: 8px;
+  opacity: 0.78;
+}
+
+.calendarEvent.sourceVRBO {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.calendarEvent.sourceAirbnb {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.calendarEvent.sourceManual {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.calendarEvent.sourceOwnerBlock {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.blockOwnerBlock {
+  background: #f3f4f6 !important;
+  color: #374151 !important;
+}
+
+.blockMaintenance {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}/* ===== PHASE 1B — CALENDAR DENSITY + PREMIUM PILLS ===== */
+
+.stackedCalendarMonth {
+  margin-bottom: 22px;
+}
+
+.stackedCalendarMonth h3 {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #f4f6f8;
+  padding: 8px 2px 12px;
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.stackedCalendarWeekdays {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px !important;
+  margin-bottom: 6px;
+}
+
+.stackedCalendarWeekdays span {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+  padding-bottom: 4px;
+}
+
+.stackedCalendarGrid {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px !important;
+}
+
+.stackedCalendarDay {
+  min-height: 74px !important;
+  border-radius: 12px;
+  padding: 4px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+  transition: 0.15s ease;
+}
+
+.stackedCalendarDay:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.12);
+  transform: translateY(-1px);
+}
+
+.stackedCalendarDate {
+  font-size: 10px;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.stackedCalendarEvent {
+  min-height: 16px;
+  border-radius: 999px;
+  padding: 1px 6px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* SOURCE COLORS */
+
+.stackedCalendarEvent.airbnb {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.stackedCalendarEvent.vrbo {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.stackedCalendarEvent.manual {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.stackedCalendarEvent.ownerblock {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* EMPTY DAYS */
+
+.stackedCalendarDay.emptyDay {
+  background: #f8fafc;
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+/* MOBILE */
+
+@media screen and (max-width: 768px) {
+  .stackedCalendarMonth h3 {
+    font-size: 16px;
+    padding-top: 4px;
+  }
+
+  .stackedCalendarGrid {
+    gap: 2px !important;
+  }
+
+  .stackedCalendarDay {
+    min-height: 56px !important;
+    border-radius: 8px;
+    padding: 2px;
+  }
+
+  .stackedCalendarDate {
+    font-size: 8px;
+  }
+
+  .stackedCalendarEvent {
+    min-height: 12px;
+    font-size: 6px;
+    padding: 1px 4px;
+  }
+
+  .stackedCalendarWeekdays span {
+    font-size: 8px;
+  }
+}.operationsHub {
+  margin-top: 24px;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.operationsHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.operationsHeader h2 {
+  margin: 4px 0 0;
+  font-size: 24px;
+  color: #111827;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.operationsBadge {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.operationsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.operationCard {
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.operationCard h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.operationCard p {
+  margin: 0 0 8px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.highlightCard {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.maintenanceCard {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+@media (max-width: 800px) {
+  .operationsHeader {
+    flex-direction: column;
+  }
+
+  .operationsGrid {
+    grid-template-columns: 1fr;
+  }
+}/* ===== PROPERTY OPERATIONS HUB ===== */
+
+.propertyOperationsForm {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.propertyOperationsForm .sectionHeader {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+
+.propertyOpsHub {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.propertyOpsHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.propertyOpsHeader h3 {
+  margin: 0;
+}
+
+.propertyOpsGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.propertyOpsCard {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.propertyOpsCard span {
+  display: block;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.propertyOpsCard strong {
+  display: block;
+  font-size: 18px;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.propertyOpsCard p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.importantOpsCard {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.notesOpsCard ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.offlineReadyPill {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.cleanerPropertyOpsHub {
+  margin: 12px 0;
+  box-shadow: none;
+}
+
+@media screen and (max-width: 768px) {
+  .propertyOperationsForm {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .propertyOpsHeader {
+    flex-direction: column;
+  }
+
+  .propertyOpsCard strong {
+    font-size: 16px;
+  }
+}
+.taskBoardCalendarBox {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.taskBoardCalendarBox .stackedMonthCard {
+  margin-bottom: 18px;
+}
+
+.taskBoardCalendarBox .stackedCalendarDay {
+  min-height: 58px !important;
+}
+
+@media screen and (max-width: 768px) {
+  .taskBoardCalendarBox {
+    max-height: 360px;
+    padding: 10px;
+  }
+}@media screen and (max-width: 768px) {
+  .sidebar .ownerMobileNav,
+  .ownerMobileNav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e5e7eb !important;
+    z-index: 99999 !important;
+    padding: 8px 6px !important;
+  }
+
+  .mainContent {
+    padding-bottom: 100px !important;
+  }
+}@media screen and (max-width: 768px) {
+  .nav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    transform: none !important;
+    z-index: 999999 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 78px !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e5e7eb !important;
+    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12) !important;
+    padding: 8px 8px 12px !important;
+    overflow: hidden !important;
+  }
+
+  .nav button:nth-child(n+6) {
+    display: none !important;
+  }
+
+  .mainContent {
+    padding-bottom: 110px !important;
+  }
+}.trueMobileBottomNav {
+  display: none;
+}
+
+@media screen and (max-width: 768px) {
+  .trueMobileBottomNav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 999999 !important;
+    height: 78px !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e5e7eb !important;
+    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12) !important;
+    padding: 8px 8px 12px !important;
+  }
+
+  .trueMobileBottomNav button {
+    border: 0 !important;
+    background: transparent !important;
+    color: #475569 !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    display: grid !important;
+    gap: 3px !important;
+    place-items: center !important;
+    border-radius: 14px !important;
+  }
+
+  .trueMobileBottomNav button span {
+    font-size: 19px !important;
+    line-height: 1 !important;
+  }
+
+  .trueMobileBottomNav button.active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+  }
+
+  .mainContent {
+    padding-bottom: 110px !important;
+  }
+}
+
+/* =========================================================
+   FINAL STABILIZATION OVERRIDES — Ask My Rentals
+   Keep this block at the very bottom of App.css.
+   It makes the new React ownerMobileNav the only mobile nav,
+   keeps desktop navigation desktop-only, and prevents old CSS
+   nav systems from fighting each other.
+   ========================================================= */
+
+.ownerMobileNav,
+.ownerMobileMenuOverlay {
+  display: none;
+}
+
+.desktopNav {
+  display: grid;
+}
+
+.emptyState {
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
+  border-radius: 22px;
+  padding: 22px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.propertyInfoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 14px;
+}
+
+.propertyInfoCard {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.propertyInfoCard span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.propertyInfoCard strong {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.cleanerPropertyInfo {
+  margin: 14px 0;
+  padding: 14px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+@media screen and (max-width: 768px) {
+  .appShell {
+    display: block !important;
+    min-height: 100vh !important;
+    background: #f5f7fb !important;
+  }
+
+  .sidebar {
+    position: static !important;
+    width: 100% !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  .brand {
+    position: fixed !important;
+    top: 0 !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 1002 !important;
+    width: min(100%, 430px) !important;
+    height: 64px !important;
+    padding: 12px 16px !important;
+    margin: 0 !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .brandIcon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 12px !important;
+    background: #2563eb !important;
+    color: white !important;
+    font-size: 11px !important;
+  }
+
+  .brand h1 {
+    margin: 0 !important;
+    font-size: 17px !important;
+    color: #0f172a !important;
+  }
+
+  .brand p,
+  .saveStatus,
+  .desktopNav {
+    display: none !important;
+  }
+
+  .ownerMobileNav {
+    position: fixed !important;
+    left: 50% !important;
+    bottom: 0 !important;
+    transform: translateX(-50%) !important;
+    z-index: 99999 !important;
+    width: min(100%, 430px) !important;
+    height: 78px !important;
+    padding: 8px 8px 12px !important;
+    margin: 0 !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-top: 1px solid #e5e7eb !important;
+    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12) !important;
+    backdrop-filter: blur(14px) !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 0 !important;
+  }
+
+  .ownerMobileNav button {
+    display: grid !important;
+    place-items: center !important;
+    gap: 2px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 58px !important;
+    padding: 4px 2px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    background: transparent !important;
+    color: #475569 !important;
+    text-align: center !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+  }
+
+  .ownerMobileNav button span {
+    display: block !important;
+    font-size: 19px !important;
+    line-height: 1 !important;
+  }
+
+  .ownerMobileNav button.active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+  }
+
+  .ownerMobileMenuOverlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 99998 !important;
+    display: grid !important;
+    align-items: end !important;
+    background: rgba(15, 23, 42, 0.35) !important;
+    padding: 16px !important;
+  }
+
+  .ownerMobileMenuSheet {
+    width: min(100%, 430px) !important;
+    margin: 0 auto 76px !important;
+    background: #ffffff !important;
+    border-radius: 26px !important;
+    padding: 18px !important;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25) !important;
+  }
+
+  .ownerMobileMenuHeader {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .ownerMobileMenuHeader h3 {
+    margin: 0 !important;
+  }
+
+  .ownerMobileMenuGrid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .ownerMobileMenuGrid button {
+    border: 0 !important;
+    border-radius: 16px !important;
+    padding: 14px 12px !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    font-weight: 900 !important;
+    text-align: left !important;
+  }
+
+  .ownerMobileMenuGrid button.active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+  }
+
+  .mainContent {
+    padding-top: 80px !important;
+    padding-bottom: 104px !important;
+    max-width: 430px !important;
+    margin: 0 auto !important;
+  }
+
+  .calendarLayout,
+  .reservationGrid,
+  .dashboardGrid,
+  .propertiesLayout,
+  .cleanersLayout,
+  .maintenanceLayout,
+  .occupancyLayout,
+  .propertyForm,
+  .dataSourceForm,
+  .filtersPanel,
+  .manualForm {
+    grid-template-columns: 1fr !important;
+  }
+
+  .statsGrid,
+  .occupancyStatsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .propertyInfoGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .calendarDetailPanel,
+  .propertyDetailPanel,
+  .cleanerDetailPanel,
+  .maintenanceDetailPanel {
+    position: static !important;
+  }
+}
+.mobileBottomNav {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mobileBottomNav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 76px !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e5e7eb !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    z-index: 999999 !important;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12) !important;
+  }
+
+  .mobileBottomNav button {
+    border: 0 !important;
+    background: transparent !important;
+    color: #475569 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+  }
+
+  .mobileBottomNav span {
+    font-size: 22px !important;
+    line-height: 1 !important;
+  }
+
+  .mobileBottomNav button.active {
+    color: #0f766e !important;
+  }
+
+  body,
+  .appShell {
+    padding-bottom: 90px !important;
+  }
 }

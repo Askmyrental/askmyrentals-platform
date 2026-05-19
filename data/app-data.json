@@ -1,50 +1,28 @@
 {
   "homes": [
     {
-      "id": "coates",
-      "name": "Coates Cabin",
-      "city": "Broken Bow",
-      "shortName": "CO",
-      "address": "Broken Bow, OK",
-      "vrboId": "1234567",
-      "iCalUrl": "https://example.com/coates.ics",
-      "setupMode": "VRBO",
-      "defaultCleanerId": "aarthi",
-      "bedrooms": 3,
-      "bathrooms": 2,
-      "maxGuests": 8,
-      "status": "Active",
-      "notes": "Primary test property. VRBO ID will eventually support listing intelligence and occupancy comparisons."
-    },
-    {
-      "id": "pine",
-      "name": "Pine Ridge Lodge",
-      "city": "Gatlinburg",
-      "shortName": "PR",
-      "address": "Gatlinburg, TN",
-      "airbnbUrl": "https://airbnb.com/rooms/example",
-      "iCalUrl": "https://example.com/pine.ics",
-      "setupMode": "Airbnb",
-      "defaultCleanerId": "maria",
-      "bedrooms": 4,
-      "bathrooms": 3,
-      "maxGuests": 10,
-      "status": "Active",
-      "notes": "Needs stronger vendor coverage during peak season."
-    },
-    {
-      "id": "lake",
-      "name": "Lakeview Retreat",
-      "city": "Branson",
-      "shortName": "LR",
-      "address": "Branson, MO",
+      "id": "live-home-1779150296255",
+      "name": "Sea OTZ",
+      "city": "Walton",
+      "shortName": "SO",
       "setupMode": "Manual",
+      "iCalUrl": "https://www.airbnb.com/calendar/ical/1094948512612072880.ics?t=72ec8d8d446a4daca5f90a594bcec012",
+      "bedrooms": 0,
+      "bathrooms": 0,
+      "maxGuests": 0,
+      "status": "Active",
+      "notes": "Live data shell created. VRBO iCal: missing. Airbnb iCal: https://www.airbnb.com/calendar/ical/1094948512612072880.ics?t=72ec8d8d446a4daca5f90a594bcec012.",
+      "address": "",
+      "vrboId": "",
+      "airbnbUrl": "",
       "defaultCleanerId": "jordan",
-      "bedrooms": 2,
-      "bathrooms": 2,
-      "maxGuests": 6,
-      "status": "Setup Needed",
-      "notes": "Manual setup started. Add calendar feed when available."
+      "operations": {
+        "access": "Door code is 1234",
+        "wifiName": "Sea OTZ",
+        "wifiPassword": "Sea OTZ!@#",
+        "trashInstructions": "Wed and Thursday",
+        "cleanerNotes": "Clean Grill each time"
+      }
     }
   ],
   "cleaners": [
@@ -96,234 +74,207 @@
   ],
   "reservations": [
     {
-      "id": "res-1779125651101",
-      "guestName": "Test",
-      "homeId": "coates",
-      "source": "Manual",
-      "arrival": "2026-06-06",
-      "departure": "2026-06-09",
-      "status": "New",
-      "notes": "Connect and test wifi",
-      "timeline": [
-        "Manual reservation created"
-      ]
-    },
-    {
-      "id": "res-1001",
-      "guestName": "Miller Family",
-      "homeId": "coates",
-      "source": "VRBO",
-      "arrival": "2026-05-16",
-      "departure": "2026-05-19",
-      "status": "Needs Review",
-      "cleanerId": "aarthi",
-      "notes": "Back-to-back turnover. Check hot tub towels.",
-      "timeline": [
-        "Imported from VRBO",
-        "Turnover created",
-        "Assigned to Aarthi",
-        "Cleaner reported maintenance issue: Loose handle on front door test"
-      ]
-    },
-    {
-      "id": "res-1002",
-      "guestName": "Owner Deep Clean",
-      "homeId": "pine",
-      "source": "Manual",
-      "arrival": "2026-05-20",
-      "departure": "2026-05-20",
-      "status": "New",
-      "notes": "Manual reservation for deep clean and restock.",
-      "timeline": [
-        "Manual reservation created"
-      ]
-    },
-    {
-      "id": "res-1003",
-      "guestName": "Thompson Stay",
-      "homeId": "lake",
+      "id": "airbnb-live-home-1779150296255-1418fb94e984-75d6285db8506206e0e648027a08e6ec-airbnb-com",
+      "guestName": "Reserved",
+      "homeId": "live-home-1779150296255",
       "source": "Airbnb",
       "arrival": "2026-05-22",
-      "departure": "2026-05-26",
-      "status": "Accepted",
-      "cleanerId": "jordan",
-      "notes": "Guest requested early check-in if possible.",
-      "timeline": [
-        "Imported from Airbnb",
-        "Assigned to Jordan",
-        "Jordan accepted"
-      ]
-    },
-    {
-      "id": "res-1004",
-      "guestName": "Rivera Group",
-      "homeId": "coates",
-      "source": "VRBO",
-      "arrival": "2026-05-19",
-      "departure": "2026-05-23",
-      "status": "New",
-      "notes": "Same-day arrival after Miller departure.",
-      "timeline": [
-        "Imported from VRBO",
-        "B2B risk detected"
-      ]
-    }
-  ],
-  "calendarBlocks": [
-    {
-      "id": "block-1",
-      "homeId": "coates",
-      "type": "Owner Block",
-      "title": "Owner Weekend",
-      "start": "2026-05-29",
-      "end": "2026-05-31",
-      "notes": "Owner using property."
-    },
-    {
-      "id": "block-2",
-      "homeId": "pine",
-      "type": "Maintenance",
-      "title": "HVAC Service",
-      "start": "2026-05-23",
-      "end": "2026-05-23",
-      "notes": "Vendor window 10 AM - 2 PM."
-    }
-  ],
-  "workOrders": [
-    {
-      "id": "wo-1779125794341",
-      "homeId": "coates",
-      "title": "Loose handle on front door test",
-      "category": "General",
-      "urgency": "High",
-      "status": "Owner Review",
-      "createdDate": "2026-05-18",
-      "notes": "No additional notes. Reported by Aarthi from the cleaner portal. Photo upload placeholder captured for future storage.",
-      "timeline": [
-        "Cleaner reported maintenance issue",
-        "Owner notification created",
-        "Work order moved to owner review"
-      ]
-    },
-    {
-      "id": "wo-1001",
-      "homeId": "pine",
-      "title": "HVAC not cooling consistently",
-      "category": "HVAC",
-      "urgency": "High",
-      "status": "Scheduled",
-      "vendorId": "vendor-hvac",
-      "createdDate": "2026-05-12",
-      "scheduledDate": "2026-05-23",
-      "notes": "Guest reported warm upstairs bedroom. Vendor window already added to calendar.",
-      "timeline": [
-        "Issue created",
-        "Vendor recommended",
-        "Service scheduled"
-      ]
-    },
-    {
-      "id": "wo-1002",
-      "homeId": "coates",
-      "title": "Loose deck railing",
-      "category": "General",
-      "urgency": "Medium",
-      "status": "Owner Review",
-      "vendorId": "vendor-handyman",
-      "createdDate": "2026-05-11",
-      "notes": "Cleaner flagged during turnover. Needs owner approval before dispatch.",
-      "timeline": [
-        "Cleaner reported issue",
-        "Photo review requested",
-        "Owner review needed"
-      ]
-    },
-    {
-      "id": "wo-1003",
-      "homeId": "lake",
-      "title": "Kitchen sink slow drain",
-      "category": "Plumbing",
-      "urgency": "After Hours",
+      "departure": "2026-05-28",
       "status": "Completed",
-      "createdDate": "2026-05-12",
-      "notes": "Potential guest-impacting issue. Recommend after-hours plumber if guest is currently in home.",
+      "notes": "TEsting",
       "timeline": [
-        "Issue created",
-        "After-hours risk detected",
-        "Status changed to Assigned",
-        "Status changed to Completed"
+        "Imported from Airbnb iCal",
+        "Assigned to Jordan",
+        "Flagged for owner review",
+        "Cleaner marked home ready",
+        "Turnover completed",
+        "Turnover completed"
       ],
-      "vendorId": "vendor-hvac"
+      "cleanerId": "jordan"
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-1418fb94e984-685f936119e09fe9331a3a827ed62d25-airbnb-com",
+      "guestName": "Reserved",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-06-03",
+      "departure": "2026-06-10",
+      "status": "Assigned",
+      "notes": "Imported calendar note: Reservation URL: https://www.airbnb.com/hosting/reservations/details/HM3XBF9W2M Phone Number (Last 4 Digits): 4002",
+      "timeline": [
+        "Imported from Airbnb iCal",
+        "Assigned to Jordan"
+      ],
+      "cleanerId": "jordan"
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-03427e3d55387c4b4b6e210c9db21226-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-05-28",
+      "departure": "2026-06-03",
+      "status": "Assigned",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal",
+        "Assigned to Jordan"
+      ],
+      "cleanerId": "jordan"
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-f111472708409b2ae9d74ab9d6c63a17-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-06-10",
+      "departure": "2026-06-18",
+      "status": "Assigned",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal",
+        "Assigned to Jordan"
+      ],
+      "cleanerId": "jordan"
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-7d732347662e5420dd0a5cb498fa32f7-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-06-20",
+      "departure": "2026-06-22",
+      "status": "Assigned",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal",
+        "Assigned to Jordan"
+      ],
+      "cleanerId": "jordan"
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-531c8886ce93b245166a7a334f9b3c38-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-06-29",
+      "departure": "2026-07-04",
+      "status": "New",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal"
+      ]
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-bc0d014812921636cb28fe8a51370988-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-07-19",
+      "departure": "2026-07-25",
+      "status": "New",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal"
+      ]
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-c4370849ccedd87850f682645a2e2bdc-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-08-09",
+      "departure": "2026-08-27",
+      "status": "New",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal"
+      ]
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-ec00d6c3e1a390cb687d96168d38fbb1-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-09-04",
+      "departure": "2026-09-08",
+      "status": "New",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal"
+      ]
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-d31fac478f875d3f8fa95a8a9a30f31d-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-09-11",
+      "departure": "2026-09-18",
+      "status": "New",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal"
+      ]
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-65f33aca91bd21769b7b44c895f4e149-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-09-26",
+      "departure": "2026-10-02",
+      "status": "New",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal"
+      ]
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-462d5a35048be9052843a1f7aea6829c-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-10-10",
+      "departure": "2026-10-18",
+      "status": "New",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal"
+      ]
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-df8e31284b7270530f6b0c4ef892509a-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-11-22",
+      "departure": "2026-11-30",
+      "status": "New",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal"
+      ]
+    },
+    {
+      "id": "airbnb-live-home-1779150296255-7f662ec65913-79484db0dd2c69bf236c935c429bc0b3-airbnb-com",
+      "guestName": "Airbnb (Not available)",
+      "homeId": "live-home-1779150296255",
+      "source": "Airbnb",
+      "arrival": "2026-12-20",
+      "departure": "2027-01-03",
+      "status": "New",
+      "notes": "",
+      "timeline": [
+        "Imported from Airbnb iCal"
+      ]
     }
   ],
-  "notifications": [
-    {
-      "id": "note-1779125794343",
-      "type": "Cleaner",
-      "priority": "High",
-      "title": "Cleaner update: Needs Review",
-      "message": "Miller Family was updated by the cleaner. Cleaner reported maintenance issue: Loose handle on front door test",
-      "relatedHomeId": "coates",
-      "relatedCleanerId": "aarthi",
-      "createdAt": "5/18/2026, 12:36:34 PM",
-      "read": false
-    },
-    {
-      "id": "note-1779125794343",
-      "type": "Maintenance",
-      "priority": "Critical",
-      "title": "Cleaner reported maintenance issue",
-      "message": "Aarthi reported: Loose handle on front door test",
-      "relatedHomeId": "coates",
-      "relatedCleanerId": "aarthi",
-      "createdAt": "5/18/2026, 12:36:34 PM",
-      "read": false
-    },
-    {
-      "id": "note-1",
-      "type": "Reservation",
-      "priority": "High",
-      "title": "B2B turnover detected",
-      "message": "Coates Cabin has a same-day departure and arrival on May 19. Confirm cleaner timing.",
-      "relatedHomeId": "coates",
-      "relatedCleanerId": "aarthi",
-      "createdAt": "2026-05-12 09:10",
-      "read": false
-    },
-    {
-      "id": "note-2",
-      "type": "Maintenance",
-      "priority": "Critical",
-      "title": "After-hours maintenance risk",
-      "message": "Lakeview Retreat has a slow kitchen drain flagged as after-hours risk.",
-      "relatedHomeId": "lake",
-      "createdAt": "2026-05-12 10:25",
-      "read": false
-    },
-    {
-      "id": "note-3",
-      "type": "Cleaner",
-      "priority": "Normal",
-      "title": "Cleaner accepted assignment",
-      "message": "Jordan accepted the Thompson Stay turnover.",
-      "relatedHomeId": "lake",
-      "relatedCleanerId": "jordan",
-      "createdAt": "2026-05-12 11:05",
-      "read": true
-    },
-    {
-      "id": "note-4",
-      "type": "Property",
-      "priority": "Normal",
-      "title": "Property setup incomplete",
-      "message": "Lakeview Retreat is missing an iCal feed.",
-      "relatedHomeId": "lake",
-      "createdAt": "2026-05-12 12:00",
-      "read": false
-    }
-  ],
+  "calendarBlocks": [],
+  "workOrders": [],
+  "notifications": [],
   "dismissedDiscrepancies": [],
-  "dataMode": "Demo",
-  "importMessage": "Demo data is active. Switch to Live Mode when you are ready to start from real VRBO/iCal sources.",
-  "savedAt": "2026-05-18T17:52:54.609Z"
+  "dataMode": "Live",
+  "importMessage": "Live property created and 14 source-controlled calendar reservations imported. Imported reservations cannot be deleted inside the app.",
+  "savedAt": "2026-05-19T21:42:31.113Z"
 }
