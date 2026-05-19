@@ -691,6 +691,27 @@ export default function App()
     maxGuests: "8",
     notes: "",
   });
+  
+  window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+
+  document.querySelector(".mainContent")?.scrollTo({
+    top: 0,
+    left: 0,
+    behavior: "smooth",
+  });
+useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    left: 0,
+    behavior: "smooth",
+  });
+
+  document.querySelector(".mainContent")?.scrollTo({
+    top: 0,
+    left: 0,
+    behavior: "smooth",
+  });
+}, [activePage]);
   const [selectedCleanerId, setSelectedCleanerId] = useState(starterCleaners[0]?.id ?? "");
   const [notificationFilter, setNotificationFilter] = useState("all");
   const [dismissedDiscrepancies, setDismissedDiscrepancies] = useState<string[]>([]);
@@ -735,6 +756,10 @@ export default function App()
 
   const [hasLoadedSavedData, setHasLoadedSavedData] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Not saved yet");
+  const [showDashboardTurnovers, setShowDashboardTurnovers] = useState(true);
+  const [showDashboardNotifications, setShowDashboardNotifications] = useState(false);
+  const [showDashboardMaintenance, setShowDashboardMaintenance] = useState(false);
+  const [showDashboardCleaners, setShowDashboardCleaners] = useState(false);
 
   useEffect(() => {
     async function loadSavedData() {
@@ -3078,6 +3103,17 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
     const unreadCount = notifications.filter((notification) => !notification.read).length;
     const availableCleaners = cleaners.filter((cleaner) => cleaner.status === "Available").length;
 
+    function openReservationFromDashboard(reservation: Reservation) {
+      setSelectedCalendarItem(reservation);
+      setActivePage("Task Board");
+
+      window.setTimeout(() => {
+        document
+          .querySelector(".reservationGrid")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+
     return (
       <>
         <header className="pageHeader">
@@ -3088,29 +3124,28 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
               A quick command center for upcoming turnovers, alerts, properties, cleaners, and maintenance risks.
             </p>
           </div>
-
-          <button className="primaryButton" onClick={() => setActivePage("Task Board")}>
-            Open Task Board
-          </button>
         </header>
 
         <section className="statsGrid">
-          <div className="statCard">
+          <button className="statCard" type="button" onClick={() => setActivePage("Properties")}>
             <span>Homes</span>
             <strong>{homes.length}</strong>
-          </div>
-          <div className="statCard">
+          </button>
+
+          <button className="statCard" type="button" onClick={() => setActivePage("Task Board")}>
             <span>Upcoming stays</span>
             <strong>{reservations.filter((reservation) => reservation.status !== "Completed").length}</strong>
-          </div>
-          <div className="statCard">
+          </button>
+
+          <button className="statCard" type="button" onClick={() => setActivePage("Cleaners")}>
             <span>Available cleaners</span>
             <strong>{availableCleaners}</strong>
-          </div>
-          <div className="statCard warning">
+          </button>
+
+          <button className="statCard warning" type="button" onClick={() => setActivePage("Notification Center")}>
             <span>Unread alerts</span>
             <strong>{unreadCount}</strong>
-          </div>
+          </button>
         </section>
 
         <section className="dashboardGrid">
@@ -3120,23 +3155,31 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
                 <p className="eyebrow">Next up</p>
                 <h3>Upcoming turnovers</h3>
               </div>
-              <button className="ghostButton" onClick={() => setActivePage("Calendar")}>Calendar</button>
+              <button
+                className="ghostButton"
+                type="button"
+                onClick={() => setShowDashboardTurnovers((current) => !current)}
+              >
+                {showDashboardTurnovers ? "Hide" : "Show"}
+              </button>
             </div>
 
-            <div className="dashboardList">
-              {upcomingReservations.map((reservation) => {
-                const home = homes.find((item) => item.id === reservation.homeId);
-                const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+            {showDashboardTurnovers && (
+              <div className="dashboardList">
+                {upcomingReservations.map((reservation) => {
+                  const home = homes.find((item) => item.id === reservation.homeId);
+                  const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
 
-                return (
-                  <button key={reservation.id} onClick={() => setActivePage("Task Board")}>
-                    <strong>{reservation.guestName}</strong>
-                    <span>{home?.name ?? "Unknown home"} · {formatDate(reservation.arrival)}</span>
-                    <small>{cleaner?.name ?? "Unassigned"} · {reservation.status}</small>
-                  </button>
-                );
-              })}
-            </div>
+                  return (
+                    <button key={reservation.id} type="button" onClick={() => openReservationFromDashboard(reservation)}>
+                      <strong>{reservation.guestName}</strong>
+                      <span>{home?.name ?? "Unknown home"} · {formatDate(reservation.arrival)}</span>
+                      <small>{cleaner?.name ?? "Unassigned"} · {reservation.status}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </article>
 
           <article className="dashboardPanel">
@@ -3145,18 +3188,26 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
                 <p className="eyebrow">Alerts</p>
                 <h3>Notification center</h3>
               </div>
-              <button className="ghostButton" onClick={() => setActivePage("Notification Center")}>Open</button>
+              <button
+                className="ghostButton"
+                type="button"
+                onClick={() => setShowDashboardNotifications((current) => !current)}
+              >
+                {showDashboardNotifications ? "Hide" : "Show"}
+              </button>
             </div>
 
-            <div className="dashboardList">
-              {notifications.slice(0, 4).map((notification) => (
-                <button key={notification.id} onClick={() => setActivePage("Notification Center")}>
-                  <strong>{notification.title}</strong>
-                  <span>{notification.message}</span>
-                  <small>{notification.priority} · {notification.read ? "Read" : "Unread"}</small>
-                </button>
-              ))}
-            </div>
+            {showDashboardNotifications && (
+              <div className="dashboardList">
+                {notifications.slice(0, 4).map((notification) => (
+                  <button key={notification.id} type="button" onClick={() => setActivePage("Notification Center")}>
+                    <strong>{notification.title}</strong>
+                    <span>{notification.message}</span>
+                    <small>{notification.priority} · {notification.read ? "Read" : "Unread"}</small>
+                  </button>
+                ))}
+              </div>
+            )}
           </article>
 
           <article className="dashboardPanel">
@@ -3165,22 +3216,30 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
                 <p className="eyebrow">Maintenance</p>
                 <h3>Open work orders</h3>
               </div>
-              <button className="ghostButton" onClick={() => setActivePage("Maintenance")}>Open</button>
+              <button
+                className="ghostButton"
+                type="button"
+                onClick={() => setShowDashboardMaintenance((current) => !current)}
+              >
+                {showDashboardMaintenance ? "Hide" : "Show"}
+              </button>
             </div>
 
-            <div className="dashboardList">
-              {openWorkOrders.slice(0, 4).map((order) => {
-                const home = homes.find((item) => item.id === order.homeId);
+            {showDashboardMaintenance && (
+              <div className="dashboardList">
+                {openWorkOrders.slice(0, 4).map((order) => {
+                  const home = homes.find((item) => item.id === order.homeId);
 
-                return (
-                  <button key={order.id} onClick={() => setActivePage("Maintenance")}>
-                    <strong>{order.title}</strong>
-                    <span>{home?.name ?? "Unknown home"} · {order.category}</span>
-                    <small>{order.urgency} · {order.status}</small>
-                  </button>
-                );
-              })}
-            </div>
+                  return (
+                    <button key={order.id} type="button" onClick={() => setActivePage("Maintenance")}>
+                      <strong>{order.title}</strong>
+                      <span>{home?.name ?? "Unknown home"} · {order.category}</span>
+                      <small>{order.urgency} · {order.status}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </article>
 
           <article className="dashboardPanel">
@@ -3189,18 +3248,33 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
                 <p className="eyebrow">Cleaner coverage</p>
                 <h3>Cleaner operations</h3>
               </div>
-              <button className="ghostButton" onClick={() => setActivePage("Cleaners")}>Open</button>
+              <button
+                className="ghostButton"
+                type="button"
+                onClick={() => setShowDashboardCleaners((current) => !current)}
+              >
+                {showDashboardCleaners ? "Hide" : "Show"}
+              </button>
             </div>
 
-            <div className="cleanerMiniGrid">
-              {cleaners.map((cleaner) => (
-                <button key={cleaner.id} onClick={() => { setSelectedCleanerId(cleaner.id); setActivePage("Cleaners"); }}>
-                  <strong>{cleaner.name}</strong>
-                  <span>{cleaner.serviceArea}</span>
-                  <small>{cleaner.status} · {cleaner.activeJobs} active</small>
-                </button>
-              ))}
-            </div>
+            {showDashboardCleaners && (
+              <div className="cleanerMiniGrid">
+                {cleaners.map((cleaner) => (
+                  <button
+                    key={cleaner.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCleanerId(cleaner.id);
+                      setActivePage("Cleaners");
+                    }}
+                  >
+                    <strong>{cleaner.name}</strong>
+                    <span>{cleaner.serviceArea}</span>
+                    <small>{cleaner.status} · {cleaner.activeJobs} active</small>
+                  </button>
+                ))}
+              </div>
+            )}
           </article>
         </section>
       </>
@@ -4170,6 +4244,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
 
       </aside>
 
+      {/* MOBILE HAMBURGER MENU: keep this overlay permanently paired with the More button below. */}
       {showOwnerMobileMenu && (
         <div className="ownerMobileMenuOverlay" onClick={() => setShowOwnerMobileMenu(false)}>
           <section className="ownerMobileMenuSheet" onClick={(event) => event.stopPropagation()}>
@@ -4225,6 +4300,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
         {activePage === "Records" && renderRecords()}
         {!["Dashboard", "Task Board", "Calendar", "Properties", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].includes(activePage) && renderPlaceholder()}
       </main>
+      {/* MOBILE BOTTOM NAV MUST ALWAYS BE: Home / Tasks / Calendar / More (hamburger). */}
       <nav className="mobileBottomNav" aria-label="Owner mobile bottom navigation">
         {[
           { label: "Home", page: "Dashboard", icon: "⌂" },
