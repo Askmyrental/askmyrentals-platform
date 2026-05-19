@@ -271,10 +271,37 @@
     }
   ],
   "calendarBlocks": [],
-  "workOrders": [],
-  "notifications": [],
+  "workOrders": [
+    {
+      "id": "wo-1779230421212",
+      "homeId": "coates",
+      "title": "Fridge not cooling",
+      "category": "Appliance",
+      "urgency": "High",
+      "status": "New",
+      "createdDate": "2026-05-19",
+      "notes": "Owner-created maintenance work order.",
+      "timeline": [
+        "Owner created work order",
+        "No vendor assigned yet",
+        "Schedule pending"
+      ]
+    }
+  ],
+  "notifications": [
+    {
+      "id": "note-1779230421212",
+      "type": "Maintenance",
+      "priority": "Critical",
+      "title": "Owner created work order",
+      "message": "Fridge not cooling was created from the Maintenance tab.",
+      "relatedHomeId": "coates",
+      "createdAt": "5/19/2026, 5:40:21 PM",
+      "read": false
+    }
+  ],
   "dismissedDiscrepancies": [],
   "dataMode": "Live",
   "importMessage": "Live property created and 14 source-controlled calendar reservations imported. Imported reservations cannot be deleted inside the app.",
-  "savedAt": "2026-05-19T22:36:04.471Z"
+  "savedAt": "2026-05-19T23:25:21.711Z"
 }

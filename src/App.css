@@ -4132,3 +4132,98 @@ button:disabled {
     padding-bottom: 90px !important;
   }
 }
+.calendarPageCalendarBox {
+  max-height: 720px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@media (max-width: 900px) {
+  .calendarPageCalendarBox {
+    height: calc(100vh - 260px) !important;
+    max-height: calc(100vh - 260px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 80px !important;
+  }
+
+  .calendarLayout {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .calendarDetailPanel {
+    order: -1 !important;
+  }
+
+}
+
+@media (max-width: 900px) {
+  .calendarPageCalendarBox {
+    max-height: none;
+    overflow: visible;
+  }
+}.b2bBadge,
+.conflictBadge {
+  position: static !important;
+  display: inline-flex !important;
+  width: auto !important;
+  height: auto !important;
+  transform: none !important;
+}@media (max-width: 900px) {
+  .stackedCalendarEvent {
+    min-height: 18px !important;
+    border-radius: 6px !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .stackedCalendarEvent span,
+  .stackedCalendarEvent small {
+    display: none !important;
+  }
+
+  .stackedCalendarEvent.airbnb {
+    background: #ef4444 !important;
+  }
+
+  .stackedCalendarEvent.vrbo {
+    background: #2563eb !important;
+  }
+
+  .stackedCalendarEvent.maintenance {
+    background: #f59e0b !important;
+  }
+
+  .stackedCalendarEvent.owner {
+    background: #6b7280 !important;
+  }
+
+  .calendarDayEvents {
+    gap: 3px !important;
+  }
+
+  .calendarDayCell {
+    min-height: 74px !important;
+  }
+
+  .b2bBadge {
+    position: absolute !important;
+    top: 2px !important;
+    right: 2px !important;
+    font-size: 7px !important;
+    padding: 1px 4px !important;
+    z-index: 5 !important;
+  }
+}.b2bBadge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: fit-content !important;
+  max-width: fit-content !important;
+  height: auto !important;
+  flex: 0 0 auto !important;
+  position: static !important;
+  white-space: nowrap !important;
+}

@@ -992,18 +992,16 @@ const selectedTaskBoardReservation =
 
     const arrivals = dayReservations.filter((reservation) => isSameDay(date, reservation.arrival));
     const departures = dayReservations.filter((reservation) => isSameDay(date, reservation.departure));
-    const sameHomeReservationCounts = dayReservations.reduce<Record<string, number>>((counts, reservation) => {
-      counts[reservation.homeId] = (counts[reservation.homeId] ?? 0) + 1;
-      return counts;
-    }, {});
+    
 
     return {
       dayReservations,
       dayBlocks,
       isB2B: arrivals.length > 0 && departures.length > 0,
       hasConflict:
-        Object.values(sameHomeReservationCounts).some((count) => count > 1) ||
-        dayBlocks.some((block) => dayReservations.some((reservation) => reservation.homeId === block.homeId)),
+  dayBlocks.some((block) =>
+    dayReservations.some((reservation) => reservation.homeId === block.homeId)
+  ),
     };
   }
 
@@ -1070,7 +1068,7 @@ const selectedTaskBoardReservation =
                             <button
                               type="button"
                               key={`${dateKey}-${reservation.id}`}
-                              className={`calendarEvent stackedCalendarEvent source${reservation.source.replace(/\s/g, "")}`}
+                             className={`calendarEvent stackedCalendarEvent ${reservation.source.toLowerCase()}`}
                             onClick={() => {
   
   setSelectedCalendarItem(reservation);
@@ -1551,8 +1549,8 @@ const selectedTaskBoardReservation =
 
         <section className="calendarToolbar">
           <div>
-            <span>Calendar view</span>
-            <strong>Scrollable month stack</strong>
+            <span>Calendar</span>
+            <strong>Compact reservation calendar</strong>
           </div>
 
           <label>
@@ -1570,7 +1568,14 @@ const selectedTaskBoardReservation =
 
         <section className="calendarLayout">
           <div className="calendarPanel stackedCalendarPanel">
-            {renderScrollableCalendarStack({ homeFilter: selectedCalendarHome, anchorDate: calendarDate, monthCount: 12 })}
+           <div className="taskBoardCalendarBox calendarPageCalendarBox">
+  {renderScrollableCalendarStack({
+    homeFilter: selectedCalendarHome,
+    anchorDate: calendarDate,
+    monthCount: 12,
+    compact: true,
+  })}
+</div>
           </div>
 
          <aside className="calendarDetailPanel" id="calendarDetailPanel">
