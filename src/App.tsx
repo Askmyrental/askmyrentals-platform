@@ -1622,113 +1622,118 @@ async function deleteProperty(id: string) {
   setShowPropertyForm(false);
 }
   async function createLivePropertyShell(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  event.preventDefault();
 
-    if (!sourceForm.propertyName.trim() && !sourceForm.vrboId.trim()) return;
+  if (!sourceForm.propertyName.trim() && !sourceForm.vrboId.trim()) return;
 
-    const name = sourceForm.propertyName.trim() || `VRBO ${sourceForm.vrboId.trim()}`;
-    const shortName = name
-      .split(" ")
-      .map((word) => word[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
 
-    const nextHome: Home = {
-      id: `live-home-${Date.now()}`,
-      name,
-      city: sourceForm.market.trim() || "Market pending",
-      shortName: shortName || "LV",
-      setupMode: sourceForm.vrboId ? "VRBO" : sourceForm.airbnbUrl ? "Airbnb" : "Manual",
-      vrboId: sourceForm.vrboId || undefined,
-      airbnbUrl: sourceForm.airbnbUrl || undefined,
-      iCalUrl: sourceForm.vrboICalUrl || sourceForm.airbnbICalUrl || undefined,
-      bedrooms: 0,
-      bathrooms: 0,
-      maxGuests: 0,
-      status: sourceForm.vrboICalUrl || sourceForm.airbnbICalUrl || sourceForm.vrboId ? "Active" : "Setup Needed",
-      notes: `Live data shell created. VRBO iCal: ${sourceForm.vrboICalUrl || "missing"}. Airbnb iCal: ${sourceForm.airbnbICalUrl || "missing"}.`,
-    };
-
-    const importedReservations: Reservation[] = [];
-    const importWarnings: string[] = [];
-
-    async function getCalendarText(url: string, pastedText: string, source: "VRBO" | "Airbnb") {
-      if (pastedText.trim()) return pastedText;
-      if (!url.trim()) return "";
-
-      try {
-        const response = await fetch("http://localhost:4000/api/fetch-ical", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: url.trim(), source }),
-        });
-
-        if (!response.ok) throw new Error(`Backend calendar request failed with ${response.status}`);
-
-        const data = await response.json();
-        if (!data.icalText) throw new Error("Backend did not return calendar text");
-
-        return data.icalText as string;
-      } catch {
-        importWarnings.push(`${source} calendar URL could not be fetched through the local sync server. Make sure node server.cjs is running, or paste the raw .ics text for browser-safe import.`);
-        return "";
-      }
-    }
-
-    const vrboText = await getCalendarText(sourceForm.vrboICalUrl, sourceForm.vrboICalText, "VRBO");
-    const airbnbText = await getCalendarText(sourceForm.airbnbICalUrl, sourceForm.airbnbICalText, "Airbnb");
-
-   const todayKey = toInputDate(new Date());
-
-if (vrboText.trim()) {
-  importedReservations.push(
-    ...parseICalReservations(vrboText, nextHome.id, "VRBO").filter(
-      (reservation) => reservation.departure >= todayKey
-    )
-  );
-}
-
-if (airbnbText.trim()) {
-  importedReservations.push(
-    ...parseICalReservations(airbnbText, nextHome.id, "Airbnb").filter(
-      (reservation) => reservation.departure >= todayKey
-    )
-  );
-}
-
-    setDataMode("Live");
-    setHomes((current) => [...current, nextHome]);
-    setReservations((current) => {
-  return mergeImportedReservations([
-    ...importedReservations,
-    ...current,
-  ]);
-});
-    setSelectedPropertyId(nextHome.id);
-    setSelectedCalendarHome(nextHome.id);
-    setSelectedHome("all");
-
-    const importedCount = importedReservations.length;
-    const warningText = importWarnings.length ? ` ${importWarnings.join(" ")}` : "";
-    setImportMessage(
-      importedCount > 0
-        ? `Live property created and ${importedCount} source-controlled calendar reservations imported. Imported reservations cannot be deleted inside the app.${warningText}`
-        : `Live property shell created. No reservations were imported yet.${warningText}`
-    );
-
-    setSourceForm({
-      propertyName: "",
-      market: "",
-      vrboId: "",
-      vrboICalUrl: "",
-      vrboICalText: "",
-      airbnbUrl: "",
-      airbnbICalUrl: "",
-      airbnbICalText: "",
-    });
+  if (!user) {
+    alert("You must be logged in to create a property.");
+    return;
   }
 
+  const name = sourceForm.propertyName.trim() || `VRBO ${sourceForm.vrboId.trim()}`;
+
+  const { data: savedProperty, error } = await supabase
+    .from("properties")
+    .insert({
+      owner_id: user.id,
+      property_name: name,
+      market: sourceForm.market.trim() || "Market pending",
+      vrbo_property_id: sourceForm.vrboId || null,
+      airbnb_property_id: sourceForm.airbnbUrl || null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Live property save failed", error);
+    alert(error.message);
+    return;
+  }
+
+  const nextHomeId = savedProperty.id;
+  const importedReservations: Reservation[] = [];
+  const importWarnings: string[] = [];
+
+  async function getCalendarText(url: string, pastedText: string, source: "VRBO" | "Airbnb") {
+    if (pastedText.trim()) return pastedText;
+    if (!url.trim()) return "";
+
+    try {
+      const response = await fetch("http://localhost:4000/api/fetch-ical", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim(), source }),
+      });
+
+      if (!response.ok) throw new Error(`Backend calendar request failed with ${response.status}`);
+
+      const data = await response.json();
+      if (!data.icalText) throw new Error("Backend did not return calendar text");
+
+      return data.icalText as string;
+    } catch {
+      importWarnings.push(`${source} calendar URL could not be fetched. Paste the raw .ics text if needed.`);
+      return "";
+    }
+  }
+
+  const vrboText = await getCalendarText(sourceForm.vrboICalUrl, sourceForm.vrboICalText, "VRBO");
+  const airbnbText = await getCalendarText(sourceForm.airbnbICalUrl, sourceForm.airbnbICalText, "Airbnb");
+
+  const todayKey = toInputDate(new Date());
+
+  if (vrboText.trim()) {
+    importedReservations.push(
+      ...parseICalReservations(vrboText, nextHomeId, "VRBO").filter(
+        (reservation) => reservation.departure >= todayKey
+      )
+    );
+  }
+
+  if (airbnbText.trim()) {
+    importedReservations.push(
+      ...parseICalReservations(airbnbText, nextHomeId, "Airbnb").filter(
+        (reservation) => reservation.departure >= todayKey
+      )
+    );
+  }
+
+  setDataMode("Live");
+
+  await loadPropertiesFromSupabase();
+
+  setReservations((current) =>
+    mergeImportedReservations([...importedReservations, ...current])
+  );
+
+  setSelectedPropertyId(nextHomeId);
+  setSelectedCalendarHome(nextHomeId);
+  setSelectedHome("all");
+
+  const importedCount = importedReservations.length;
+  const warningText = importWarnings.length ? ` ${importWarnings.join(" ")}` : "";
+
+  setImportMessage(
+    importedCount > 0
+      ? `Live property saved to Supabase and ${importedCount} current/future reservations imported.${warningText}`
+      : `Live property saved to Supabase. No current/future reservations were imported.${warningText}`
+  );
+
+  setSourceForm({
+    propertyName: "",
+    market: "",
+    vrboId: "",
+    vrboICalUrl: "",
+    vrboICalText: "",
+    airbnbUrl: "",
+    airbnbICalUrl: "",
+    airbnbICalText: "",
+  });
+}
   function startEditingProperty(home: Home) {
     setEditingPropertyId(home.id);
     setPropertyForm({
