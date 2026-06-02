@@ -1563,9 +1563,25 @@ async function loadPropertiesFromSupabase() {
     notes: "",
   });
 }
-  function updateProperty(id: string, updates: Partial<Home>) {
-    setHomes((current) => current.map((home) => (home.id === id ? { ...home, ...updates } : home)));
+async function updateProperty(id: string, updates: Partial<Home>) {
+  const { error } = await supabase
+    .from("properties")
+    .update({
+      property_name: updates.name,
+      market: updates.city,
+      vrbo_property_id: updates.vrboId || null,
+      airbnb_property_id: updates.airbnbUrl || null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("Property update failed", error);
+    alert(error.message);
+    return;
   }
+
+  await loadPropertiesFromSupabase();
+}
 
   function archiveProperty(id: string) {
     updateProperty(id, { status: "Paused" });
