@@ -4227,3 +4227,46 @@ button:disabled {
   position: static !important;
   white-space: nowrap !important;
 }
+.quickActionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.quickActionGrid button {
+  border: none;
+  border-radius: 18px;
+  background: #f8fafc;
+  padding: 20px;
+  min-height: 90px;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  transition: transform 0.15s ease;
+}
+
+.quickActionGrid button:hover {
+  transform: translateY(-2px);
+}
+
+@media (max-width: 760px) {
+  .quickActionGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .quickActionGrid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .operationsCalendarPanel {
+    display: none !important;
+  }
+}
+.operationsCalendarPanel {
+  display: none !important;
+}
