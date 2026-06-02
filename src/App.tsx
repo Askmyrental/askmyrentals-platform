@@ -1588,7 +1588,6 @@ async function updateProperty(id: string, updates: Partial<Home>) {
     setEditingPropertyId(null);
     setShowPropertyForm(false);
   }
-
 async function deleteProperty(id: string) {
   const property = homes.find((home) => home.id === id);
   const confirmation = window.prompt(
@@ -1597,14 +1596,22 @@ async function deleteProperty(id: string) {
 
   if (confirmation !== "DELETE") return;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("properties")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select();
 
   if (error) {
     console.error("Property delete failed", error);
     alert(error.message);
+    return;
+  }
+
+  console.log("Deleted property rows:", data);
+
+  if (!data || data.length === 0) {
+    alert("No property was deleted. The app may be using a property ID that does not match Supabase.");
     return;
   }
 
@@ -1614,88 +1621,6 @@ async function deleteProperty(id: string) {
   setEditingPropertyId(null);
   setShowPropertyForm(false);
 }
-  function startLiveMode() {
-    const confirmed = window.confirm(
-      "Start Live Mode? This clears the demo homes, reservations, calendar blocks, work orders, and notifications from this browser session. Your git backup is not affected."
-    );
-
-    if (!confirmed) return;
-
-    setDataMode("Live");
-    setHomes([]);
-    setReservations([]);
-    setCalendarBlocks([]);
-    setWorkOrders([]);
-    setNotifications([]);
-    setSelectedPropertyId("");
-    setSelectedHome("all");
-    setSelectedCalendarHome("all");
-    setSelectedCalendarItem(null);
-    setSelectedWorkOrder(null);
-    setEditingPropertyId(null);
-    setShowPropertyForm(false);
-    setDismissedDiscrepancies([]);
-    setImportMessage("Live Mode is active. Add a VRBO property ID and calendar links to create the first live property shell.");
-  }
-
- 
-  async function autoFillListing() {
-    const lookupInput =
-      propertyForm.setupMode === "VRBO"
-        ? propertyForm.vrboId
-        : propertyForm.airbnbUrl;
-
-    if (!lookupInput.trim()) {
-      alert("Please enter a VRBO ID or Airbnb URL first.");
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:4000/api/lookup-listing", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          input: lookupInput,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        alert(result.error || "Unable to auto-fill listing.");
-        return;
-      }
-
-      const property = result.property;
-
-      setPropertyForm((current) => ({
-        ...current,
-        name: property.name || current.name,
-        city: property.city || current.city,
-        address: property.address || current.address,
-        vrboId:
-          property.sourceType === "VRBO"
-            ? property.listingId || current.vrboId
-            : current.vrboId,
-        airbnbUrl:
-          property.sourceType === "Airbnb"
-            ? property.listingUrl || current.airbnbUrl
-            : current.airbnbUrl,
-        bedrooms: property.bedrooms || current.bedrooms,
-        bathrooms: property.bathrooms || current.bathrooms,
-        maxGuests: property.maxGuests || current.maxGuests,
-        notes: property.notes || current.notes,
-      }));
-
-      alert(`${property.sourceType} listing detected successfully.`);
-    } catch (error) {
-      console.error(error);
-      alert("Backend lookup failed. Make sure the backend server is running.");
-    }
-  }
-
   async function createLivePropertyShell(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -1812,6 +1737,27 @@ async function deleteProperty(id: string) {
     });
     setShowPropertyForm(true);
   }
+function startLiveMode() {
+  setDataMode("Live");
+  setHomes([]);
+  setReservations([]);
+  setCalendarBlocks([]);
+  setWorkOrders([]);
+  setNotifications([]);
+  setSelectedPropertyId("");
+  setSelectedHome("all");
+  setSelectedCalendarHome("all");
+  setSelectedCalendarItem(null);
+  setSelectedWorkOrder(null);
+  setEditingPropertyId(null);
+  setShowPropertyForm(false);
+  setDismissedDiscrepancies([]);
+  setImportMessage("Live Mode is active. Add your real property details to begin.");
+}
+
+async function autoFillListing() {
+  alert("Auto Fill Listing is temporarily parked while Supabase property setup is being connected.");
+}
 
   function renderDataIntegrationPanel() {
     return (
