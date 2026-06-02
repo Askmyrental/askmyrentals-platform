@@ -579,7 +579,13 @@ useEffect(() => {
 }, []);
 
  
-
+<button
+  className="ghostButton"
+  type="button"
+  onClick={handleLogout}
+>
+  Log Out
+</button>
  
 
   const filteredReservations = useMemo(() => {
@@ -1733,6 +1739,10 @@ async function deleteProperty(id: string) {
     airbnbICalUrl: "",
     airbnbICalText: "",
   });
+}
+async function handleLogout() {
+  await supabase.auth.signOut();
+  window.location.reload();
 }
   function startEditingProperty(home: Home) {
     setEditingPropertyId(home.id);
@@ -4088,7 +4098,13 @@ function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) 
             <small className="saveStatus">{saveStatus}</small>
           </div>
         </div>
-
+<button
+  className="ghostButton"
+  type="button"
+  onClick={handleLogout}
+>
+  Log Out
+</button>
         <nav className="nav desktopNav">
           {["Dashboard", "Reservations", "Calendar", "Properties", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].map(
             (item) => (
