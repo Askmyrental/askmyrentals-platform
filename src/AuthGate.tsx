@@ -3,12 +3,16 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./utils/supabase";
 import App from "./App";
 
+type AuthMode = "login" | "signup";
+
 export default function AuthGate() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -25,42 +29,63 @@ export default function AuthGate() {
     };
   }, []);
 
-  async function signIn(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) setMessage(error.message);
-  }
-
-  async function signUp() {
-    setMessage("");
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage("Account created. Check your email if confirmation is required.");
+    if (!email.trim() || !password.trim()) {
+      setMessage("Please enter your email and password.");
+      return;
     }
+
+    if (password.length < 6) {
+      setMessage("Password must be at least 6 characters.");
+      return;
+    }
+
+    setSubmitting(true);
+
+    if (mode === "login") {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) setMessage(error.message);
+    } else {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        setMessage(error.message);
+      } else {
+        setMessage("Account created. Check your email to confirm your account, then come back and log in.");
+        setMode("login");
+      }
+    }
+
+    setSubmitting(false);
   }
 
-  if (loading) return <div style={{ padding: 32 }}>Loading Ask My Rentals...</div>;
+  if (loading) {
+    return <div style={{ padding: 32 }}>Loading Ask My Rentals...</div>;
+  }
 
   if (!session) {
     return (
       <div className="authPage">
-        <form className="authCard" onSubmit={signIn}>
+        <form className="authCard" onSubmit={handleSubmit}>
           <div className="brandIcon">AMR</div>
-          <h1>Ask My Rentals</h1>
-          <p>Sign in to manage your property operations.</p>
+
+          <p className="eyebrow">Owner Operations</p>
+          <h1>{mode === "login" ? "Welcome back" : "Create your account"}</h1>
+          <p>
+            {mode === "login"
+              ? "Log in to manage your property operations."
+              : "Start setting up your first rental property."}
+          </p>
 
           <label>
             Email
@@ -68,7 +93,7 @@ export default function AuthGate() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              required
+              placeholder="you@example.com"
             />
           </label>
 
@@ -78,19 +103,29 @@ export default function AuthGate() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              required
+              placeholder="Minimum 6 characters"
             />
           </label>
 
           {message && <p className="authMessage">{message}</p>}
 
-          <button className="primaryButton" type="submit">
-            Log In
+          <button className="primaryButton" type="submit" disabled={submitting}>
+            {submitting
+              ? "Working..."
+              : mode === "login"
+                ? "Log In"
+                : "Create Account"}
           </button>
 
-          <button className="ghostButton" type="button" onClick={signUp}>
-            Create Account
-          </button>
+          {mode === "login" ? (
+            <button className="ghostButton" type="button" onClick={() => setMode("signup")}>
+              Need an account? Create one
+            </button>
+          ) : (
+            <button className="ghostButton" type="button" onClick={() => setMode("login")}>
+              Already have an account? Log in
+            </button>
+          )}
         </form>
       </div>
     );
