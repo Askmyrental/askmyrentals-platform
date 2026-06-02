@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import PropertyOperationsHub from "./components/PropertyOperationsHub";
-
+import { supabase } from "./utils/supabase";
 type ReservationStatus =
   | "Unassigned"
   | "Assigned"
@@ -675,7 +675,7 @@ export default function App()
 {
   const [activePage, setActivePage] = useState("Dashboard");
   const [showOwnerMobileMenu, setShowOwnerMobileMenu] = useState(false);
-  const [homes, setHomes] = useState<Home[]>(starterHomes);
+  const [homes, setHomes] = useState<Home[]>([]);
   const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
   const [reservations, setReservations] = useState<Reservation[]>(starterReservations);
   const [calendarBlocks, setCalendarBlocks] = useState<CalendarBlock[]>(starterBlocks);
@@ -767,7 +767,9 @@ useEffect(() => {
 
   const [hasLoadedSavedData, setHasLoadedSavedData] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Not saved yet");
-  
+  useEffect(() => {
+  loadPropertiesFromSupabase();
+}, []);
 
   useEffect(() => {
     async function loadSavedData() {
@@ -1739,56 +1741,97 @@ const boardStats = useMemo(() => {
     setShowWorkOrderForm(false);
   }
 
+async function loadPropertiesFromSupabase() {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
 
-  function createProperty(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  if (!user) return;
 
-    if (!propertyForm.name.trim() || !propertyForm.city.trim()) return;
+  const { data, error } = await supabase
+    .from("properties")
+    .select("*")
+    .eq("owner_id", user.id)
+    .order("created_at", { ascending: false });
 
-    const shortName = propertyForm.name
-      .split(" ")
-      .map((word) => word[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-
-    const nextHome: Home = {
-      id: `home-${Date.now()}`,
-      name: propertyForm.name,
-      city: propertyForm.city,
-      shortName: shortName || "HM",
-      address: propertyForm.address,
-      setupMode: propertyForm.setupMode,
-      vrboId: propertyForm.vrboId,
-      airbnbUrl: propertyForm.airbnbUrl,
-      iCalUrl: propertyForm.iCalUrl,
-      defaultCleanerId: propertyForm.defaultCleanerId || undefined,
-      bedrooms: Number(propertyForm.bedrooms) || 0,
-      bathrooms: Number(propertyForm.bathrooms) || 0,
-      maxGuests: Number(propertyForm.maxGuests) || 0,
-      status: propertyForm.iCalUrl || propertyForm.vrboId || propertyForm.airbnbUrl ? "Active" : "Setup Needed",
-      notes: propertyForm.notes,
-    };
-
-    setHomes((current) => [...current, nextHome]);
-    setSelectedPropertyId(nextHome.id);
-    setShowPropertyForm(false);
-    setPropertyForm({
-      name: "",
-      city: "",
-      address: "",
-      setupMode: "VRBO",
-      vrboId: "",
-      airbnbUrl: "",
-      iCalUrl: "",
-      defaultCleanerId: "",
-      bedrooms: "3",
-      bathrooms: "2",
-      maxGuests: "8",
-      notes: "",
-    });
+  if (error) {
+    console.error("Failed to load properties", error);
+    return;
   }
 
+  const mappedHomes: Home[] = (data ?? []).map((property: any) => ({
+    id: property.id,
+    name: property.property_name ?? "Unnamed Property",
+    city: property.market ?? "",
+    shortName: (property.property_name ?? "HM")
+      .split(" ")
+      .map((word: string) => word[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase(),
+    address: "",
+    setupMode: "VRBO",
+    vrboId: property.vrbo_property_id ?? "",
+    airbnbUrl: property.airbnb_property_id ?? "",
+    iCalUrl: "",
+    defaultCleanerId: undefined,
+    bedrooms: 0,
+    bathrooms: 0,
+    maxGuests: 0,
+    status: "Active",
+    notes: "",
+  }));
+
+  setHomes(mappedHomes);
+
+  if (mappedHomes.length > 0) {
+    setSelectedPropertyId(mappedHomes[0].id);
+  }
+}
+  async function createProperty(event: React.FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+
+  if (!propertyForm.name.trim() || !propertyForm.city.trim()) return;
+
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (!user) {
+    alert("You must be logged in to create a property.");
+    return;
+  }
+
+  const { error } = await supabase.from("properties").insert({
+    owner_id: user.id,
+    property_name: propertyForm.name.trim(),
+    market: propertyForm.city.trim(),
+    vrbo_property_id: propertyForm.vrboId || null,
+    airbnb_property_id: propertyForm.airbnbUrl || null,
+  });
+
+  if (error) {
+    console.error("Property save failed", error);
+    alert(error.message);
+    return;
+  }
+
+  await loadPropertiesFromSupabase();
+
+  setShowPropertyForm(false);
+  setPropertyForm({
+    name: "",
+    city: "",
+    address: "",
+    setupMode: "VRBO",
+    vrboId: "",
+    airbnbUrl: "",
+    iCalUrl: "",
+    defaultCleanerId: "",
+    bedrooms: "3",
+    bathrooms: "2",
+    maxGuests: "8",
+    notes: "",
+  });
+}
   function updateProperty(id: string, updates: Partial<Home>) {
     setHomes((current) => current.map((home) => (home.id === id ? { ...home, ...updates } : home)));
   }
