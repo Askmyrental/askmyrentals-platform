@@ -1589,24 +1589,31 @@ async function updateProperty(id: string, updates: Partial<Home>) {
     setShowPropertyForm(false);
   }
 
-  function deleteProperty(id: string) {
-    const property = homes.find((home) => home.id === id);
-    const confirmation = window.prompt(
-      `Type DELETE to permanently remove ${property?.name ?? "this property"}. This will also remove related reservations, calendar blocks, and work orders from this prototype.`
-    );
+async function deleteProperty(id: string) {
+  const property = homes.find((home) => home.id === id);
+  const confirmation = window.prompt(
+    `Type DELETE to permanently remove ${property?.name ?? "this property"}.`
+  );
 
-    if (confirmation !== "DELETE") return;
+  if (confirmation !== "DELETE") return;
 
-    const remainingHomes = homes.filter((home) => home.id !== id);
-    setHomes(remainingHomes);
-    setReservations((current) => current.filter((reservation) => reservation.homeId !== id));
-    setCalendarBlocks((current) => current.filter((block) => block.homeId !== id));
-    setWorkOrders((current) => current.filter((order) => order.homeId !== id));
-    setSelectedPropertyId(remainingHomes[0]?.id ?? "");
-    setEditingPropertyId(null);
-    setShowPropertyForm(false);
+  const { error } = await supabase
+    .from("properties")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("Property delete failed", error);
+    alert(error.message);
+    return;
   }
 
+  await loadPropertiesFromSupabase();
+
+  setSelectedPropertyId("");
+  setEditingPropertyId(null);
+  setShowPropertyForm(false);
+}
   function startLiveMode() {
     const confirmed = window.confirm(
       "Start Live Mode? This clears the demo homes, reservations, calendar blocks, work orders, and notifications from this browser session. Your git backup is not affected."
