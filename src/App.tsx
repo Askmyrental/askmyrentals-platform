@@ -688,9 +688,9 @@ export default function App()
   const [selectedCalendarHome, setSelectedCalendarHome] = useState("all");
   const [calendarDate, setCalendarDate] = useState(new Date(2026, 4, 1));
   const [selectedCalendarItem, setSelectedCalendarItem] = useState<Reservation | CalendarBlock | null>(null);
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(starterWorkOrders[0]);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [workOrderFilter, setWorkOrderFilter] = useState("all");
-  const [selectedPropertyId, setSelectedPropertyId] = useState(starterHomes[0]?.id ?? "");
+ const [selectedPropertyId, setSelectedPropertyId] = useState("");
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [propertyForm, setPropertyForm] = useState({
