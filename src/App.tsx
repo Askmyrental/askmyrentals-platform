@@ -677,10 +677,10 @@ export default function App()
   const [showOwnerMobileMenu, setShowOwnerMobileMenu] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
   const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
-  const [reservations, setReservations] = useState<Reservation[]>(starterReservations);
-  const [calendarBlocks, setCalendarBlocks] = useState<CalendarBlock[]>(starterBlocks);
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(starterWorkOrders);
-  const [notifications, setNotifications] = useState<OwnerNotification[]>(starterNotifications);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [calendarBlocks, setCalendarBlocks] = useState<CalendarBlock[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [notifications, setNotifications] = useState<OwnerNotification[]>([]);
   const [selectedHome, setSelectedHome] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [search, setSearch] = useState("");

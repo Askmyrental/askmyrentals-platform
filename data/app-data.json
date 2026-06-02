@@ -1,28 +1,20 @@
 {
   "homes": [
     {
-      "id": "live-home-1779150296255",
-      "name": "Sea OTZ",
-      "city": "Walton",
-      "shortName": "SO",
-      "setupMode": "Manual",
-      "iCalUrl": "https://www.airbnb.com/calendar/ical/1094948512612072880.ics?t=72ec8d8d446a4daca5f90a594bcec012",
+      "id": "35bf99d4-bab9-4667-9fc6-3ba4f4478b88",
+      "name": "VRBO Property 5145215",
+      "city": "Broken Bow",
+      "shortName": "VP",
+      "address": "",
+      "setupMode": "VRBO",
+      "vrboId": "5145215",
+      "airbnbUrl": "",
+      "iCalUrl": "",
       "bedrooms": 0,
       "bathrooms": 0,
       "maxGuests": 0,
       "status": "Active",
-      "notes": "Live data shell created. VRBO iCal: missing. Airbnb iCal: https://www.airbnb.com/calendar/ical/1094948512612072880.ics?t=72ec8d8d446a4daca5f90a594bcec012.",
-      "address": "",
-      "vrboId": "",
-      "airbnbUrl": "",
-      "defaultCleanerId": "jordan",
-      "operations": {
-        "access": "Door code is 1234",
-        "wifiName": "Sea OTZ",
-        "wifiPassword": "Sea OTZ!@#",
-        "trashInstructions": "Wed and Thursday",
-        "cleanerNotes": "Clean Grill each time"
-      }
+      "notes": ""
     }
   ],
   "cleaners": [
@@ -838,5 +830,5 @@
   "dismissedDiscrepancies": [],
   "dataMode": "Live",
   "importMessage": "Live property created and 14 source-controlled calendar reservations imported. Imported reservations cannot be deleted inside the app.",
-  "savedAt": "2026-06-02T19:00:57.848Z"
+  "savedAt": "2026-06-02T20:58:28.153Z"
 }
