@@ -765,91 +765,15 @@ useEffect(() => {
     notes: "",
   });
 
-  const [hasLoadedSavedData, setHasLoadedSavedData] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("Not saved yet");
+  
+  const [saveStatus] = useState("Connected to Supabase");
   useEffect(() => {
   loadPropertiesFromSupabase();
 }, []);
 
-  useEffect(() => {
-    async function loadSavedData() {
-      try {
-        const response = await fetch("http://localhost:4000/api/app-data");
-        const result = await response.json();
+ 
 
-        if (result.exists && result.data) {
-          if (result.data.homes) setHomes(result.data.homes);
-          if (result.data.cleaners) setCleaners(result.data.cleaners);
-          if (result.data.reservations) setReservations(result.data.reservations);
-          if (result.data.calendarBlocks) setCalendarBlocks(result.data.calendarBlocks);
-          if (result.data.workOrders) setWorkOrders(result.data.workOrders);
-          if (result.data.notifications) setNotifications(result.data.notifications);
-          if (result.data.dismissedDiscrepancies) setDismissedDiscrepancies(result.data.dismissedDiscrepancies);
-          if (result.data.dataMode) setDataMode(result.data.dataMode);
-          if (result.data.importMessage) setImportMessage(result.data.importMessage);
-
-          setSaveStatus(`Loaded saved data from ${result.data.savedAt ?? "server"}`);
-        } else {
-          setSaveStatus("No saved data yet. Using starter data.");
-        }
-      } catch {
-        setSaveStatus("Backend not connected. Using starter data.");
-      } finally {
-        setHasLoadedSavedData(true);
-      }
-    }
-
-    loadSavedData();
-  }, []);
-
-  useEffect(() => {
-    if (!hasLoadedSavedData) return;
-
-    const saveTimer = window.setTimeout(async () => {
-      try {
-        const payload = {
-          homes,
-          cleaners,
-          reservations,
-          calendarBlocks,
-          workOrders,
-          notifications,
-          dismissedDiscrepancies,
-          dataMode,
-          importMessage,
-        };
-
-        const response = await fetch("http://localhost:4000/api/app-data", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const result = await response.json();
-
-        if (result.ok) {
-          setSaveStatus(`Saved ${new Date().toLocaleTimeString()}`);
-        } else {
-          setSaveStatus("Save failed");
-        }
-      } catch {
-        setSaveStatus("Save failed — backend offline");
-      }
-    }, 800);
-
-    return () => window.clearTimeout(saveTimer);
-  }, [
-    homes,
-    cleaners,
-    reservations,
-    calendarBlocks,
-    workOrders,
-    notifications,
-    dismissedDiscrepancies,
-    dataMode,
-    importMessage,
-    hasLoadedSavedData,
-  ]);
+ 
 
   const filteredReservations = useMemo(() => {
     return reservations
