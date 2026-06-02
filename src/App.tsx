@@ -1679,13 +1679,23 @@ async function deleteProperty(id: string) {
     const vrboText = await getCalendarText(sourceForm.vrboICalUrl, sourceForm.vrboICalText, "VRBO");
     const airbnbText = await getCalendarText(sourceForm.airbnbICalUrl, sourceForm.airbnbICalText, "Airbnb");
 
-    if (vrboText.trim()) {
-      importedReservations.push(...parseICalReservations(vrboText, nextHome.id, "VRBO"));
-    }
+   const todayKey = toInputDate(new Date());
 
-    if (airbnbText.trim()) {
-      importedReservations.push(...parseICalReservations(airbnbText, nextHome.id, "Airbnb"));
-    }
+if (vrboText.trim()) {
+  importedReservations.push(
+    ...parseICalReservations(vrboText, nextHome.id, "VRBO").filter(
+      (reservation) => reservation.departure >= todayKey
+    )
+  );
+}
+
+if (airbnbText.trim()) {
+  importedReservations.push(
+    ...parseICalReservations(airbnbText, nextHome.id, "Airbnb").filter(
+      (reservation) => reservation.departure >= todayKey
+    )
+  );
+}
 
     setDataMode("Live");
     setHomes((current) => [...current, nextHome]);
