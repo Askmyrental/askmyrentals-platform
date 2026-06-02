@@ -1692,6 +1692,8 @@ async function deleteProperty(id: string) {
   await loadPropertiesFromSupabase();
 
  if (importedReservations.length > 0) {
+  alert(`Imported reservations count: ${importedReservations.length}`);
+  alert(`Imported reservations count: ${importedReservations.length}`);
   const reservationRows = importedReservations.map((reservation) => ({
     owner_id: user.id,
     property_id: nextHomeId,
