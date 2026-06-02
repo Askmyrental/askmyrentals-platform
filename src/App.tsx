@@ -134,54 +134,7 @@ type WorkOrder = {
   timeline: string[];
 };
 
-const starterHomes: Home[] = [
-  {
-    id: "coates",
-    name: "Coates Cabin",
-    city: "Broken Bow",
-    shortName: "CO",
-    address: "Broken Bow, OK",
-    vrboId: "1234567",
-    iCalUrl: "https://example.com/coates.ics",
-    setupMode: "VRBO",
-    defaultCleanerId: "aarthi",
-    bedrooms: 3,
-    bathrooms: 2,
-    maxGuests: 8,
-    status: "Active",
-    notes: "Primary test property. VRBO ID will eventually support listing intelligence and occupancy comparisons.",
-  },
-  {
-    id: "pine",
-    name: "Pine Ridge Lodge",
-    city: "Gatlinburg",
-    shortName: "PR",
-    address: "Gatlinburg, TN",
-    airbnbUrl: "https://airbnb.com/rooms/example",
-    iCalUrl: "https://example.com/pine.ics",
-    setupMode: "Airbnb",
-    defaultCleanerId: "maria",
-    bedrooms: 4,
-    bathrooms: 3,
-    maxGuests: 10,
-    status: "Active",
-    notes: "Needs stronger vendor coverage during peak season.",
-  },
-  {
-    id: "lake",
-    name: "Lakeview Retreat",
-    city: "Branson",
-    shortName: "LR",
-    address: "Branson, MO",
-    setupMode: "Manual",
-    defaultCleanerId: "jordan",
-    bedrooms: 2,
-    bathrooms: 2,
-    maxGuests: 6,
-    status: "Setup Needed",
-    notes: "Manual setup started. Add calendar feed when available.",
-  },
-];
+
 
 const starterCleaners: Cleaner[] = [
   {
@@ -219,75 +172,9 @@ const starterCleaners: Cleaner[] = [
   },
 ];
 
-const starterReservations: Reservation[] = [
-  {
-    id: "res-1001",
-    guestName: "Miller Family",
-    homeId: "coates",
-    source: "VRBO",
-    arrival: "2026-05-16",
-    departure: "2026-05-19",
-    status: "Assigned",
-    cleanerId: "aarthi",
-    notes: "Back-to-back turnover. Check hot tub towels.",
-    timeline: ["Imported from VRBO", "Turnover created", "Assigned to Aarthi"],
-  },
-  {
-    id: "res-1002",
-    guestName: "Owner Deep Clean",
-    homeId: "pine",
-    source: "Manual",
-    arrival: "2026-05-20",
-    departure: "2026-05-20",
-    status: "Unassigned",
-    notes: "Manual reservation for deep clean and restock.",
-    timeline: ["Manual reservation created"],
-  },
-  {
-    id: "res-1003",
-    guestName: "Thompson Stay",
-    homeId: "lake",
-    source: "Airbnb",
-    arrival: "2026-05-22",
-    departure: "2026-05-26",
-    status: "Accepted",
-    cleanerId: "jordan",
-    notes: "Guest requested early check-in if possible.",
-    timeline: ["Imported from Airbnb", "Assigned to Jordan", "Jordan accepted"],
-  },
-  {
-    id: "res-1004",
-    guestName: "Rivera Group",
-    homeId: "coates",
-    source: "VRBO",
-    arrival: "2026-05-19",
-    departure: "2026-05-23",
-    status: "Unassigned",
-    notes: "Same-day arrival after Miller departure.",
-    timeline: ["Imported from VRBO", "B2B risk detected"],
-  },
-];
 
-const starterBlocks: CalendarBlock[] = [
-  {
-    id: "block-1",
-    homeId: "coates",
-    type: "Owner Block",
-    title: "Owner Weekend",
-    start: "2026-05-29",
-    end: "2026-05-31",
-    notes: "Owner using property.",
-  },
-  {
-    id: "block-2",
-    homeId: "pine",
-    type: "Maintenance",
-    title: "HVAC Service",
-    start: "2026-05-23",
-    end: "2026-05-23",
-    notes: "Vendor window 10 AM - 2 PM.",
-  },
-];
+
+
 
 const vendors: Vendor[] = [
   { id: "vendor-hvac", name: "Summit HVAC", category: "HVAC", phone: "555-1200", rating: 4.9, afterHours: true },
@@ -296,89 +183,9 @@ const vendors: Vendor[] = [
   { id: "vendor-handyman", name: "Cabin Care Pros", category: "General", phone: "555-7731", rating: 4.6, afterHours: false },
 ];
 
-const starterWorkOrders: WorkOrder[] = [
-  {
-    id: "wo-1001",
-    homeId: "pine",
-    title: "HVAC not cooling consistently",
-    category: "HVAC",
-    urgency: "High",
-    status: "Scheduled",
-    vendorId: "vendor-hvac",
-    createdDate: "2026-05-12",
-    scheduledDate: "2026-05-23",
-    notes: "Guest reported warm upstairs bedroom. Vendor window already added to calendar.",
-    timeline: ["Issue created", "Vendor recommended", "Service scheduled"],
-  },
-  {
-    id: "wo-1002",
-    homeId: "coates",
-    title: "Loose deck railing",
-    category: "General",
-    urgency: "Medium",
-    status: "Owner Review",
-    vendorId: "vendor-handyman",
-    createdDate: "2026-05-11",
-    notes: "Cleaner flagged during turnover. Needs owner approval before dispatch.",
-    timeline: ["Cleaner reported issue", "Photo review requested", "Owner review needed"],
-  },
-  {
-    id: "wo-1003",
-    homeId: "lake",
-    title: "Kitchen sink slow drain",
-    category: "Plumbing",
-    urgency: "After Hours",
-    status: "New",
-    createdDate: "2026-05-12",
-    notes: "Potential guest-impacting issue. Recommend after-hours plumber if guest is currently in home.",
-    timeline: ["Issue created", "After-hours risk detected"],
-  },
-];
 
-const starterNotifications: OwnerNotification[] = [
-  {
-    id: "note-1",
-    type: "Reservation",
-    priority: "High",
-    title: "B2B turnover detected",
-    message: "Coates Cabin has a same-day departure and arrival on May 19. Confirm cleaner timing.",
-    relatedHomeId: "coates",
-    relatedCleanerId: "aarthi",
-    createdAt: "2026-05-12 09:10",
-    read: false,
-  },
-  {
-    id: "note-2",
-    type: "Maintenance",
-    priority: "Critical",
-    title: "After-hours maintenance risk",
-    message: "Lakeview Retreat has a slow kitchen drain flagged as after-hours risk.",
-    relatedHomeId: "lake",
-    createdAt: "2026-05-12 10:25",
-    read: false,
-  },
-  {
-    id: "note-3",
-    type: "Cleaner",
-    priority: "Normal",
-    title: "Cleaner accepted assignment",
-    message: "Jordan accepted the Thompson Stay turnover.",
-    relatedHomeId: "lake",
-    relatedCleanerId: "jordan",
-    createdAt: "2026-05-12 11:05",
-    read: true,
-  },
-  {
-    id: "note-4",
-    type: "Property",
-    priority: "Normal",
-    title: "Property setup incomplete",
-    message: "Lakeview Retreat is missing an iCal feed.",
-    relatedHomeId: "lake",
-    createdAt: "2026-05-12 12:00",
-    read: false,
-  },
-];
+
+
 
 const statusOrder: ReservationStatus[] = [
   "Unassigned",
@@ -1808,28 +1615,7 @@ async function loadPropertiesFromSupabase() {
     setImportMessage("Live Mode is active. Add a VRBO property ID and calendar links to create the first live property shell.");
   }
 
-  function restoreDemoMode() {
-    const confirmed = window.confirm("Restore demo data in this browser session?");
-
-    if (!confirmed) return;
-
-    setDataMode("Demo");
-    setHomes(starterHomes);
-    setCleaners(starterCleaners);
-    setReservations(starterReservations);
-    setCalendarBlocks(starterBlocks);
-    setWorkOrders(starterWorkOrders);
-    setNotifications(starterNotifications);
-    setSelectedPropertyId(starterHomes[0]?.id ?? "");
-    setSelectedHome("all");
-    setSelectedCalendarHome(starterHomes[0]?.id ?? "all");
-    setSelectedCalendarItem(null);
-    setSelectedWorkOrder(starterWorkOrders[0] ?? null);
-    setEditingPropertyId(null);
-    setShowPropertyForm(false);
-    setDismissedDiscrepancies([]);
-    setImportMessage("Demo data restored. Switch back to Live Mode when you want a clean import workspace.");
-  }
+ 
   async function autoFillListing() {
     const lookupInput =
       propertyForm.setupMode === "VRBO"
@@ -2017,9 +1803,7 @@ async function loadPropertiesFromSupabase() {
           </div>
 
           <div className="dataModeActions">
-            <button className="ghostButton" onClick={restoreDemoMode} type="button">
-              Restore Demo Data
-            </button>
+            
             <button className="primaryButton" onClick={startLiveMode} type="button">
               Start Live Mode
             </button>
