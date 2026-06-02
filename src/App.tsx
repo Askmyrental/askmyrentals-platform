@@ -422,61 +422,7 @@ function parseICalReservations(icalText: string, homeId: string, source: Extract
 
   return reservations;
 }
-function mergeImportedReservations(reservations: Reservation[]) {
-  const merged: Reservation[] = [];
 
-  reservations.forEach((reservation) => {
-    const existing = merged.find((item) => {
-      const sameHome = item.homeId === reservation.homeId;
-
-      const sameArrival =
-        item.arrival === reservation.arrival;
-
-      const sameDeparture =
-        item.departure === reservation.departure;
-
-      const guestA = item.guestName
-        .replace(/reserved|blocked|reservation/gi, "")
-        .trim()
-        .toLowerCase();
-
-      const guestB = reservation.guestName
-        .replace(/reserved|blocked|reservation/gi, "")
-        .trim()
-        .toLowerCase();
-
-      const similarGuest =
-        guestA &&
-        guestB &&
-        (guestA.includes(guestB) || guestB.includes(guestA));
-
-      return sameHome && sameArrival && sameDeparture && similarGuest;
-    });
-
-    if (existing) {
-     
-        existing.source === reservation.source
-          ? existing.source
-          : "Merged";
-
-      existing.notes = [
-        existing.notes,
-        reservation.notes,
-      ]
-        .filter(Boolean)
-        .join(" | ");
-
-      existing.timeline = [
-        ...(existing.timeline ?? []),
-        `Merged ${reservation.source} calendar match`,
-      ];
-    } else {
-      merged.push({ ...reservation });
-    }
-  });
-
-  return merged;
-}
 export default function App() 
 
 {
@@ -576,6 +522,7 @@ useEffect(() => {
   const [saveStatus] = useState("Connected to Supabase");
   useEffect(() => {
   loadPropertiesFromSupabase();
+  loadReservationsFromSupabase();
 }, []);
 
  
@@ -1524,6 +1471,38 @@ async function loadPropertiesFromSupabase() {
     setSelectedPropertyId(mappedHomes[0].id);
   }
 }
+async function loadReservationsFromSupabase() {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from("reservations")
+    .select("*")
+    .eq("owner_id", user.id)
+    .order("arrival", { ascending: true });
+
+  if (error) {
+    console.error("Failed to load reservations", error);
+    return;
+  }
+
+  const mappedReservations: Reservation[] = (data ?? []).map((item: any) => ({
+    id: item.id,
+    guestName: item.guest_name,
+    homeId: item.property_id,
+    source: item.source,
+    arrival: item.arrival,
+    departure: item.departure,
+    status: item.status ?? "Unassigned",
+    cleanerId: item.cleaner_id ?? undefined,
+    notes: item.notes ?? "",
+    timeline: Array.isArray(item.timeline) ? item.timeline : [],
+  }));
+
+  setReservations(mappedReservations);
+}
   async function createProperty(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
@@ -1712,9 +1691,31 @@ async function deleteProperty(id: string) {
 
   await loadPropertiesFromSupabase();
 
-  setReservations((current) =>
-    mergeImportedReservations([...importedReservations, ...current])
-  );
+ if (importedReservations.length > 0) {
+  const reservationRows = importedReservations.map((reservation) => ({
+    owner_id: user.id,
+    property_id: nextHomeId,
+    guest_name: reservation.guestName,
+    source: reservation.source,
+    arrival: reservation.arrival,
+    departure: reservation.departure,
+    status: reservation.status,
+    cleaner_id: reservation.cleanerId ?? null,
+    notes: reservation.notes ?? null,
+    timeline: reservation.timeline ?? [],
+  }));
+
+  const { error: reservationSaveError } = await supabase
+    .from("reservations")
+    .insert(reservationRows);
+
+  if (reservationSaveError) {
+    console.error("Reservation save failed", reservationSaveError);
+    alert(reservationSaveError.message);
+  }
+}
+
+await loadReservationsFromSupabase();
 
   setSelectedPropertyId(nextHomeId);
   setSelectedCalendarHome(nextHomeId);
