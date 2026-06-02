@@ -1739,12 +1739,12 @@ async function deleteProperty(id: string) {
   }
 function startLiveMode() {
   setDataMode("Live");
-  setHomes([]);
+  
   setReservations([]);
   setCalendarBlocks([]);
   setWorkOrders([]);
   setNotifications([]);
-  setSelectedPropertyId("");
+  
   setSelectedHome("all");
   setSelectedCalendarHome("all");
   setSelectedCalendarItem(null);
