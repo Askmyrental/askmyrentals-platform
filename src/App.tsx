@@ -3835,21 +3835,41 @@ function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) 
 
   function renderOccupancy() {
     const totalDays = 365;
-    const guestNights = reservations.filter((reservation) => reservation.source !== "Owner Block").reduce((total, reservation) => {
+ const guestNights = reservations
+  .filter((reservation) => reservation.source !== "Owner Block" && reservation.status !== "Blocked")
+  .reduce((total, reservation) => {
+    const start = toDate(reservation.arrival);
+    const end = toDate(reservation.departure);
+    return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+  }, 0);
+
+const ownerNights =
+  reservations
+    .filter((reservation) => reservation.source === "Owner Block")
+    .reduce((total, reservation) => {
       const start = toDate(reservation.arrival);
       const end = toDate(reservation.departure);
       return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
-    }, 0);
-    const ownerNights = reservations.filter((reservation) => reservation.source === "Owner Block").reduce((total, reservation) => {
-      const start = toDate(reservation.arrival);
-      const end = toDate(reservation.departure);
-      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
-    }, 0) + calendarBlocks.filter((block) => block.type === "Owner Block").reduce((total, block) => {
+    }, 0) +
+  calendarBlocks
+    .filter((block) => block.type === "Owner Block")
+    .reduce((total, block) => {
       const start = toDate(block.start);
       const end = toDate(block.end);
       return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
     }, 0);
-    const blockedNights = calendarBlocks.filter((block) => block.type === "Maintenance").reduce((total, block) => {
+
+const blockedNights =
+  reservations
+    .filter((reservation) => reservation.status === "Blocked")
+    .reduce((total, reservation) => {
+      const start = toDate(reservation.arrival);
+      const end = toDate(reservation.departure);
+      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    }, 0) +
+  calendarBlocks
+    .filter((block) => block.type === "Maintenance")
+    .reduce((total, block) => {
       const start = toDate(block.start);
       const end = toDate(block.end);
       return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
