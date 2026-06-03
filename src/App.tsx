@@ -1585,16 +1585,26 @@ async function updateProperty(id: string, updates: Partial<Home>) {
 async function deleteProperty(id: string) {
   const property = homes.find((home) => home.id === id);
   const confirmation = window.prompt(
-    `Type DELETE to permanently remove ${property?.name ?? "this property"}.`
+    `Type DELETE to permanently remove ${property?.name ?? "this property"} and its reservations.`
   );
 
   if (confirmation !== "DELETE") return;
 
-  const { data, error } = await supabase
+  const { error: reservationDeleteError } = await supabase
+    .from("reservations")
+    .delete()
+    .eq("property_id", id);
+
+  if (reservationDeleteError) {
+    console.error("Reservation delete failed", reservationDeleteError);
+    alert(reservationDeleteError.message);
+    return;
+  }
+
+  const { error } = await supabase
     .from("properties")
     .delete()
-    .eq("id", id)
-    .select();
+    .eq("id", id);
 
   if (error) {
     console.error("Property delete failed", error);
@@ -1602,14 +1612,8 @@ async function deleteProperty(id: string) {
     return;
   }
 
-  console.log("Deleted property rows:", data);
-
-  if (!data || data.length === 0) {
-    alert("No property was deleted. The app may be using a property ID that does not match Supabase.");
-    return;
-  }
-
   await loadPropertiesFromSupabase();
+  await loadReservationsFromSupabase();
 
   setSelectedPropertyId("");
   setEditingPropertyId(null);
