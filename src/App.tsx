@@ -7,7 +7,8 @@ type ReservationStatus =
   | "Assigned"
   | "Accepted"
   | "In Process"
-  | "Completed";
+  | "Completed"
+  | "Blocked";
 
 type ReservationSource = "VRBO" | "Airbnb" | "Manual" | "Owner Block";
 
@@ -398,20 +399,28 @@ function parseICalReservations(icalText: string, homeId: string, source: Extract
       const departure = parseICalDate(getICalValue(currentEvent, "DTEND"));
       const description = cleanICalText(getICalValue(currentEvent, "DESCRIPTION"));
 
-      if (arrival && departure) {
-        reservations.push({
-          id: `${source.toLowerCase()}-${homeId}-${uid}`.replace(/[^a-zA-Z0-9-_]/g, "-"),
-          guestName: summary,
-          homeId,
-          source,
-          arrival,
-          departure,
-          status: "Unassigned",
-          notes: description ? `Imported calendar note: ${description}` : "",
-          timeline: [`Imported from ${source} iCal`],
-        });
-      }
+if (arrival && departure) {
+  const normalizedSummary = summary.toLowerCase();
+  const normalizedDescription = description.toLowerCase();
 
+  const isBlocked =
+    normalizedSummary.includes("blocked") ||
+    normalizedSummary.includes("block") ||
+    normalizedDescription.includes("blocked") ||
+    normalizedDescription.includes("block");
+
+  reservations.push({
+    id: `${source.toLowerCase()}-${homeId}-${uid}`.replace(/[^a-zA-Z0-9-_]/g, "-"),
+    guestName: isBlocked ? "Blocked" : summary || "Imported reservation",
+    homeId,
+    source,
+    arrival,
+    departure,
+    status: isBlocked ? "Blocked" : "Unassigned",
+    notes: description ? `Imported calendar note: ${description}` : "",
+    timeline: [`Imported from ${source} iCal`],
+  });
+}
       insideEvent = false;
       currentEvent = [];
       return;
