@@ -1743,6 +1743,9 @@ await loadReservationsFromSupabase();
     airbnbICalText: "",
   });
 }
+async function syncReservations() {
+  alert("Reservation sync coming next. Property and reservation persistence are now working.");
+}
 async function handleLogout() {
   await supabase.auth.signOut();
   window.location.reload();
@@ -1765,6 +1768,7 @@ async function handleLogout() {
     });
     setShowPropertyForm(true);
   }
+  
 function startLiveMode() {
   setDataMode("Live");
   
@@ -1885,6 +1889,13 @@ async function autoFillListing() {
           <button className="primaryButton" type="submit">
             Create Live Property + Import Calendars
           </button>
+          <button
+  className="secondaryButton"
+  type="button"
+  onClick={syncReservations}
+>
+  Sync Reservations
+</button>
         </form>
       </section>
     );
