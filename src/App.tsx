@@ -1889,13 +1889,7 @@ async function autoFillListing() {
           <button className="primaryButton" type="submit">
             Create Live Property + Import Calendars
           </button>
-          <button
-  className="secondaryButton"
-  type="button"
-  onClick={syncReservations}
->
-  Sync Reservations
-</button>
+          
         </form>
       </section>
     );
@@ -2104,6 +2098,13 @@ async function autoFillListing() {
                 <button className="primaryButton" type="submit">
                   Save Property Changes
                 </button>
+                <button
+  className="secondaryButton"
+  onClick={syncReservations}
+  type="button"
+>
+  Sync Reservations
+</button>
                 <button
                   className="ghostButton"
                   type="button"
