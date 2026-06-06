@@ -3861,8 +3861,20 @@ function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) 
 
   function renderOccupancy() {
     const totalDays = 365;
- const guestNights = reservations
-  .filter((reservation) => reservation.source !== "Owner Block" && reservation.status !== "Blocked")
+
+ const amrBlockSources: ReservationSource[] = [
+  "Owner Block",
+  "Cleaning Block",
+  "Maintenance Block",
+  "Vendor Block",
+];
+
+const guestNights = reservations
+  .filter(
+    (reservation) =>
+      !amrBlockSources.includes(reservation.source) &&
+      reservation.status !== "Blocked"
+  )
   .reduce((total, reservation) => {
     const start = toDate(reservation.arrival);
     const end = toDate(reservation.departure);
@@ -3967,11 +3979,6 @@ const blockedNights =
             <p>Booked rental nights</p>
           </article>
 
-          <article className="occupancyCard">
-            <span>AMR Blocks</span>
-            <strong>{ownerNights}</strong>
-            <p>Maintenance, cleaning, vendor, and owner-created blocks</p>
-          </article>
 
           <article className="occupancyCard">
             <span>Blocked Nights</span>
