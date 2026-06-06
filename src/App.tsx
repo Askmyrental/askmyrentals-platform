@@ -10,7 +10,14 @@ type ReservationStatus =
   | "Completed"
   | "Blocked";
 
-type ReservationSource = "VRBO" | "Airbnb" | "Manual" | "Owner Block";
+type ReservationSource =
+  | "VRBO"
+  | "Airbnb"
+  | "Guest Reservation"
+  | "Owner Block"
+  | "Cleaning Block"
+  | "Maintenance Block"
+  | "Vendor Block";
 
 type BlockType = "Owner Block" | "Maintenance";
 
@@ -23,7 +30,7 @@ type Home = {
   vrboId?: string;
   airbnbUrl?: string;
   iCalUrl?: string;
-  setupMode: "Manual" | "VRBO" | "Airbnb";
+  setupMode: "Guest Reservation" | "VRBO" | "Airbnb";
   defaultCleanerId?: string;
   bedrooms: number;
   bathrooms: number;
@@ -511,7 +518,7 @@ useEffect(() => {
   const [manualForm, setManualForm] = useState({
     guestName: "",
     homeId: homes[0]?.id ?? "",
-    source: "Manual" as ReservationSource,
+    source: "Guest Reservation" as ReservationSource,
     arrival: "",
     departure: "",
     notes: "",
@@ -669,7 +676,7 @@ const boardStats = useMemo(() => {
     setManualForm({
       guestName: "",
       homeId: homes[0]?.id ?? "",
-      source: "Manual",
+      source: "Guest Reservation",
       arrival: "",
       departure: "",
       notes: "",
@@ -911,7 +918,7 @@ const boardStats = useMemo(() => {
                     <p>
   {reservation.source === "Owner Block"
     ? "Owner Block"
-    : reservation.source === "Manual"
+    : reservation.source === "Guest Reservation"
       ? home?.name ?? "Unknown property"
       : "Imported reservation"}
 </p>
@@ -1134,8 +1141,11 @@ const boardStats = useMemo(() => {
               value={manualForm.source}
               onChange={(event) => setManualForm({ ...manualForm, source: event.target.value as ReservationSource })}
             >
-              <option value="Manual">Manual</option>
-              <option value="Owner Block">Owner Block</option>
+              <option value="Guest Reservation">Guest Reservation</option>
+<option value="Owner Block">Owner Block</option>
+<option value="Cleaning Block">Cleaning Block</option>
+<option value="Maintenance Block">Maintenance Block</option>
+<option value="Vendor Block">Vendor Block</option>
             </select>
           </label>
 
@@ -2003,7 +2013,7 @@ async function autoFillListing() {
                 >
                   <option value="VRBO">Use VRBO Listing ID</option>
                   <option value="Airbnb">Use Airbnb Listing URL</option>
-                  <option value="Manual">Manually Set Up House</option>
+                  <option value="Guest Reservation">Manually Set Up House</option>
                 </select>
               </label>
               <label className="fullWidth">
@@ -2259,7 +2269,7 @@ async function autoFillListing() {
                 >
                   <option value="VRBO">Use VRBO Listing ID</option>
                   <option value="Airbnb">Use Airbnb Listing URL</option>
-                  <option value="Manual">Manually Set Up House</option>
+                  <option value="Guest Reservation">Manually Set Up House</option>
                 </select>
               </label>
               <label className="fullWidth">
@@ -2981,7 +2991,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
                 onClick={() => openReservationFromDashboard(reservation)}
               >
                 <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-                  {reservation.source === "Manual" ? "OWNER BLOCK" : reservation.source.toUpperCase()}
+                  {reservation.source === "Guest Reservation" ? "OWNER BLOCK" : reservation.source.toUpperCase()}
                 </span>
 
                 <h3>{home?.name ?? "Imported reservation"}</h3>
@@ -3042,13 +3052,13 @@ function renderReservationDetail() {
       <header className="pageHeader reservationDetailHeader">
         <div>
           <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-            {reservation.source === "Manual" ? "OWNER BLOCK" : reservation.source.toUpperCase()}
+            {reservation.source === "Guest Reservation" ? "OWNER BLOCK" : reservation.source.toUpperCase()}
           </span>
-          <h2>{reservation.source === "Manual" ? reservation.guestName : home?.name ?? "Unknown property"}</h2>
+          <h2>{reservation.source === "Guest Reservation" ? reservation.guestName : home?.name ?? "Unknown property"}</h2>
           <p className="headerSubtext">
   {reservation.source === "Owner Block"
     ? "Owner Block"
-    : reservation.source === "Manual"
+    : reservation.source === "Guest Reservation"
       ? home?.name ?? "Unknown property"
       : "Imported reservation"}
 </p>
