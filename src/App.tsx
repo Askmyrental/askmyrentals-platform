@@ -1050,7 +1050,16 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                 <span>Total Reservations</span>
                 <strong>{boardStats.total}</strong>
               </div>
-              <div className="statCard warning">
+              <div
+                className="statCard warning"
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedItemType("needs-cleaner")}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") setSelectedItemType("needs-cleaner");
+                }}
+                title="Show reservations that need a cleaner assigned"
+              >
                 <span>Need Cleaner Assigned</span>
                 <strong>{boardStats.needCleanerAssigned}</strong>
               </div>
@@ -3541,6 +3550,15 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
     setActivePage("Reservation Detail");
   }
 
+  function openNeedsCleanerAssigned(event?: React.MouseEvent) {
+    event?.stopPropagation();
+    setSelectedItemType("needs-cleaner");
+    setSelectedStatus("all");
+    setSelectedHome("all");
+    setSearch("");
+    setActivePage("Reservations");
+  }
+
   return (
     <>
       <header className="pageHeader dashboardHeader">
@@ -3557,7 +3575,18 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
           <div>
             <h3>Housekeeping</h3>
             <strong>{reservationItems.length} Upcoming Reservations</strong>
-            <p>{reservationsNeedingCleanerAssigned} Need Cleaner Assigned</p>
+            <p>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={openNeedsCleanerAssigned}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") openNeedsCleanerAssigned(event as any);
+                }}
+              >
+                {reservationsNeedingCleanerAssigned} Need Cleaner Assigned
+              </span>
+            </p>
           </div>
         </button>
 
@@ -3593,7 +3622,18 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
           <div>
             <h3>Property Tasks</h3>
             <strong>{openPropertyTasks.length} Open Tasks</strong>
-            <p>{reservationsNeedingCleanerAssigned} Need Cleaner Assigned</p>
+            <p>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={openNeedsCleanerAssigned}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") openNeedsCleanerAssigned(event as any);
+                }}
+              >
+                {reservationsNeedingCleanerAssigned} Need Cleaner Assigned
+              </span>
+            </p>
           </div>
         </button>
       </section>
