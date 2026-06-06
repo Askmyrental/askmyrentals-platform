@@ -390,6 +390,7 @@ function getReservationDisplayTitle(reservation: Reservation) {
 function needsCleanerAssignment(reservation: Reservation) {
   return (isImportedReservation(reservation) || reservation.source === "Cleaning") &&
     reservation.status !== "Completed" &&
+    reservation.status !== "Blocked" &&
     !reservation.cleanerId;
 }
 
@@ -704,16 +705,14 @@ const boardStats = useMemo(() => {
   const importedReservations = reservations.filter((item) => isImportedReservation(item));
   const futureReservations = importedReservations.filter((item) => item.departure >= toInputDate(new Date()));
   const pastReservations = importedReservations.filter((item) => item.departure < toInputDate(new Date()));
-  const unassignedReservations = importedReservations.filter(
-    (item) => item.status !== "Completed" && item.status !== "Blocked" && !item.cleanerId
-  );
+  const reservationsNeedingCleaner = importedReservations.filter((item) => needsCleanerAssignment(item));
   const inProcessReservations = importedReservations.filter((item) => item.status === "In Process");
 
   return {
     total: importedReservations.length,
     future: futureReservations.length,
     past: pastReservations.length,
-    unassigned: unassignedReservations.length,
+    needCleanerAssigned: reservationsNeedingCleaner.length,
     inProcess: inProcessReservations.length,
   };
 }, [reservations]);
@@ -1010,12 +1009,12 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
         <header className="pageHeader">
           <div>
             <p className="eyebrow">Phase 1</p>
-            <h2>{selectedItemType === "tasks" ? "Property Tasks" : selectedItemType === "needs-cleaner" ? "Needs Cleaner Assignment" : "Reservations"}</h2>
+            <h2>{selectedItemType === "tasks" ? "Property Tasks" : selectedItemType === "needs-cleaner" ? "Needs Cleaner Assigned" : "Reservations"}</h2>
             <p className="headerSubtext">
               {selectedItemType === "tasks"
                 ? "Review scheduled property tasks such as cleanings, vendor visits, and inspections."
                 : selectedItemType === "needs-cleaner"
-                  ? "Imported reservations and cleaning tasks that still need a cleaner assigned."
+                  ? "Imported reservations and cleaning tasks that still need a cleaner assigned assigned."
                   : "Review imported VRBO/Airbnb reservations, cleaner assignments, upcoming stays, and reservation status."}
             </p>
           </div>
@@ -1041,7 +1040,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                 <strong>{propertyTaskStats.upcoming}</strong>
               </div>
               <div className="statCard">
-                <span>Need Cleaner</span>
+                <span>Need Cleaner Assigned</span>
                 <strong>{propertyTaskStats.needCleaner}</strong>
               </div>
             </>
@@ -1052,8 +1051,8 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                 <strong>{boardStats.total}</strong>
               </div>
               <div className="statCard warning">
-                <span>Need Cleaner</span>
-                <strong>{boardStats.unassigned}</strong>
+                <span>Need Cleaner Assigned</span>
+                <strong>{boardStats.needCleanerAssigned}</strong>
               </div>
               <div className="statCard">
                 <span>Future Reservations</span>
@@ -1107,7 +1106,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             <div className="panelHeader compact">
               <div>
                 <p className="eyebrow">Needs cleaner assignment</p>
-                <h3>{reservationsNeedingCleaner.length} reservation{reservationsNeedingCleaner.length === 1 ? "" : "s"} need a cleaner</h3>
+                <h3>{reservationsNeedingCleaner.length} reservation{reservationsNeedingCleaner.length === 1 ? "" : "s"} need a cleaner assigned</h3>
                 <p className="mutedText">These are imported reservations that still need housekeeping assigned. Property tasks are listed below.</p>
               </div>
             </div>
@@ -1126,7 +1125,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                       setActivePage("Reservation Detail");
                     }}
                   >
-                    <span className="urgencyBadge urgent">Needs Cleaner</span>
+                    <span className="urgencyBadge urgent">Needs Cleaner Assigned</span>
                     <h3>{home?.name ?? "Imported reservation"}</h3>
                     <p>{reservation.source} · {reservation.guestName}</p>
 
@@ -1197,7 +1196,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                   <div className="dayBadges">
                     {isTask && <span className="urgencyBadge normal">Property Task</span>}
                     {needsCleanerAssignment(reservation) ? (
-                      <span className="urgencyBadge urgent">Needs Cleaner</span>
+                      <span className="urgencyBadge urgent">Needs Cleaner Assigned</span>
                     ) : (
                       <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
                     )}
@@ -3530,7 +3529,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
   const reservationItems = reservations.filter((item) => isImportedReservation(item));
   const propertyTasks = reservations.filter((item) => isTaskSource(item.source));
   const openPropertyTasks = propertyTasks.filter((item) => item.status !== "Completed");
-  const unassignedReservations = reservationItems.filter((item) => !item.cleanerId).length;
+  const reservationsNeedingCleanerAssigned = reservationItems.filter((item) => needsCleanerAssignment(item)).length;
   const openWorkOrders = workOrders.filter((order) => order.status !== "Completed");
   const urgentWorkOrders = workOrders.filter(
     (order) => order.urgency === "High" || order.urgency === "After Hours"
@@ -3558,7 +3557,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
           <div>
             <h3>Housekeeping</h3>
             <strong>{reservationItems.length} Upcoming Reservations</strong>
-            <p>{unassignedReservations} Unassigned</p>
+            <p>{reservationsNeedingCleanerAssigned} Need Cleaner Assigned</p>
           </div>
         </button>
 
@@ -3594,7 +3593,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
           <div>
             <h3>Property Tasks</h3>
             <strong>{openPropertyTasks.length} Open Tasks</strong>
-            <p>{unassignedReservations} Need Cleaner</p>
+            <p>{reservationsNeedingCleanerAssigned} Need Cleaner Assigned</p>
           </div>
         </button>
       </section>
