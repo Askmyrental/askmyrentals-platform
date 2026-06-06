@@ -542,13 +542,7 @@ useEffect(() => {
 }, []);
 
  
-<button
-  className="ghostButton"
-  type="button"
-  onClick={handleLogout}
->
-  Log Out
-</button>
+
  
 
   const filteredReservations = useMemo(() => {
@@ -623,7 +617,8 @@ const boardStats = useMemo(() => {
     }
   }
 
-  async function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
+  
+async function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
   if (!manualForm.guestName || !manualForm.homeId || !manualForm.arrival || !manualForm.departure) {
@@ -692,13 +687,15 @@ const boardStats = useMemo(() => {
 
   setShowManualForm(false);
 }
+function getStackedCalendarMonths(anchorDate: Date, count = 12) {
+  const anchor = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
 
-  function getStackedCalendarMonths(anchorDate: Date, count = 12) {
-    const anchor = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
-
-    return Array.from({ length: count }, (_item, index) => new Date(anchor.getFullYear(), anchor.getMonth() + index, 1));
-  }
-
+  return Array.from(
+    { length: count },
+    (_item, index) =>
+      new Date(anchor.getFullYear(), anchor.getMonth() + index, 1)
+  );
+}
   function getCalendarDayData(date: Date, homeFilter: string) {
     const dayReservations = reservations.filter(
       (reservation) =>
