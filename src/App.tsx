@@ -3871,7 +3871,12 @@ function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) 
 
 const ownerNights =
   reservations
-    .filter((reservation) => reservation.source === "Owner Block")
+    .filter(
+  (reservation) =>
+    ["Owner Block", "Cleaning Block", "Maintenance Block", "Vendor Block"].includes(
+      reservation.source
+    )
+)
     .reduce((total, reservation) => {
       const start = toDate(reservation.arrival);
       const end = toDate(reservation.departure);
@@ -3963,9 +3968,9 @@ const blockedNights =
           </article>
 
           <article className="occupancyCard">
-            <span>Owner Nights</span>
+            <span>AMR Blocks</span>
             <strong>{ownerNights}</strong>
-            <p>Owner stays and personal blocks</p>
+            <p>Maintenance, cleaning, vendor, and owner-created blocks</p>
           </article>
 
           <article className="occupancyCard">
@@ -3975,10 +3980,13 @@ const blockedNights =
           </article>
 
           <article className="occupancyCard">
-            <span>Open Nights</span>
-            <strong>{openNights}</strong>
-            <p>Remaining available inventory</p>
-          </article>
+  <span>AMR Blocks</span>
+  <strong>{ownerNights}</strong>
+  <p>Maintenance, cleaning, vendor, and owner-created blocks</p>
+  <small className="mutedText">
+    Not synced to VRBO or Airbnb
+  </small>
+</article>
 
           <article className="occupancyCard">
             <span>Projected Occupancy</span>
