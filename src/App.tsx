@@ -647,41 +647,49 @@ const boardStats = useMemo(() => {
 async function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
-const selectedManualHomeId = manualForm.homeId || selectedPropertyId || homes[0]?.id || "";
+  const selectedManualHomeId = manualForm.homeId || selectedPropertyId || homes[0]?.id || "";
+  const isPropertyTask = isTaskSource(manualForm.source);
+  const effectiveDeparture = isPropertyTask ? manualForm.arrival : manualForm.departure;
 
-if (!manualForm.guestName || !selectedManualHomeId || !manualForm.arrival || !manualForm.departure) {
-  alert("Please complete the item name, property, start date, and end date.");
-  return;
-}
+  if (!manualForm.guestName || !selectedManualHomeId || !manualForm.arrival || !effectiveDeparture) {
+    alert(
+      isPropertyTask
+        ? "Please complete the task name, property, and task date."
+        : "Please complete the block name, property, start date, and end date."
+    );
+    return;
+  }
 
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
 
   if (!user) {
-    alert("You must be logged in to create a reservation or block.");
+    alert("You must be logged in to create a property item.");
     return;
   }
 
-  const conflictCount = getReservationConflictCount(
-    {
-      homeId: selectedManualHomeId,
-      arrival: manualForm.arrival,
-      departure: manualForm.departure,
-    },
-    reservations
-  );
+  const conflictCount = manualForm.source === "Owner Block"
+    ? getReservationConflictCount(
+        {
+          homeId: selectedManualHomeId,
+          arrival: manualForm.arrival,
+          departure: effectiveDeparture,
+        },
+        reservations
+      )
+    : 0;
 
   const home = homes.find((item) => item.id === selectedManualHomeId);
 
   const conflictNote =
     conflictCount > 0
-      ? `Conflict warning: overlaps ${conflictCount} existing reservation or property item for ${home?.name ?? "this home"}.`
+      ? `Conflict warning: overlaps ${conflictCount} existing reservation or owner block for ${home?.name ?? "this home"}.`
       : "";
 
   const timeline =
     conflictCount > 0
-      ? ["AMR property item created", conflictNote, "Saved with conflict for owner review"]
-      : ["AMR property item created"];
+      ? [`AMR ${manualForm.source} created`, conflictNote, "Saved with conflict for owner review"]
+      : [`AMR ${manualForm.source} created`];
 
   const { error } = await supabase.from("reservations").insert({
     owner_id: user.id,
@@ -689,15 +697,15 @@ if (!manualForm.guestName || !selectedManualHomeId || !manualForm.arrival || !ma
     guest_name: manualForm.guestName,
     source: manualForm.source,
     arrival: manualForm.arrival,
-    departure: manualForm.departure,
-    status: conflictCount > 0 ? "In Process" : "Unassigned",
+    departure: effectiveDeparture,
+    status: manualForm.source === "Owner Block" ? "Blocked" : "Unassigned",
     cleaner_id: null,
     notes: [manualForm.notes, conflictNote].filter(Boolean).join("\n"),
     timeline,
   });
 
   if (error) {
-    console.error("Manual reservation save failed", error);
+    console.error("Property item save failed", error);
     alert(error.message);
     return;
   }
@@ -962,12 +970,12 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
 
                 <div className="reservationMeta">
                   <div>
-                    <span>Arrival</span>
+                    <span>{isTaskSource(reservation.source) ? "Task Date" : "Arrival"}</span>
                     <strong>{formatDate(reservation.arrival)}</strong>
                   </div>
                   <div>
-                    <span>Departure</span>
-                    <strong>{formatDate(reservation.departure)}</strong>
+                    <span>{isTaskSource(reservation.source) ? "Type" : "Departure"}</span>
+                    <strong>{isTaskSource(reservation.source) ? reservation.source : formatDate(reservation.departure)}</strong>
                   </div>
                   <div>
                     <span>Source</span>
@@ -1055,6 +1063,16 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
 
                 <div className="cardActions">
                   <button
+                    type="button"
+                    className="secondaryButton"
+                    onClick={() => {
+                      setSelectedCalendarItem(reservation);
+                      setActivePage("Reservation Detail");
+                    }}
+                  >
+                    Open Details
+                  </button>
+                  <button
                     onClick={() =>
                       updateReservation(reservation.id, {
                         status: reservation.status === "In Process" ?"Completed" : "In Process",
@@ -1097,17 +1115,22 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
     if (!showManualForm) return null;
 
     const selectedPreviewHome = homes.find((home) => home.id === manualForm.homeId);
-    const selectedDateRangeActive = Boolean(manualForm.arrival && manualForm.departure);
-    const selectedConflictCount = selectedDateRangeActive
-      ? getReservationConflictCount(
-          {
-            homeId: manualForm.homeId,
-            arrival: manualForm.arrival,
-            departure: manualForm.departure,
-          },
-          reservations
-        )
-      : 0;
+    const isPropertyTask = isTaskSource(manualForm.source);
+    const selectedDateRangeActive = Boolean(
+      manualForm.arrival && (isPropertyTask || manualForm.departure)
+    );
+    const effectiveDeparture = isPropertyTask ? manualForm.arrival : manualForm.departure;
+    const selectedConflictCount =
+      manualForm.source === "Owner Block" && selectedDateRangeActive
+        ? getReservationConflictCount(
+            {
+              homeId: manualForm.homeId,
+              arrival: manualForm.arrival,
+              departure: effectiveDeparture,
+            },
+            reservations
+          )
+        : 0;
 
     const currentMonthAnchor = manualForm.arrival ? toDate(manualForm.arrival) : new Date();
     currentMonthAnchor.setDate(1);
@@ -1122,7 +1145,23 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
       };
     });
 
+    function setManualNoteValue(label: string, value: string) {
+      const lines = manualForm.notes
+        .split("\n")
+        .filter((line) => !line.startsWith(`${label}:`));
+
+      setManualForm({
+        ...manualForm,
+        notes: [`${label}: ${value}`, ...lines].filter(Boolean).join("\n"),
+      });
+    }
+
     function handleAvailabilityDateClick(dateKey: string) {
+      if (isPropertyTask) {
+        setManualForm({ ...manualForm, arrival: dateKey, departure: dateKey });
+        return;
+      }
+
       if (!manualForm.arrival || (manualForm.arrival && manualForm.departure)) {
         setManualForm({ ...manualForm, arrival: dateKey, departure: "" });
         return;
@@ -1136,34 +1175,73 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
       setManualForm({ ...manualForm, departure: dateKey });
     }
 
+    const itemNameLabel = manualForm.source === "Owner Block" ? "Block name" : "Task name";
+    const itemNamePlaceholder =
+      manualForm.source === "Owner Block"
+        ? "Owner stay, family use, personal block"
+        : manualForm.source === "Cleaning"
+          ? "Example: Mid-stay towel refresh"
+          : manualForm.source === "Maintenance"
+            ? "Example: Hot tub repair"
+            : manualForm.source === "Vendor Visit"
+              ? "Example: HVAC service visit"
+              : "Example: Damage check walkthrough";
+
     return (
       <section className="manualPanel">
         <div className="panelHeader">
           <div>
             <p className="eyebrow">Manual add</p>
-            <h3>Add Owner Block / Property Task</h3>
+            <h3>{manualForm.source === "Owner Block" ? "Add Owner Block" : `Add ${manualForm.source} Task`}</h3>
+            <p className="mutedText">
+              {manualForm.source === "Owner Block"
+                ? "Owner blocks make the property unavailable and are included in occupancy reporting."
+                : "Property tasks appear on the calendar for operations but do not count as guest reservations."}
+            </p>
           </div>
-          <button className="ghostButton" onClick={() => setShowManualForm(false)}>
+          <button className="ghostButton" onClick={() => setShowManualForm(false)} type="button">
             Close
           </button>
         </div>
 
         <form className="manualForm" onSubmit={createManualReservation}>
           <label>
-            Item name
+            Type
+            <select
+              value={manualForm.source}
+              onChange={(event) => {
+                const nextSource = event.target.value as ReservationSource;
+                const nextIsTask = isTaskSource(nextSource);
+                setManualForm({
+                  ...manualForm,
+                  source: nextSource,
+                  departure: nextIsTask ? manualForm.arrival : manualForm.departure,
+                });
+              }}
+            >
+              <option value="Owner Block">Owner Block</option>
+              <option value="Cleaning">Cleaning</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Vendor Visit">Vendor Visit</option>
+              <option value="Inspection">Inspection</option>
+            </select>
+          </label>
+
+          <label>
+            {itemNameLabel}
             <input
               value={manualForm.guestName}
               onChange={(event) => setManualForm({ ...manualForm, guestName: event.target.value })}
-              placeholder="Owner block, deep clean, vendor visit, inspection"
+              placeholder={itemNamePlaceholder}
             />
           </label>
 
           <label>
             Home
             <select
-  value={manualForm.homeId || selectedPropertyId || homes[0]?.id || ""}
-  onChange={(event) => setManualForm({ ...manualForm, homeId: event.target.value })}
->
+              value={manualForm.homeId || selectedPropertyId || homes[0]?.id || ""}
+              onChange={(event) => setManualForm({ ...manualForm, homeId: event.target.value })}
+            >
               {homes.map((home) => (
                 <option key={home.id} value={home.id}>
                   {home.name}
@@ -1172,51 +1250,144 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             </select>
           </label>
 
-          <label>
-            Type
-            <select
-              value={manualForm.source}
-              onChange={(event) => setManualForm({ ...manualForm, source: event.target.value as ReservationSource })}
-            >
-              <option value="Owner Block">Owner Block</option>
-<option value="Cleaning">Cleaning</option>
-<option value="Maintenance">Maintenance</option>
-<option value="Vendor Visit">Vendor Visit</option>
-<option value="Inspection">Inspection</option>
-            </select>
-          </label>
+          {manualForm.source === "Cleaning" && (
+            <label>
+              Cleaning Type
+              <select defaultValue="" onChange={(event) => setManualNoteValue("Cleaning Type", event.target.value)}>
+                <option value="" disabled>Select cleaning type</option>
+                <option value="Standard Cleaning">Standard Cleaning</option>
+                <option value="Mid-Stay Cleaning">Mid-Stay Cleaning</option>
+                <option value="Deep Clean">Deep Clean</option>
+                <option value="Touch-Up Clean">Touch-Up Clean</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+          )}
 
-          <label>
-            Arrival date
-            <input
-              type="date"
-              value={manualForm.arrival}
-              onChange={(event) =>
-                setManualForm({
-                  ...manualForm,
-                  arrival: event.target.value,
-                  departure: manualForm.departure && event.target.value > manualForm.departure ? event.target.value : manualForm.departure,
-                })
-              }
-            />
-          </label>
+          {manualForm.source === "Maintenance" && (
+            <>
+              <label>
+                Priority
+                <select defaultValue="" onChange={(event) => setManualNoteValue("Maintenance Priority", event.target.value)}>
+                  <option value="" disabled>Select priority</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Urgent">Urgent</option>
+                </select>
+              </label>
 
-          <label>
-            Departure date
-            <input
-              type="date"
-              value={manualForm.departure}
-              onChange={(event) => setManualForm({ ...manualForm, departure: event.target.value })}
-              min={manualForm.arrival || undefined}
-            />
-          </label>
+              <label>
+                Issue Category
+                <select defaultValue="" onChange={(event) => setManualNoteValue("Maintenance Category", event.target.value)}>
+                  <option value="" disabled>Select category</option>
+                  <option value="General">General</option>
+                  <option value="Plumbing">Plumbing</option>
+                  <option value="HVAC">HVAC</option>
+                  <option value="Electrical">Electrical</option>
+                  <option value="Appliance">Appliance</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+            </>
+          )}
+
+          {manualForm.source === "Vendor Visit" && (
+            <>
+              <label>
+                Vendor Type
+                <select defaultValue="" onChange={(event) => setManualNoteValue("Vendor Type", event.target.value)}>
+                  <option value="" disabled>Select vendor type</option>
+                  <option value="HVAC">HVAC</option>
+                  <option value="Plumbing">Plumbing</option>
+                  <option value="Electrical">Electrical</option>
+                  <option value="Pest Control">Pest Control</option>
+                  <option value="Landscaping">Landscaping</option>
+                  <option value="Pool / Hot Tub">Pool / Hot Tub</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+
+              <label>
+                Vendor Name / Company
+                <input
+                  placeholder="Example: Summit HVAC"
+                  onBlur={(event) => {
+                    if (event.target.value.trim()) setManualNoteValue("Vendor", event.target.value.trim());
+                  }}
+                />
+              </label>
+            </>
+          )}
+
+          {manualForm.source === "Inspection" && (
+            <label>
+              Inspection Type
+              <select defaultValue="" onChange={(event) => setManualNoteValue("Inspection Type", event.target.value)}>
+                <option value="" disabled>Select inspection type</option>
+                <option value="Arrival Inspection">Arrival Inspection</option>
+                <option value="Departure Inspection">Departure Inspection</option>
+                <option value="Seasonal Inspection">Seasonal Inspection</option>
+                <option value="Damage Inspection">Damage Inspection</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+          )}
+
+          {isPropertyTask ? (
+            <label>
+              Task date
+              <input
+                type="date"
+                value={manualForm.arrival}
+                onChange={(event) =>
+                  setManualForm({
+                    ...manualForm,
+                    arrival: event.target.value,
+                    departure: event.target.value,
+                  })
+                }
+              />
+            </label>
+          ) : (
+            <>
+              <label>
+                Start date
+                <input
+                  type="date"
+                  value={manualForm.arrival}
+                  onChange={(event) =>
+                    setManualForm({
+                      ...manualForm,
+                      arrival: event.target.value,
+                      departure: manualForm.departure && event.target.value > manualForm.departure ? event.target.value : manualForm.departure,
+                    })
+                  }
+                />
+              </label>
+
+              <label>
+                End date
+                <input
+                  type="date"
+                  value={manualForm.departure}
+                  onChange={(event) => setManualForm({ ...manualForm, departure: event.target.value })}
+                  min={manualForm.arrival || undefined}
+                />
+              </label>
+            </>
+          )}
 
           <div className="availabilityPreview fullWidth largeAvailabilityCalendar">
             <div className="availabilityPreviewHeader">
               <div>
-                <p className="eyebrow">Availability calendar</p>
+                <p className="eyebrow">{isPropertyTask ? "Calendar preview" : "Availability calendar"}</p>
                 <h4>{selectedPreviewHome ? selectedPreviewHome.name : "Select a home"}</h4>
-                <p className="mutedText">Scroll down to future months. Click once for the start date, then click again for the end date.</p>
+                <p className="mutedText">
+                  {isPropertyTask
+                    ? "Click a date to schedule this task. Tasks can happen even when the property has a guest reservation."
+                    : "Click once for the start date, then click again for the end date."}
+                </p>
               </div>
               {selectedConflictCount > 0 && (
                 <span className="conflictWarningPill">{selectedConflictCount} conflict{selectedConflictCount === 1 ? "" : "s"}</span>
@@ -1226,9 +1397,9 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             <div className="availabilityLegend">
               <span><i className="legendReservation" /> Reservation</span>
               <span><i className="legendOwner" /> Owner block</span>
-              <span><i className="legendMaintenance" /> Maintenance</span>
+              <span><i className="legendMaintenance" /> Task / maintenance</span>
               <span><i className="legendConflict" /> Conflict</span>
-              <span><i className="legendSelected" /> Selected range</span>
+              <span><i className="legendSelected" /> Selected</span>
             </div>
 
             <div className="availabilityMonthScroller">
@@ -1244,9 +1415,9 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                   <div className="availabilityGrid">
                     {month.days.map((day) => {
                       const dateKey = toInputDate(day.date);
-                     const activeManualHomeId = manualForm.homeId || selectedPropertyId || homes[0]?.id || "";
-const availabilityClass = getDateAvailabilityClass(day.date, activeManualHomeId, reservations, calendarBlocks);
-                      const isSelectedRange = selectedDateRangeActive && dateKey >= manualForm.arrival && dateKey <= manualForm.departure;
+                      const activeManualHomeId = manualForm.homeId || selectedPropertyId || homes[0]?.id || "";
+                      const availabilityClass = getDateAvailabilityClass(day.date, activeManualHomeId, reservations, calendarBlocks);
+                      const isSelectedRange = selectedDateRangeActive && dateKey >= manualForm.arrival && dateKey <= effectiveDeparture;
 
                       return (
                         <button
@@ -1265,10 +1436,12 @@ const availabilityClass = getDateAvailabilityClass(day.date, activeManualHomeId,
               ))}
             </div>
 
-            {manualForm.arrival && manualForm.departure && (
+            {manualForm.arrival && effectiveDeparture && (
               <p className={selectedConflictCount > 0 ? "conflictWarningBox" : "sourceControlledNotice"}>
-                Selected range: {formatDate(manualForm.arrival)} → {formatDate(manualForm.departure)}
-                {selectedConflictCount > 0 ? ` · overlaps ${selectedConflictCount} existing item${selectedConflictCount === 1 ? "" : "s"}` : " · no conflicts found"}
+                {isPropertyTask
+                  ? `Scheduled date: ${formatDate(manualForm.arrival)}`
+                  : `Selected range: ${formatDate(manualForm.arrival)} → ${formatDate(effectiveDeparture)}`}
+                {selectedConflictCount > 0 ? ` · overlaps ${selectedConflictCount} existing item${selectedConflictCount === 1 ? "" : "s"}` : ""}
               </p>
             )}
           </div>
@@ -1283,7 +1456,7 @@ const availabilityClass = getDateAvailabilityClass(day.date, activeManualHomeId,
           </label>
 
           <button className="primaryButton" type="submit">
-            Save Property Item
+            Save {manualForm.source === "Owner Block" ? "Owner Block" : `${manualForm.source} Task`}
           </button>
         </form>
       </section>
@@ -3037,13 +3210,13 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
 
                 <div className="reservationPreviewMeta">
                   <div>
-                    <span>Arrival</span>
+                    <span>{isTaskSource(reservation.source) ? "Task Date" : "Arrival"}</span>
                     <strong>{formatDate(reservation.arrival)}</strong>
                   </div>
 
                   <div>
-                    <span>Departure</span>
-                    <strong>{formatDate(reservation.departure)}</strong>
+                    <span>{isTaskSource(reservation.source) ? "Type" : "Departure"}</span>
+                    <strong>{isTaskSource(reservation.source) ? reservation.source : formatDate(reservation.departure)}</strong>
                   </div>
                 </div>
 
@@ -3140,12 +3313,12 @@ function renderReservationDetail() {
         <article className="reservationHeroPanel">
           <div className="reservationHeroDates">
             <div>
-              <span>{isTask ? "Start" : "Arrival"}</span>
+              <span>{isTask ? "Task Date" : "Arrival"}</span>
               <strong>{formatDate(reservation.arrival)}</strong>
             </div>
             <div>
-              <span>{isTask ? "End" : "Departure"}</span>
-              <strong>{formatDate(reservation.departure)}</strong>
+              <span>{isTask ? "Task Type" : "Departure"}</span>
+              <strong>{isTask ? reservation.source : formatDate(reservation.departure)}</strong>
             </div>
           </div>
 
@@ -3240,15 +3413,16 @@ function renderReservationDetail() {
             </label>
 
             <label>
-              {isTask ? "Start Date" : "Arrival"}
+              {isTask ? "Task Date" : "Start Date"}
               <input
                 type="date"
                 value={reservation.arrival}
                 onChange={(event) =>
                   updateReservation(reservation.id, {
                     arrival: event.target.value,
-                    departure:
-                      reservation.departure && event.target.value > reservation.departure
+                    departure: isTask
+                      ? event.target.value
+                      : reservation.departure && event.target.value > reservation.departure
                         ? event.target.value
                         : reservation.departure,
                   })
@@ -3256,19 +3430,26 @@ function renderReservationDetail() {
               />
             </label>
 
-            <label>
-              {isTask ? "End Date" : "Departure"}
-              <input
-                type="date"
-                value={reservation.departure}
-                min={reservation.arrival || undefined}
-                onChange={(event) =>
-                  updateReservation(reservation.id, {
-                    departure: event.target.value,
-                  })
-                }
-              />
-            </label>
+            {isTask ? (
+              <label>
+                Task Type
+                <input value={reservation.source} readOnly />
+              </label>
+            ) : (
+              <label>
+                End Date
+                <input
+                  type="date"
+                  value={reservation.departure}
+                  min={reservation.arrival || undefined}
+                  onChange={(event) =>
+                    updateReservation(reservation.id, {
+                      departure: event.target.value,
+                    })
+                  }
+                />
+              </label>
+            )}
           </article>
         )}
 
@@ -4143,8 +4324,6 @@ function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) 
 
   function renderOccupancy() {
     const totalDays = 365;
-
-
 
 const occupancyBlockSources: ReservationSource[] = [
   "Owner Block",
