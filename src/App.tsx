@@ -351,8 +351,9 @@ function normalizeReservationSource(source: string): ReservationSource {
 }
 
 function isTaskSource(source: ReservationSource) {
-  return source === "Cleaning" || source === "Maintenance" || source === "Vendor Visit" || source === "Inspection";
+  return source === "Cleaning" || source === "Vendor Visit" || source === "Inspection";
 }
+
 
 function getNotesValue(notes: string | undefined, label: string) {
   const prefix = `${label}:`;
@@ -406,6 +407,63 @@ function getTaskDayCount(reservations: Reservation[]) {
       const end = toDate(reservation.departure || reservation.arrival);
       return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
     }, 0);
+}
+
+function getSyncDateRangeLabel(start: string, end: string) {
+  return start === end ? formatDate(start) : `${formatDate(start)} → ${formatDate(end)}`;
+}
+
+function getCalendarSyncIssues(reservations: Reservation[], homes: Home[], dismissedIds: string[]) {
+  const importedItems = reservations.filter((reservation) => isImportedReservation(reservation));
+  const activeImportedItems = importedItems.filter((reservation) => reservation.status !== "Completed");
+
+  const issues = activeImportedItems.flatMap((reservation) => {
+    const home = homes.find((item) => item.id === reservation.homeId);
+    const matchingSource = reservation.source === "VRBO" ? "Airbnb" : "VRBO";
+    const matchingItems = activeImportedItems.filter(
+      (item) =>
+        item.id !== reservation.id &&
+        item.homeId === reservation.homeId &&
+        item.source === matchingSource &&
+        doDateRangesOverlap(reservation.arrival, reservation.departure, item.arrival, item.departure)
+    );
+
+    if (matchingItems.length === 0) {
+      return [
+        {
+          id: `missing-counterpart-${reservation.id}`,
+          property: home?.name ?? "Unknown property",
+          dateRange: getSyncDateRangeLabel(reservation.arrival, reservation.departure),
+          message: `${reservation.source} has an imported item with no overlapping ${matchingSource} item. Confirm the other calendar is blocked or synced.`,
+          severity: "High",
+          status: dismissedIds.includes(`missing-counterpart-${reservation.id}`) ? "Dismissed" : "Open",
+        },
+      ];
+    }
+
+    const dateMismatch = matchingItems.find(
+      (item) => item.arrival !== reservation.arrival || item.departure !== reservation.departure
+    );
+
+    if (dateMismatch) {
+      return [
+        {
+          id: `date-mismatch-${reservation.id}-${dateMismatch.id}`,
+          property: home?.name ?? "Unknown property",
+          dateRange: getSyncDateRangeLabel(reservation.arrival, reservation.departure),
+          message: `${reservation.source} dates do not exactly match the overlapping ${matchingSource} calendar item. Review both calendars before the next sync.`,
+          severity: "Medium",
+          status: dismissedIds.includes(`date-mismatch-${reservation.id}-${dateMismatch.id}`) ? "Dismissed" : "Open",
+        },
+      ];
+    }
+
+    return [];
+  });
+
+  const uniqueIssues = new Map<string, { id: string; property: string; dateRange: string; message: string; severity: string; status: string }>();
+  issues.forEach((issue) => uniqueIssues.set(issue.id, issue));
+  return Array.from(uniqueIssues.values());
 }
 
 function getSourceControlledMessage(source: ReservationSource) {
@@ -1288,11 +1346,9 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
     const itemNamePlaceholder =
       manualForm.source === "Cleaning"
         ? "Example: Mid-stay towel refresh"
-        : manualForm.source === "Maintenance"
-          ? "Example: Hot tub repair"
-          : manualForm.source === "Vendor Visit"
-            ? "Example: HVAC service visit"
-            : "Example: Damage check walkthrough";
+        : manualForm.source === "Vendor Visit"
+          ? "Example: HVAC service visit"
+          : "Example: Damage check walkthrough";
 
     return (
       <section className="manualPanel">
@@ -1325,7 +1381,6 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
               }}
             >
               <option value="Cleaning">Cleaning</option>
-              <option value="Maintenance">Maintenance</option>
               <option value="Vendor Visit">Vendor Visit</option>
               <option value="Inspection">Inspection</option>
             </select>
@@ -1368,33 +1423,6 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             </label>
           )}
 
-          {manualForm.source === "Maintenance" && (
-            <>
-              <label>
-                Priority
-                <select defaultValue="" onChange={(event) => setManualNoteValue("Maintenance Priority", event.target.value)}>
-                  <option value="" disabled>Select priority</option>
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Urgent">Urgent</option>
-                </select>
-              </label>
-
-              <label>
-                Issue Category
-                <select defaultValue="" onChange={(event) => setManualNoteValue("Maintenance Category", event.target.value)}>
-                  <option value="" disabled>Select category</option>
-                  <option value="General">General</option>
-                  <option value="Plumbing">Plumbing</option>
-                  <option value="HVAC">HVAC</option>
-                  <option value="Electrical">Electrical</option>
-                  <option value="Appliance">Appliance</option>
-                  <option value="Other">Other</option>
-                </select>
-              </label>
-            </>
-          )}
 
           {manualForm.source === "Vendor Visit" && (
             <>
@@ -1501,7 +1529,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             <div className="availabilityLegend">
               <span><i className="legendReservation" /> Reservation</span>
               <span><i className="legendOwner" /> Owner block</span>
-              <span><i className="legendMaintenance" /> Task / maintenance</span>
+              <span><i className="legendMaintenance" /> Task</span>
               <span><i className="legendConflict" /> Conflict</span>
               <span><i className="legendSelected" /> Selected</span>
             </div>
@@ -1575,7 +1603,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             <p className="eyebrow">Phase 2</p>
             <h2>Calendar</h2>
             <p className="headerSubtext">
-              See every reservation source in one scrollable operations calendar: VRBO, Airbnb, manual reservations, owner blocks, maintenance blocks, conflicts, and cleaner visibility.
+              See every reservation source in one scrollable operations calendar: VRBO, Airbnb, property tasks, conflicts, and cleaner visibility.
             </p>
           </div>
 
@@ -3450,8 +3478,8 @@ function renderReservationDetail() {
               <strong>{reservation.status}</strong>
             </div>
             <div>
-              <span>{reservation.source === "Vendor Visit" ? "Vendor / Cleaner" : "Assigned Cleaner"}</span>
-              <strong>{cleaner?.name ?? "Unassigned"}</strong>
+              <span>{reservation.source === "Cleaning" || imported ? "Assigned Cleaner" : "Task Owner"}</span>
+              <strong>{reservation.source === "Cleaning" || imported ? (cleaner?.name ?? "Unassigned") : reservation.status}</strong>
             </div>
           </div>
         </article>
@@ -3527,7 +3555,7 @@ function renderReservationDetail() {
                 }
               >
                   <option value="Cleaning">Cleaning</option>
-                <option value="Maintenance">Maintenance</option>
+               
                 <option value="Vendor Visit">Vendor Visit</option>
                 <option value="Inspection">Inspection</option>
               </select>
@@ -4487,33 +4515,7 @@ const blockedNights =
     const occupancyPercent = Math.round((guestNights / totalDays) * 100);
     const projectedOccupancy = Math.min(100, occupancyPercent + 7);
 
-    const occupancyDiscrepancies = [
-      {
-        id: "disc-1",
-        property: "Coates Cabin",
-        dateRange: "Jul 14–18",
-        message: "VRBO calendar is open while Airbnb is blocked.",
-        severity: "High",
-        status: dismissedDiscrepancies.includes("disc-1") ? "Dismissed" : "Open",
-      },
-      {
-        id: "disc-2",
-        property: "Pine Ridge Lodge",
-        dateRange: "Aug 3",
-        message: "Duplicate calendar block detected across calendar sources.",
-        severity: "Medium",
-        status: dismissedDiscrepancies.includes("disc-2") ? "Dismissed" : "Open",
-      },
-      {
-        id: "disc-3",
-        property: "Lakeview Retreat",
-        dateRange: "Sep 9–12",
-        message: "Reservation appears on Airbnb but is missing from VRBO.",
-        severity: "High",
-        status: dismissedDiscrepancies.includes("disc-3") ? "Dismissed" : "Open",
-      },
-    ];
-
+    const occupancyDiscrepancies = getCalendarSyncIssues(reservations, homes, dismissedDiscrepancies);
     const visibleDiscrepancies = occupancyDiscrepancies.filter((item) => item.status === "Open");
 
     return (
@@ -4573,7 +4575,7 @@ const blockedNights =
             <div className="panelHeader compact">
               <div>
                 <p className="eyebrow">Calendar QA</p>
-                <h3>Calendar Discrepancies</h3>
+                <h3>Calendar Sync Intelligence</h3>
               </div>
               <span className="occupancyAlertPill">{visibleDiscrepancies.length} open</span>
             </div>
@@ -4581,8 +4583,8 @@ const blockedNights =
             <div className="occupancyDiscrepancyStack">
               {visibleDiscrepancies.length === 0 ? (
                 <div className="emptyStateBox">
-                  <h4>No open discrepancies</h4>
-                  <p>Dismissed and fixed items stay in records for later audit history.</p>
+                  <h4>No open sync issues</h4>
+                  <p>VRBO and Airbnb imported items do not currently show obvious missing-counterpart or date-mismatch issues.</p>
                 </div>
               ) : (
                 visibleDiscrepancies.map((item) => (
@@ -4731,7 +4733,7 @@ const blockedNights =
         <p>
           This module is parked for a later phase so the Task Board and Calendar can stay stable.
         </p>
-        <button className="primaryButton" onClick={() => setActivePage("Task Board")}>
+        <button className="primaryButton" onClick={() => setActivePage("Reservations")}>
           Go to Reservations
         </button>
       </section>
@@ -4777,7 +4779,7 @@ const blockedNights =
         <nav className="ownerMobileNav" aria-label="Owner mobile navigation">
           {[
             { label: "Home", page: "Dashboard", icon: "⌂" },
-            { label: "Reservations", page: "Task Board", icon: "▦" },
+            { label: "Reservations", page: "Reservations", icon: "▦" },
             { label: "Calendar", page: "Calendar", icon: "◷" },
           ].map((item) => (
             <button
