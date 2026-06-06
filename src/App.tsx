@@ -365,25 +365,31 @@ function getNotesValue(notes: string | undefined, label: string) {
 
 function getReservationDisplayTitle(reservation: Reservation) {
   if (reservation.source === "Cleaning") {
-    return getNotesValue(reservation.notes, "Cleaning Type") || reservation.guestName || "Cleaning";
+    return getNotesValue(reservation.notes, "Cleaning Type") || "Cleaning";
   }
 
   if (reservation.source === "Maintenance") {
     const category = getNotesValue(reservation.notes, "Maintenance Category");
-    return category ? `Maintenance - ${category}` : reservation.guestName || "Maintenance";
+    return category ? `Maintenance - ${category}` : "Maintenance";
   }
 
   if (reservation.source === "Vendor Visit") {
     const vendorType = getNotesValue(reservation.notes, "Vendor Type");
-    return vendorType ? `Vendor Visit - ${vendorType}` : reservation.guestName || "Vendor Visit";
+    return vendorType ? `Vendor Visit - ${vendorType}` : "Vendor Visit";
   }
 
   if (reservation.source === "Inspection") {
     const inspectionType = getNotesValue(reservation.notes, "Inspection Type");
-    return inspectionType ? `${inspectionType}` : reservation.guestName || "Inspection";
+    return inspectionType || "Inspection";
   }
 
   return reservation.guestName;
+}
+
+function needsCleanerAssignment(reservation: Reservation) {
+  return (isImportedReservation(reservation) || reservation.source === "Cleaning") &&
+    reservation.status !== "Completed" &&
+    !reservation.cleanerId;
 }
 
 function getReservationDetailLabel(reservation: Reservation) {
@@ -513,6 +519,7 @@ export default function App()
   const [notifications, setNotifications] = useState<OwnerNotification[]>([]);
   const [selectedHome, setSelectedHome] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedItemType, setSelectedItemType] = useState("all");
   const [search, setSearch] = useState("");
   const [showManualForm, setShowManualForm] = useState(false);
   const [selectedCalendarHome, setSelectedCalendarHome] = useState("all");
@@ -623,12 +630,15 @@ useEffect(() => {
 ) {
   return false;
 }
+        if (selectedItemType === "reservations" && !isImportedReservation(reservation)) return false;
+        if (selectedItemType === "tasks" && !isTaskSource(reservation.source)) return false;
+        if (selectedItemType === "needs-cleaner" && !needsCleanerAssignment(reservation)) return false;
         if (search.trim() && !combined.includes(search.trim().toLowerCase())) return false;
 
         return true;
       })
       .sort((a, b) => a.arrival.localeCompare(b.arrival));
-  }, [reservations, search, selectedHome, selectedStatus]);
+  }, [reservations, search, selectedHome, selectedStatus, selectedItemType]);
 
 const boardStats = useMemo(() => {
   return {
@@ -947,6 +957,13 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
               </option>
             ))}
           </select>
+
+          <select value={selectedItemType} onChange={(event) => setSelectedItemType(event.target.value)}>
+            <option value="all">All items</option>
+            <option value="reservations">Imported reservations</option>
+            <option value="tasks">Property tasks</option>
+            <option value="needs-cleaner">Needs assigned cleaner</option>
+          </select>
         </section>
 
         {renderManualForm()}
@@ -987,7 +1004,14 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
   {isTask ? `${home?.name ?? "Unknown property"} · ${getReservationDetailLabel(reservation)}` : getReservationDetailLabel(reservation)}
 </p>
                   </div>
-                  <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
+                  <div className="dayBadges">
+                    {isTask && <span className="urgencyBadge normal">Property Task</span>}
+                    {needsCleanerAssignment(reservation) ? (
+                      <span className="urgencyBadge urgent">Needs Cleaner</span>
+                    ) : (
+                      <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="reservationMeta">
@@ -3133,7 +3157,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
 
   function renderDashboard() {
   const upcomingReservations = reservations
-    .filter((reservation) => reservation.status !== "Completed")
+    .filter((reservation) => isImportedReservation(reservation) && reservation.status !== "Completed")
     .sort((a, b) => a.arrival.localeCompare(b.arrival))
     .slice(0, 3);
 
@@ -3192,7 +3216,16 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
           </div>
         </button>
 
-        <button className="dashboardLaunchCard tasks" type="button" onClick={() => setActivePage("Reservations")}>
+        <button
+          className="dashboardLaunchCard tasks"
+          type="button"
+          onClick={() => {
+            setSelectedItemType("tasks");
+            setSelectedStatus("all");
+            setSearch("");
+            setActivePage("Reservations");
+          }}
+        >
           <span className="launchIcon">📋</span>
           <div>
             <h3>Property Tasks</h3>
@@ -3250,8 +3283,17 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
           })}
         </div>
 
-        <button className="primaryButton fullWidthButton" type="button" onClick={() => setActivePage("Reservations")}>
-          View All Reservations →
+        <button
+          className="primaryButton fullWidthButton"
+          type="button"
+          onClick={() => {
+            setSelectedItemType("reservations");
+            setSelectedStatus("all");
+            setSearch("");
+            setActivePage("Reservations");
+          }}
+        >
+          View Imported Reservations →
         </button>
       </section>
     </>
