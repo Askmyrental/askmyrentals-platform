@@ -4270,3 +4270,551 @@ button:disabled {
 .operationsCalendarPanel {
   display: none !important;
 }
+/* =========================================================
+   AMR MOBILE POLISH PASS 1
+   Calendar + Reservation Board only
+   Paste at VERY BOTTOM of App.css
+   ========================================================= */
+
+@media screen and (max-width: 768px) {
+  /* Page spacing */
+  .mainContent {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Reservation board filters */
+  .filtersPanel {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    padding: 14px !important;
+  }
+
+  /* Reservation cards */
+  .reservationGrid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .reservationCard {
+    padding: 15px !important;
+    border-radius: 22px !important;
+  }
+
+  .cardTop {
+    display: grid !important;
+    grid-template-columns: 44px 1fr !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+
+  .cardTop .dayBadges {
+    grid-column: 1 / -1 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-top: 4px !important;
+  }
+
+  .homeBadge {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 15px !important;
+    font-size: 13px !important;
+  }
+
+  .cardTop h3 {
+    font-size: 19px !important;
+    line-height: 1.15 !important;
+  }
+
+  .cardTop p {
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+  }
+
+  .urgencyBadge {
+    margin-left: 0 !important;
+    width: fit-content !important;
+    font-size: 11px !important;
+    padding: 6px 9px !important;
+  }
+
+  .reservationMeta {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    margin: 14px 0 !important;
+  }
+
+  .reservationMeta div {
+    border-radius: 15px !important;
+    padding: 11px !important;
+  }
+
+  .assignmentRow {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .statusRail {
+    gap: 5px !important;
+  }
+
+  .cardActions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 9px !important;
+  }
+
+  .cardActions button {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  /* Calendar layout */
+  .calendarLayout {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+  }
+
+  .calendarPanel {
+    padding: 10px !important;
+    border-radius: 22px !important;
+    overflow: visible !important;
+  }
+
+  .taskBoardCalendarBox,
+  .calendarPageCalendarBox {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 10px !important;
+    border-radius: 18px !important;
+  }
+
+  .stackedMonthCard {
+    margin-bottom: 18px !important;
+  }
+
+  .stackedMonthHeader h3 {
+    font-size: 17px !important;
+    margin: 0 0 10px !important;
+    padding: 0 !important;
+  }
+
+  .stackedWeekdayGrid {
+    display: grid !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+    margin-bottom: 5px !important;
+  }
+
+  .stackedWeekdayGrid span {
+    font-size: 9px !important;
+    text-align: center !important;
+    font-weight: 900 !important;
+    color: #64748b !important;
+    padding: 4px 0 !important;
+  }
+
+  .stackedCalendarGrid {
+    display: grid !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+  }
+
+  .stackedCalendarDay {
+    min-height: 68px !important;
+    height: 68px !important;
+    padding: 4px !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+  }
+
+  .stackedCalendarDay.mutedDay {
+    opacity: 0.45 !important;
+    background: #f8fafc !important;
+  }
+
+  .dayTop {
+    margin-bottom: 0 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+  }
+
+  .dayTop span {
+    font-size: 9px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+  }
+
+  .dayBadges {
+    display: flex !important;
+    gap: 2px !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+  }
+
+  .b2bBadge,
+  .conflictBadge {
+    font-size: 6px !important;
+    padding: 1px 3px !important;
+    border-radius: 999px !important;
+    line-height: 1.1 !important;
+  }
+
+  .dayEvents {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    margin-top: 1px !important;
+  }
+
+  .calendarEvent,
+  .stackedCalendarEvent {
+    min-height: 12px !important;
+    height: 12px !important;
+    border-radius: 4px !important;
+    padding: 0 3px !important;
+    font-size: 0 !important;
+    display: block !important;
+    overflow: hidden !important;
+  }
+
+  .calendarEvent span,
+  .calendarEvent small,
+  .stackedCalendarEvent span,
+  .stackedCalendarEvent small {
+    display: none !important;
+  }
+
+  .sourceVRBO,
+  .calendarEvent.sourceVRBO,
+  .stackedCalendarEvent.sourceVRBO {
+    background: #2563eb !important;
+  }
+
+  .sourceAirbnb,
+  .calendarEvent.sourceAirbnb,
+  .stackedCalendarEvent.sourceAirbnb {
+    background: #ef4444 !important;
+  }
+
+  .sourceCleaning,
+  .calendarEvent.sourceCleaning,
+  .stackedCalendarEvent.sourceCleaning {
+    background: #22c55e !important;
+  }
+
+  .sourceVendorVisit,
+  .calendarEvent.sourceVendorVisit,
+  .stackedCalendarEvent.sourceVendorVisit {
+    background: #f97316 !important;
+  }
+
+  .sourceInspection,
+  .calendarEvent.sourceInspection,
+  .stackedCalendarEvent.sourceInspection {
+    background: #8b5cf6 !important;
+  }
+
+  .blockOwnerBlock {
+    background: #6b7280 !important;
+  }
+
+  .blockMaintenance {
+    background: #f59e0b !important;
+  }
+
+  .moreEvents {
+    font-size: 7px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+  }
+
+  /* Selected calendar date panel */
+  .calendarDetailPanel {
+    order: -1 !important;
+    position: static !important;
+    padding: 16px !important;
+    border-radius: 22px !important;
+  }
+
+  .calendarDetailPanel h3 {
+    font-size: 22px !important;
+  }
+
+  .dashboardReservationCards {
+    display: grid !important;
+    gap: 10px !important;
+  }
+
+  .dashboardReservationCard {
+    border-radius: 18px !important;
+    padding: 14px !important;
+    text-align: left !important;
+  }
+
+  .reservationPreviewMeta {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+}
+
+@media screen and (max-width: 390px) {
+  .stackedCalendarDay {
+    min-height: 60px !important;
+    height: 60px !important;
+    padding: 3px !important;
+  }
+
+  .calendarEvent,
+  .stackedCalendarEvent {
+    min-height: 10px !important;
+    height: 10px !important;
+  }
+
+  .stackedWeekdayGrid span {
+    font-size: 8px !important;
+  }
+}
+/* ===================================================
+   AMR MOBILE POLISH PUSH #1
+   =================================================== */
+
+@media (max-width: 768px) {
+
+  /* Calendar layout */
+  .calendarLayout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .calendarToolbar {
+    grid-template-columns: 1fr !important;
+  }
+
+  .calendarToolbar strong {
+    font-size: 20px !important;
+  }
+
+  /* Calendar grid */
+  .weekdayGrid,
+  .calendarGrid {
+    grid-template-columns: repeat(7, minmax(40px, 1fr)) !important;
+  }
+
+  .weekdayGrid {
+    gap: 4px !important;
+  }
+
+  .weekdayGrid div {
+    font-size: 10px !important;
+    text-align: center;
+    padding: 0 !important;
+  }
+
+  .calendarGrid {
+    gap: 4px !important;
+  }
+
+  .calendarDay {
+    min-height: 90px !important;
+    padding: 4px !important;
+    border-radius: 12px !important;
+  }
+
+  .dayTop {
+    margin-bottom: 4px !important;
+  }
+
+  .dayTop span {
+    font-size: 11px !important;
+  }
+
+  /* Events */
+  .calendarEvent {
+    padding: 4px !important;
+    border-radius: 8px !important;
+  }
+
+  .calendarEvent span {
+    font-size: 10px !important;
+  }
+
+  .calendarEvent small {
+    display: none !important;
+  }
+
+  /* Property page */
+  .propertiesLayout {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Cleaner page */
+  .cleanerTaskDetails {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cleanerActionGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Availability calendar */
+  .availabilityWeekdays {
+    grid-template-columns: repeat(7, 36px) !important;
+    gap: 3px !important;
+  }
+
+  .availabilityGrid {
+    grid-template-columns: repeat(7, 36px) !important;
+    gap: 3px !important;
+  }
+
+  .availabilityDay {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 11px !important;
+  }
+
+  .availabilityMonthScroller {
+    max-height: 500px !important;
+  }
+}
+/* ===================================================
+   AMR MOBILE POLISH PUSH #2
+   Reservations + Calendar Detail Cards
+   Paste at VERY BOTTOM of App.css
+   =================================================== */
+
+@media (max-width: 768px) {
+  /* Reservation board cards */
+  .reservationGrid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .reservationCard {
+    padding: 14px !important;
+    border-radius: 22px !important;
+  }
+
+  .cardTop {
+    display: grid !important;
+    grid-template-columns: 44px 1fr !important;
+    gap: 10px !important;
+  }
+
+  .cardTop h3 {
+    font-size: 18px !important;
+    line-height: 1.15 !important;
+  }
+
+  .cardTop p {
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+  }
+
+  .cardTop .dayBadges {
+    grid-column: 1 / -1 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .reservationMeta {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    margin: 12px 0 !important;
+  }
+
+  .assignmentRow {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .cardActions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .cardActions button,
+  .primaryButton,
+  .ghostButton {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  /* Calendar selected day cards */
+  .calendarDetailPanel {
+    position: static !important;
+    padding: 14px !important;
+    border-radius: 22px !important;
+  }
+
+  .dashboardReservationCards {
+    display: grid !important;
+    gap: 10px !important;
+  }
+
+  .dashboardReservationCard {
+    width: 100% !important;
+    padding: 14px !important;
+    border-radius: 18px !important;
+    text-align: left !important;
+  }
+
+  .dashboardReservationCard h3 {
+    font-size: 18px !important;
+    line-height: 1.15 !important;
+  }
+
+  .dashboardReservationCard p {
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+  }
+
+  .reservationPreviewMeta {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .assignedCleanerLine {
+    margin-top: 10px !important;
+  }
+
+  /* Dashboard mobile polish */
+  .dashboardHeroGrid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .dashboardLaunchCard {
+    min-height: 108px !important;
+    padding: 16px !important;
+    border-radius: 22px !important;
+  }
+
+  .dashboardLaunchCard h3 {
+    font-size: 19px !important;
+  }
+
+  .dashboardLaunchCard strong {
+    font-size: 15px !important;
+  }
+
+  .dashboardReservationsSection {
+    padding: 14px !important;
+    border-radius: 22px !important;
+  }
+}
