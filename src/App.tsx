@@ -3893,14 +3893,8 @@ const ownerNights =
       const start = toDate(reservation.arrival);
       const end = toDate(reservation.departure);
       return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
-    }, 0) +
-  calendarBlocks
-    .filter((block) => block.type === "Owner Block")
-    .reduce((total, block) => {
-      const start = toDate(block.start);
-      const end = toDate(block.end);
-      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
     }, 0);
+
 
 const blockedNights =
   reservations
