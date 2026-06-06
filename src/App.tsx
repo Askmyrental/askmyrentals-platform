@@ -690,7 +690,7 @@ useEffect(() => {
 ) {
   return false;
 }
-        if (selectedItemType === "reservations" && !isImportedReservation(reservation)) return false;
+        if ((selectedItemType === "all" || selectedItemType === "reservations") && !isImportedReservation(reservation)) return false;
         if (selectedItemType === "tasks" && !isTaskSource(reservation.source)) return false;
         if (selectedItemType === "needs-cleaner" && !needsCleanerAssignment(reservation)) return false;
         if (search.trim() && !combined.includes(search.trim().toLowerCase())) return false;
@@ -701,18 +701,37 @@ useEffect(() => {
   }, [reservations, search, selectedHome, selectedStatus, selectedItemType]);
 
 const boardStats = useMemo(() => {
+  const importedReservations = reservations.filter((item) => isImportedReservation(item));
+  const futureReservations = importedReservations.filter((item) => item.departure >= toInputDate(new Date()));
+  const pastReservations = importedReservations.filter((item) => item.departure < toInputDate(new Date()));
+  const unassignedReservations = importedReservations.filter(
+    (item) => item.status !== "Completed" && item.status !== "Blocked" && !item.cleanerId
+  );
+  const inProcessReservations = importedReservations.filter((item) => item.status === "In Process");
+
   return {
-    total: reservations.length,
-    unassigned: reservations.filter((item) => item.status === "Unassigned" || !item.cleanerId).length,
-    inProcess: reservations.filter((item) => item.status === "In Process").length,
-    completed: reservations.filter((item) => item.status === "Completed").length,
+    total: importedReservations.length,
+    future: futureReservations.length,
+    past: pastReservations.length,
+    unassigned: unassignedReservations.length,
+    inProcess: inProcessReservations.length,
   };
 }, [reservations]);
 
- 
+const propertyTaskStats = useMemo(() => {
+  const propertyTasks = reservations.filter((item) => isTaskSource(item.source));
+  const openTasks = propertyTasks.filter((item) => item.status !== "Completed");
+  const cleaningTasksNeedingCleaner = propertyTasks.filter((item) => needsCleanerAssignment(item));
+  const upcomingTasks = propertyTasks.filter((item) => item.arrival >= toInputDate(new Date()));
 
-  
-  
+  return {
+    total: propertyTasks.length,
+    open: openTasks.length,
+    needCleaner: cleaningTasksNeedingCleaner.length,
+    upcoming: upcomingTasks.length,
+  };
+}, [reservations]);
+
 
   function updateReservation(id: string, updates: Partial<Reservation>) {
     let updatedReservation: Reservation | null = null;
@@ -991,9 +1010,13 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
         <header className="pageHeader">
           <div>
             <p className="eyebrow">Phase 1</p>
-            <h2>Reservations</h2>
+            <h2>{selectedItemType === "tasks" ? "Property Tasks" : selectedItemType === "needs-cleaner" ? "Needs Cleaner Assignment" : "Reservations"}</h2>
             <p className="headerSubtext">
-              Track imported reservations, cleaner assignments, property tasks, and owner review items.
+              {selectedItemType === "tasks"
+                ? "Review scheduled property tasks such as cleanings, vendor visits, and inspections."
+                : selectedItemType === "needs-cleaner"
+                  ? "Imported reservations and cleaning tasks that still need a cleaner assigned."
+                  : "Review imported VRBO/Airbnb reservations, cleaner assignments, upcoming stays, and reservation status."}
             </p>
           </div>
 
@@ -1003,22 +1026,45 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
         </header>
 
         <section className="statsGrid">
-          <div className="statCard">
-            <span>Total items</span>
-            <strong>{boardStats.total}</strong>
-          </div>
-          <div className="statCard">
-            <span>Unassigned</span>
-            <strong>{boardStats.unassigned}</strong>
-          </div>
-          <div className="statCard">
-            <span>Ready</span>
-            <strong>{boardStats.inProcess}</strong>
-          </div>
-          <div className="statCard warning">
-            <span>In Process</span>
-            <strong>{boardStats.completed}</strong>
-          </div>
+          {selectedItemType === "tasks" ? (
+            <>
+              <div className="statCard">
+                <span>Total Tasks</span>
+                <strong>{propertyTaskStats.total}</strong>
+              </div>
+              <div className="statCard warning">
+                <span>Open Tasks</span>
+                <strong>{propertyTaskStats.open}</strong>
+              </div>
+              <div className="statCard">
+                <span>Upcoming Tasks</span>
+                <strong>{propertyTaskStats.upcoming}</strong>
+              </div>
+              <div className="statCard">
+                <span>Need Cleaner</span>
+                <strong>{propertyTaskStats.needCleaner}</strong>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="statCard">
+                <span>Total Reservations</span>
+                <strong>{boardStats.total}</strong>
+              </div>
+              <div className="statCard warning">
+                <span>Need Cleaner</span>
+                <strong>{boardStats.unassigned}</strong>
+              </div>
+              <div className="statCard">
+                <span>Future Reservations</span>
+                <strong>{boardStats.future}</strong>
+              </div>
+              <div className="statCard">
+                <span>In Process</span>
+                <strong>{boardStats.inProcess}</strong>
+              </div>
+            </>
+          )}
         </section>
 
         <section className="filtersPanel">
@@ -1047,7 +1093,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
           </select>
 
           <select value={selectedItemType} onChange={(event) => setSelectedItemType(event.target.value)}>
-            <option value="all">All items</option>
+            <option value="all">All reservations</option>
             <option value="reservations">Imported reservations</option>
             <option value="tasks">Property tasks</option>
             <option value="needs-cleaner">Needs assigned cleaner</option>
@@ -1295,7 +1341,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
 
 {filteredReservations.length === 0 && (
   <div className="emptyState">
-    No reservations match your current filters.
+    {selectedItemType === "tasks" ? "No property tasks match your current filters." : "No reservations match your current filters."}
   </div>
 )}
         </section>
