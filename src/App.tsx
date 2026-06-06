@@ -1132,7 +1132,10 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
 
           <label>
             Home
-            <select value={manualForm.homeId} onChange={(event) => setManualForm({ ...manualForm, homeId: event.target.value })}>
+            <select
+  value={manualForm.homeId || selectedPropertyId || homes[0]?.id || ""}
+  onChange={(event) => setManualForm({ ...manualForm, homeId: event.target.value })}
+>
               {homes.map((home) => (
                 <option key={home.id} value={home.id}>
                   {home.name}
@@ -1213,7 +1216,8 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                   <div className="availabilityGrid">
                     {month.days.map((day) => {
                       const dateKey = toInputDate(day.date);
-                      const availabilityClass = getDateAvailabilityClass(day.date, manualForm.homeId, reservations, calendarBlocks);
+                     const activeManualHomeId = manualForm.homeId || selectedPropertyId || homes[0]?.id || "";
+const availabilityClass = getDateAvailabilityClass(day.date, activeManualHomeId, reservations, calendarBlocks);
                       const isSelectedRange = selectedDateRangeActive && dateKey >= manualForm.arrival && dateKey <= manualForm.departure;
 
                       return (
