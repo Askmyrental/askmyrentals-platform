@@ -354,6 +354,54 @@ function isTaskSource(source: ReservationSource) {
   return source === "Cleaning" || source === "Maintenance" || source === "Vendor Visit" || source === "Inspection";
 }
 
+function getNotesValue(notes: string | undefined, label: string) {
+  const prefix = `${label}:`;
+  const line = (notes ?? "")
+    .split("\n")
+    .find((item) => item.startsWith(prefix));
+
+  return line ? line.slice(prefix.length).trim() : "";
+}
+
+function getReservationDisplayTitle(reservation: Reservation) {
+  if (reservation.source === "Cleaning") {
+    return getNotesValue(reservation.notes, "Cleaning Type") || reservation.guestName || "Cleaning";
+  }
+
+  if (reservation.source === "Maintenance") {
+    const category = getNotesValue(reservation.notes, "Maintenance Category");
+    return category ? `Maintenance - ${category}` : reservation.guestName || "Maintenance";
+  }
+
+  if (reservation.source === "Vendor Visit") {
+    const vendorType = getNotesValue(reservation.notes, "Vendor Type");
+    return vendorType ? `Vendor Visit - ${vendorType}` : reservation.guestName || "Vendor Visit";
+  }
+
+  if (reservation.source === "Inspection") {
+    const inspectionType = getNotesValue(reservation.notes, "Inspection Type");
+    return inspectionType ? `${inspectionType}` : reservation.guestName || "Inspection";
+  }
+
+  return reservation.guestName;
+}
+
+function getReservationDetailLabel(reservation: Reservation) {
+  if (isTaskSource(reservation.source)) return `${reservation.source} Task`;
+  if (isImportedReservation(reservation)) return "Imported Reservation";
+  return reservation.source;
+}
+
+function getTaskDayCount(reservations: Reservation[]) {
+  return reservations
+    .filter((reservation) => isTaskSource(reservation.source))
+    .reduce((total, reservation) => {
+      const start = toDate(reservation.arrival);
+      const end = toDate(reservation.departure || reservation.arrival);
+      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+    }, 0);
+}
+
 function getSourceControlledMessage(source: ReservationSource) {
   return `Imported from ${source}. To change or remove this reservation, update it in ${source} and re-sync.`;
 }
@@ -531,7 +579,7 @@ useEffect(() => {
   const [manualForm, setManualForm] = useState({
     guestName: "",
     homeId: homes[0]?.id ?? "",
-    source: "Owner Block" as ReservationSource,
+    source: "Cleaning" as ReservationSource,
     arrival: "",
     departure: "",
     notes: "",
@@ -652,11 +700,7 @@ async function createManualReservation(event: React.FormEvent<HTMLFormElement>) 
   const effectiveDeparture = isPropertyTask ? manualForm.arrival : manualForm.departure;
 
   if (!manualForm.guestName || !selectedManualHomeId || !manualForm.arrival || !effectiveDeparture) {
-    alert(
-      isPropertyTask
-        ? "Please complete the task name, property, and task date."
-        : "Please complete the block name, property, start date, and end date."
-    );
+    alert("Please complete the task name, property, and task date.");
     return;
   }
 
@@ -668,28 +712,8 @@ async function createManualReservation(event: React.FormEvent<HTMLFormElement>) 
     return;
   }
 
-  const conflictCount = manualForm.source === "Owner Block"
-    ? getReservationConflictCount(
-        {
-          homeId: selectedManualHomeId,
-          arrival: manualForm.arrival,
-          departure: effectiveDeparture,
-        },
-        reservations
-      )
-    : 0;
-
-  const home = homes.find((item) => item.id === selectedManualHomeId);
-
-  const conflictNote =
-    conflictCount > 0
-      ? `Conflict warning: overlaps ${conflictCount} existing reservation or owner block for ${home?.name ?? "this home"}.`
-      : "";
-
-  const timeline =
-    conflictCount > 0
-      ? [`AMR ${manualForm.source} created`, conflictNote, "Saved with conflict for owner review"]
-      : [`AMR ${manualForm.source} created`];
+  const conflictNote = "";
+  const timeline = [`AMR ${manualForm.source} task created`];
 
   const { error } = await supabase.from("reservations").insert({
     owner_id: user.id,
@@ -698,7 +722,7 @@ async function createManualReservation(event: React.FormEvent<HTMLFormElement>) 
     source: manualForm.source,
     arrival: manualForm.arrival,
     departure: effectiveDeparture,
-    status: manualForm.source === "Owner Block" ? "Blocked" : "Unassigned",
+    status: "Unassigned",
     cleaner_id: null,
     notes: [manualForm.notes, conflictNote].filter(Boolean).join("\n"),
     timeline,
@@ -715,7 +739,7 @@ async function createManualReservation(event: React.FormEvent<HTMLFormElement>) 
   setManualForm({
     guestName: "",
     homeId: homes[0]?.id ?? "",
-    source: "Owner Block",
+    source: "Cleaning",
     arrival: "",
     departure: "",
     notes: "",
@@ -828,10 +852,10 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
   
   setSelectedCalendarItem(reservation);
 }}
-                              title={`${reservation.guestName} · ${home?.name ?? ""}`}
+                              title={`${getReservationDisplayTitle(reservation)} · ${home?.name ?? ""}`}
                             >
-                              <span>{home?.shortName ? `${home.shortName} · ${reservation.guestName}` : reservation.guestName}</span>
-                              <small>{cleaner?.name ?? reservation.source}</small>
+                              <span>{home?.shortName ? `${home.shortName} · ${getReservationDisplayTitle(reservation)}` : getReservationDisplayTitle(reservation)}</span>
+                              <small>{cleaner?.name ?? getReservationDetailLabel(reservation)}</small>
                             </button>
                           );
                         })}
@@ -871,7 +895,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             <p className="eyebrow">Phase 1</p>
             <h2>Reservations</h2>
             <p className="headerSubtext">
-              Track stays, cleaner assignments, turnover status, manual reservations, and owner review items.
+              Track imported reservations, cleaner assignments, property tasks, and owner review items.
             </p>
           </div>
 
@@ -882,7 +906,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
 
         <section className="statsGrid">
           <div className="statCard">
-            <span>Total reservations</span>
+            <span>Total items</span>
             <strong>{boardStats.total}</strong>
           </div>
           <div className="statCard">
@@ -931,8 +955,8 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
           <div className="panelHeader compact">
             <div>
               <p className="eyebrow">Operations calendar</p>
-              <h3>Scrollable Reservation Calendar</h3>
-              <p className="mutedText">Scroll through upcoming months without clicking next. Use the filters above to focus this calendar by property.</p>
+              <h3>Scrollable Operations Calendar</h3>
+              <p className="mutedText">Scroll through upcoming months without clicking next. Use the filters above to focus reservations and tasks by property.</p>
             </div>
           </div>
          <div className="taskBoardCalendarBox">
@@ -958,11 +982,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                   <div>
                     <h3>{home?.name ?? "Imported reservation"}</h3>
                     <p>
-  {isImportedReservation(reservation)
-    ? "Imported reservation"
-    : isTaskSource(reservation.source)
-      ? "Property task"
-      : "Owner Block"}
+  {getReservationDetailLabel(reservation)}
 </p>
                   </div>
                   <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
@@ -1175,28 +1195,24 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
       setManualForm({ ...manualForm, departure: dateKey });
     }
 
-    const itemNameLabel = manualForm.source === "Owner Block" ? "Block name" : "Task name";
+    const itemNameLabel = "Task name";
     const itemNamePlaceholder =
-      manualForm.source === "Owner Block"
-        ? "Owner stay, family use, personal block"
-        : manualForm.source === "Cleaning"
-          ? "Example: Mid-stay towel refresh"
-          : manualForm.source === "Maintenance"
-            ? "Example: Hot tub repair"
-            : manualForm.source === "Vendor Visit"
-              ? "Example: HVAC service visit"
-              : "Example: Damage check walkthrough";
+      manualForm.source === "Cleaning"
+        ? "Example: Mid-stay towel refresh"
+        : manualForm.source === "Maintenance"
+          ? "Example: Hot tub repair"
+          : manualForm.source === "Vendor Visit"
+            ? "Example: HVAC service visit"
+            : "Example: Damage check walkthrough";
 
     return (
       <section className="manualPanel">
         <div className="panelHeader">
           <div>
             <p className="eyebrow">Manual add</p>
-            <h3>{manualForm.source === "Owner Block" ? "Add Owner Block" : `Add ${manualForm.source} Task`}</h3>
+            <h3>Add {manualForm.source} Task</h3>
             <p className="mutedText">
-              {manualForm.source === "Owner Block"
-                ? "Owner blocks make the property unavailable and are included in occupancy reporting."
-                : "Property tasks appear on the calendar for operations but do not count as guest reservations."}
+              Property tasks appear on the calendar for operations but do not count as guest reservations.
             </p>
           </div>
           <button className="ghostButton" onClick={() => setShowManualForm(false)} type="button">
@@ -1219,7 +1235,6 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                 });
               }}
             >
-              <option value="Owner Block">Owner Block</option>
               <option value="Cleaning">Cleaning</option>
               <option value="Maintenance">Maintenance</option>
               <option value="Vendor Visit">Vendor Visit</option>
@@ -1456,7 +1471,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
           </label>
 
           <button className="primaryButton" type="submit">
-            Save {manualForm.source === "Owner Block" ? "Owner Block" : `${manualForm.source} Task`}
+            Save {manualForm.source} Task
           </button>
         </form>
       </section>
@@ -3404,8 +3419,7 @@ function renderReservationDetail() {
                   })
                 }
               >
-                <option value="Owner Block">Owner Block</option>
-                <option value="Cleaning">Cleaning</option>
+                  <option value="Cleaning">Cleaning</option>
                 <option value="Maintenance">Maintenance</option>
                 <option value="Vendor Visit">Vendor Visit</option>
                 <option value="Inspection">Inspection</option>
@@ -3971,7 +3985,11 @@ function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) 
   function renderCleanerPortal() {
     const activeCleaner = cleaners.find((cleaner) => cleaner.id === cleanerPortalId) ?? cleaners[0];
     const cleanerTasks = reservations
-      .filter((reservation) => reservation.cleanerId === activeCleaner?.id)
+      .filter(
+        (reservation) =>
+          reservation.cleanerId === activeCleaner?.id &&
+          (isImportedReservation(reservation) || reservation.source === "Cleaning")
+      )
       .sort((a, b) => a.arrival.localeCompare(b.arrival));
     const urgentTasks = cleanerTasks.filter((reservation) => {
       const urgency = getUrgency(reservation.arrival);
@@ -4325,10 +4343,6 @@ function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) 
   function renderOccupancy() {
     const totalDays = 365;
 
-const occupancyBlockSources: ReservationSource[] = [
-  "Owner Block",
-];
-
 const guestNights = reservations
   .filter(
     (reservation) =>
@@ -4341,17 +4355,7 @@ const guestNights = reservations
     return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
   }, 0);
 
-const ownerNights =
-  reservations
-    .filter(
-  (reservation) => occupancyBlockSources.includes(reservation.source)
-)
-    .reduce((total, reservation) => {
-      const start = toDate(reservation.arrival);
-      const end = toDate(reservation.departure);
-      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
-    }, 0);
-
+const taskDays = getTaskDayCount(reservations);
 
 const blockedNights =
   reservations
@@ -4368,7 +4372,7 @@ const blockedNights =
       const end = toDate(block.end);
       return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
     }, 0);
-    const openNights = Math.max(0, totalDays - guestNights - ownerNights - blockedNights);
+    const openNights = Math.max(0, totalDays - guestNights - blockedNights);
     const occupancyPercent = Math.round((guestNights / totalDays) * 100);
     const projectedOccupancy = Math.min(100, occupancyPercent + 7);
 
@@ -4385,7 +4389,7 @@ const blockedNights =
         id: "disc-2",
         property: "Pine Ridge Lodge",
         dateRange: "Aug 3",
-        message: "Duplicate owner block detected across calendar sources.",
+        message: "Duplicate calendar block detected across calendar sources.",
         severity: "Medium",
         status: dismissedDiscrepancies.includes("disc-2") ? "Dismissed" : "Open",
       },
@@ -4408,7 +4412,7 @@ const blockedNights =
             <p className="eyebrow">Owner intelligence</p>
             <h2>Occupancy</h2>
             <p className="headerSubtext">
-              Track guest nights, owner nights, blocked nights, open inventory, projections, and calendar discrepancies.
+              Track guest nights, blocked nights, open inventory, AMR task days, projections, and calendar discrepancies.
             </p>
           </div>
 
@@ -4434,15 +4438,15 @@ const blockedNights =
           <article className="occupancyCard">
             <span>Blocked Nights</span>
             <strong>{blockedNights}</strong>
-            <p>Maintenance and unavailable dates</p>
+            <p>Imported blocked or unavailable nights</p>
           </article>
 
           <article className="occupancyCard">
-  <span>Owner Block Nights</span>
-  <strong>{ownerNights}</strong>
-  <p>Owner-created unavailable nights</p>
+  <span>AMR Task Days</span>
+  <strong>{taskDays}</strong>
+  <p>Operational task days scheduled in Ask My Rentals.</p>
   <small className="mutedText">
-    Not synced to VRBO or Airbnb
+    These do not affect guest occupancy.
   </small>
 </article>
 
@@ -4539,8 +4543,8 @@ const blockedNights =
                 <strong>{guestNights}</strong>
               </div>
               <div className="occupancyReportRow">
-                <span>Owner nights</span>
-                <strong>{ownerNights}</strong>
+                <span>AMR task days</span>
+                <strong>{taskDays}</strong>
               </div>
               <div className="occupancyReportRow">
                 <span>Blocked nights</span>
