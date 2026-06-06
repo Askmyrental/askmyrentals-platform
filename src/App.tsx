@@ -621,10 +621,12 @@ const boardStats = useMemo(() => {
 async function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
-  if (!manualForm.guestName || !manualForm.homeId || !manualForm.arrival || !manualForm.departure) {
-    alert("Please complete the reservation/block name, property, arrival, and departure.");
-    return;
-  }
+const selectedManualHomeId = manualForm.homeId || selectedPropertyId || homes[0]?.id || "";
+
+if (!manualForm.guestName || !selectedManualHomeId || !manualForm.arrival || !manualForm.departure) {
+  alert("Please complete the reservation/block name, property, arrival, and departure.");
+  return;
+}
 
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -636,14 +638,14 @@ async function createManualReservation(event: React.FormEvent<HTMLFormElement>) 
 
   const conflictCount = getReservationConflictCount(
     {
-      homeId: manualForm.homeId,
+      homeId: selectedManualHomeId,
       arrival: manualForm.arrival,
       departure: manualForm.departure,
     },
     reservations
   );
 
-  const home = homes.find((item) => item.id === manualForm.homeId);
+  const home = homes.find((item) => item.id === selectedManualHomeId);
 
   const conflictNote =
     conflictCount > 0
@@ -657,7 +659,7 @@ async function createManualReservation(event: React.FormEvent<HTMLFormElement>) 
 
   const { error } = await supabase.from("reservations").insert({
     owner_id: user.id,
-    property_id: manualForm.homeId,
+    property_id: selectedManualHomeId,
     guest_name: manualForm.guestName,
     source: manualForm.source,
     arrival: manualForm.arrival,
