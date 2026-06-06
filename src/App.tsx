@@ -898,6 +898,11 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
 
 
   function renderReservationBoard() {
+    const reservationsNeedingCleaner = reservations
+      .filter((reservation) => needsCleanerAssignment(reservation) && isImportedReservation(reservation))
+      .filter((reservation) => selectedHome === "all" || reservation.homeId === selectedHome)
+      .sort((a, b) => a.arrival.localeCompare(b.arrival));
+
     return (
       <>
         <header className="pageHeader">
@@ -967,6 +972,62 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
         </section>
 
         {renderManualForm()}
+
+        {selectedItemType === "tasks" && reservationsNeedingCleaner.length > 0 && (
+          <section className="manualPanel">
+            <div className="panelHeader compact">
+              <div>
+                <p className="eyebrow">Needs cleaner assignment</p>
+                <h3>{reservationsNeedingCleaner.length} reservation{reservationsNeedingCleaner.length === 1 ? "" : "s"} need a cleaner</h3>
+                <p className="mutedText">These are imported reservations that still need housekeeping assigned. Property tasks are listed below.</p>
+              </div>
+            </div>
+
+            <div className="dashboardReservationCards">
+              {reservationsNeedingCleaner.slice(0, 4).map((reservation) => {
+                const home = homes.find((item) => item.id === reservation.homeId);
+
+                return (
+                  <button
+                    key={`needs-cleaner-${reservation.id}`}
+                    type="button"
+                    className="dashboardReservationCard"
+                    onClick={() => {
+                      setSelectedCalendarItem(reservation);
+                      setActivePage("Reservation Detail");
+                    }}
+                  >
+                    <span className="urgencyBadge urgent">Needs Cleaner</span>
+                    <h3>{home?.name ?? "Imported reservation"}</h3>
+                    <p>{reservation.source} · {reservation.guestName}</p>
+
+                    <div className="reservationPreviewMeta">
+                      <div>
+                        <span>Arrival</span>
+                        <strong>{formatDate(reservation.arrival)}</strong>
+                      </div>
+
+                      <div>
+                        <span>Departure</span>
+                        <strong>{formatDate(reservation.departure)}</strong>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {reservationsNeedingCleaner.length > 4 && (
+              <button
+                className="secondaryButton fullWidthButton"
+                type="button"
+                onClick={() => setSelectedItemType("needs-cleaner")}
+              >
+                View all reservations needing cleaners →
+              </button>
+            )}
+          </section>
+        )}
 
         <section className="operationsCalendarPanel">
           <div className="panelHeader compact">
@@ -3169,9 +3230,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
   const urgentWorkOrders = workOrders.filter(
     (order) => order.urgency === "High" || order.urgency === "After Hours"
   );
-  const criticalTasks = openPropertyTasks.filter(
-    (item) => item.source === "Maintenance" || item.status === "In Process"
-  );
+  
 
   function openReservationFromDashboard(reservation: Reservation) {
     setSelectedCalendarItem(reservation);
@@ -3230,7 +3289,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
           <div>
             <h3>Property Tasks</h3>
             <strong>{openPropertyTasks.length} Open Tasks</strong>
-            <p>{criticalTasks.length} Need Review</p>
+            <p>{unassignedReservations} Need Cleaner</p>
           </div>
         </button>
       </section>
