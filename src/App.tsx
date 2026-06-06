@@ -1730,13 +1730,24 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
   function createOwnerWorkOrder(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!ownerWorkOrderForm.homeId || !ownerWorkOrderForm.title.trim()) return;
+    const selectedWorkOrderHomeId = ownerWorkOrderForm.homeId || selectedPropertyId || homes[0]?.id || "";
+    const workOrderTitle = ownerWorkOrderForm.title.trim();
+
+    if (!selectedWorkOrderHomeId) {
+      window.alert("Please create or select a property before creating a work order.");
+      return;
+    }
+
+    if (!workOrderTitle) {
+      window.alert("Please enter an issue title before saving the work order.");
+      return;
+    }
 
     const selectedVendor = vendors.find((vendor) => vendor.id === ownerWorkOrderForm.vendorId);
     const nextWorkOrder: WorkOrder = {
       id: `wo-${Date.now()}`,
-      homeId: ownerWorkOrderForm.homeId,
-      title: ownerWorkOrderForm.title.trim(),
+      homeId: selectedWorkOrderHomeId,
+      title: workOrderTitle,
       category: ownerWorkOrderForm.category,
       urgency: ownerWorkOrderForm.urgency,
       status: ownerWorkOrderForm.vendorId ? "Assigned" : "New",
@@ -2956,7 +2967,7 @@ async function autoFillListing() {
               <label>
                 Property
                 <select
-                  value={ownerWorkOrderForm.homeId}
+                  value={ownerWorkOrderForm.homeId || selectedPropertyId || homes[0]?.id || ""}
                   onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, homeId: event.target.value })}
                 >
                   {homes.map((home) => (
