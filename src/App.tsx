@@ -974,15 +974,17 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             const home = homes.find((item) => item.id === reservation.homeId);
             const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
             const urgency = getUrgency(reservation.arrival);
+            const isTask = isTaskSource(reservation.source);
+            const isCleanerAssignable = isImportedReservation(reservation) || reservation.source === "Cleaning";
 
             return (
               <article className="reservationCard" key={reservation.id}>
                 <div className="cardTop">
                   <div className="homeBadge">{home?.shortName ?? "HM"}</div>
                   <div>
-                    <h3>{home?.name ?? "Imported reservation"}</h3>
+                    <h3>{isTask ? getReservationDisplayTitle(reservation) : home?.name ?? "Imported reservation"}</h3>
                     <p>
-  {getReservationDetailLabel(reservation)}
+  {isTask ? `${home?.name ?? "Unknown property"} · ${getReservationDetailLabel(reservation)}` : getReservationDetailLabel(reservation)}
 </p>
                   </div>
                   <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
@@ -1004,25 +1006,27 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                 </div>
 
                 <div className="assignmentRow">
-                  <label>
-                    Cleaner
-                    <select
-                      value={reservation.cleanerId ?? ""}
-                      onChange={(event) =>
-                        updateReservation(reservation.id, {
-                          cleanerId: event.target.value || undefined,
-                          status: event.target.value ? "Assigned" : "Unassigned",
-                        })
-                      }
-                    >
-                      <option value="">Unassigned</option>
-                      {cleaners.map((cleanerOption) => (
-                        <option key={cleanerOption.id} value={cleanerOption.id}>
-                          {cleanerOption.name} — {cleanerOption.status}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  {isCleanerAssignable && (
+                    <label>
+                      Cleaner
+                      <select
+                        value={reservation.cleanerId ?? ""}
+                        onChange={(event) =>
+                          updateReservation(reservation.id, {
+                            cleanerId: event.target.value || undefined,
+                            status: event.target.value ? "Assigned" : "Unassigned",
+                          })
+                        }
+                      >
+                        <option value="">Unassigned</option>
+                        {cleaners.map((cleanerOption) => (
+                          <option key={cleanerOption.id} value={cleanerOption.id}>
+                            {cleanerOption.name} — {cleanerOption.status}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
 
                   <label>
                     Status
@@ -1053,7 +1057,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                 </div>
 
                 <label className="cleanerReminderField">
-                  Cleaner Reminder / Notes
+                  {isCleanerAssignable ? "Cleaner Reminder / Notes" : "Task Notes"}
                   <textarea
                     value={reservation.notes ?? ""}
                     onChange={(event) =>
@@ -1061,7 +1065,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                         notes: event.target.value,
                       })
                     }
-                    placeholder="Add cleaner instructions, reminders, parking notes, supply notes, or guest-specific details"
+                    placeholder={isCleanerAssignable ? "Add cleaner instructions, reminders, parking notes, supply notes, or guest-specific details" : "Add owner notes, vendor notes, access details, or task reminders"}
                   />
                 </label>
 
@@ -1114,8 +1118,8 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                 </div>
 
                 <div className="cleanerFooter">
-                  <span>Cleaner status</span>
-                  <strong>{cleaner ? `${cleaner.name} · ${cleaner.status}` : "No cleaner assigned"}</strong>
+                  <span>{isCleanerAssignable ? "Cleaner status" : "Task status"}</span>
+                  <strong>{isCleanerAssignable ? (cleaner ? `${cleaner.name} · ${cleaner.status}` : "No cleaner assigned") : reservation.status}</strong>
                 </div>
               </article>
             );
@@ -3133,14 +3137,16 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
     .sort((a, b) => a.arrival.localeCompare(b.arrival))
     .slice(0, 3);
 
-  const unassignedReservations = reservations.filter((item) => !item.cleanerId).length;
+  const reservationItems = reservations.filter((item) => isImportedReservation(item));
+  const propertyTasks = reservations.filter((item) => isTaskSource(item.source));
+  const openPropertyTasks = propertyTasks.filter((item) => item.status !== "Completed");
+  const unassignedReservations = reservationItems.filter((item) => !item.cleanerId).length;
   const openWorkOrders = workOrders.filter((order) => order.status !== "Completed");
   const urgentWorkOrders = workOrders.filter(
     (order) => order.urgency === "High" || order.urgency === "After Hours"
   );
-  const openTasks = notifications.filter((notification) => !notification.read);
-  const criticalTasks = notifications.filter(
-    (notification) => !notification.read && notification.priority === "Critical"
+  const criticalTasks = openPropertyTasks.filter(
+    (item) => item.source === "Maintenance" || item.status === "In Process"
   );
 
   function openReservationFromDashboard(reservation: Reservation) {
@@ -3163,7 +3169,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
           <span className="launchIcon">🧹</span>
           <div>
             <h3>Housekeeping</h3>
-            <strong>{reservations.length} Upcoming Reservations</strong>
+            <strong>{reservationItems.length} Upcoming Reservations</strong>
             <p>{unassignedReservations} Unassigned</p>
           </div>
         </button>
@@ -3186,12 +3192,12 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
           </div>
         </button>
 
-        <button className="dashboardLaunchCard tasks" type="button" onClick={() => setActivePage("Notification Center")}>
+        <button className="dashboardLaunchCard tasks" type="button" onClick={() => setActivePage("Reservations")}>
           <span className="launchIcon">📋</span>
           <div>
-            <h3>Tasks</h3>
-            <strong>{openTasks.length} Outstanding Tasks</strong>
-            <p>{criticalTasks.length} Critical</p>
+            <h3>Property Tasks</h3>
+            <strong>{openPropertyTasks.length} Open Tasks</strong>
+            <p>{criticalTasks.length} Need Review</p>
           </div>
         </button>
       </section>
@@ -3565,27 +3571,29 @@ function renderReservationDetail() {
 
         <article className="reservationWorkspaceCard">
           <p className="eyebrow">Assignment</p>
-          <h3>{isTask ? "Task Assignment" : "Cleaner Assignment"}</h3>
+          <h3>{reservation.source === "Cleaning" || isImportedReservation(reservation) ? "Cleaner Assignment" : "Task Status"}</h3>
 
-          <label>
-            Assigned cleaner
-            <select
-              value={reservation.cleanerId ?? ""}
-              onChange={(event) =>
-                updateReservation(reservation.id, {
-                  cleanerId: event.target.value || undefined,
-                  status: event.target.value ? "Assigned" : "Unassigned",
-                })
-              }
-            >
-              <option value="">Unassigned</option>
-              {cleaners.map((cleanerOption) => (
-                <option key={cleanerOption.id} value={cleanerOption.id}>
-                  {cleanerOption.name} — {cleanerOption.status}
-                </option>
-              ))}
-            </select>
-          </label>
+          {(reservation.source === "Cleaning" || isImportedReservation(reservation)) && (
+            <label>
+              Assigned cleaner
+              <select
+                value={reservation.cleanerId ?? ""}
+                onChange={(event) =>
+                  updateReservation(reservation.id, {
+                    cleanerId: event.target.value || undefined,
+                    status: event.target.value ? "Assigned" : "Unassigned",
+                  })
+                }
+              >
+                <option value="">Unassigned</option>
+                {cleaners.map((cleanerOption) => (
+                  <option key={cleanerOption.id} value={cleanerOption.id}>
+                    {cleanerOption.name} — {cleanerOption.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <label>
             Status
@@ -3605,19 +3613,21 @@ function renderReservationDetail() {
             </select>
           </label>
 
-          <div className="cardActions">
-            <button
-              type="button"
-              onClick={() =>
-                updateReservation(reservation.id, {
-                  cleanerId: undefined,
-                  status: "Unassigned",
-                })
-              }
-            >
-              Unassign
-            </button>
-          </div>
+          {(reservation.source === "Cleaning" || isImportedReservation(reservation)) && (
+            <div className="cardActions">
+              <button
+                type="button"
+                onClick={() =>
+                  updateReservation(reservation.id, {
+                    cleanerId: undefined,
+                    status: "Unassigned",
+                  })
+                }
+              >
+                Unassign
+              </button>
+            </div>
+          )}
         </article>
 
         <article className="reservationWorkspaceCard">
