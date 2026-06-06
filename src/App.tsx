@@ -13,11 +13,11 @@ type ReservationStatus =
 type ReservationSource =
   | "VRBO"
   | "Airbnb"
-  | "Guest Reservation"
   | "Owner Block"
-  | "Cleaning Block"
-  | "Maintenance Block"
-  | "Vendor Block";
+  | "Cleaning"
+  | "Maintenance"
+  | "Vendor Visit"
+  | "Inspection";
 
 type BlockType = "Owner Block" | "Maintenance";
 
@@ -341,6 +341,19 @@ function isImportedReservation(reservation: Reservation) {
   return reservation.source === "VRBO" || reservation.source === "Airbnb";
 }
 
+function normalizeReservationSource(source: string): ReservationSource {
+  if (source === "Guest Reservation") return "Owner Block";
+  if (source === "Cleaning Block") return "Cleaning";
+  if (source === "Maintenance Block") return "Maintenance";
+  if (source === "Vendor Block") return "Vendor Visit";
+
+  return source as ReservationSource;
+}
+
+function isTaskSource(source: ReservationSource) {
+  return source === "Cleaning" || source === "Maintenance" || source === "Vendor Visit" || source === "Inspection";
+}
+
 function getSourceControlledMessage(source: ReservationSource) {
   return `Imported from ${source}. To change or remove this reservation, update it in ${source} and re-sync.`;
 }
@@ -518,7 +531,7 @@ useEffect(() => {
   const [manualForm, setManualForm] = useState({
     guestName: "",
     homeId: homes[0]?.id ?? "",
-    source: "Guest Reservation" as ReservationSource,
+    source: "Owner Block" as ReservationSource,
     arrival: "",
     departure: "",
     notes: "",
@@ -584,6 +597,8 @@ const boardStats = useMemo(() => {
   
 
   function updateReservation(id: string, updates: Partial<Reservation>) {
+    let updatedReservation: Reservation | null = null;
+
     setReservations((current) =>
       current.map((reservation) => {
         if (reservation.id !== id) return reservation;
@@ -592,15 +607,26 @@ const boardStats = useMemo(() => {
         const nextCleaner = updates.cleanerId ?? reservation.cleanerId;
         const shouldAddTimeline = updates.status || updates.cleanerId;
 
-        return {
+        updatedReservation = {
           ...reservation,
           ...updates,
           timeline: shouldAddTimeline
             ? [...reservation.timeline, makeTimelineNote(nextStatus, nextCleaner)]
             : reservation.timeline,
         };
+
+        return updatedReservation;
       })
     );
+
+    if (
+      updatedReservation &&
+      selectedCalendarItem &&
+      "guestName" in selectedCalendarItem &&
+      selectedCalendarItem.id === id
+    ) {
+      setSelectedCalendarItem(updatedReservation);
+    }
   }
 
   function deleteReservation(id: string) {
@@ -624,7 +650,7 @@ async function createManualReservation(event: React.FormEvent<HTMLFormElement>) 
 const selectedManualHomeId = manualForm.homeId || selectedPropertyId || homes[0]?.id || "";
 
 if (!manualForm.guestName || !selectedManualHomeId || !manualForm.arrival || !manualForm.departure) {
-  alert("Please complete the reservation/block name, property, arrival, and departure.");
+  alert("Please complete the item name, property, start date, and end date.");
   return;
 }
 
@@ -649,13 +675,13 @@ if (!manualForm.guestName || !selectedManualHomeId || !manualForm.arrival || !ma
 
   const conflictNote =
     conflictCount > 0
-      ? `Conflict warning: overlaps ${conflictCount} existing reservation/block for ${home?.name ?? "this home"}.`
+      ? `Conflict warning: overlaps ${conflictCount} existing reservation or property item for ${home?.name ?? "this home"}.`
       : "";
 
   const timeline =
     conflictCount > 0
-      ? ["AMR reservation/block created", conflictNote, "Saved with conflict for owner review"]
-      : ["AMR reservation/block created"];
+      ? ["AMR property item created", conflictNote, "Saved with conflict for owner review"]
+      : ["AMR property item created"];
 
   const { error } = await supabase.from("reservations").insert({
     owner_id: user.id,
@@ -681,7 +707,7 @@ if (!manualForm.guestName || !selectedManualHomeId || !manualForm.arrival || !ma
   setManualForm({
     guestName: "",
     homeId: homes[0]?.id ?? "",
-    source: "Guest Reservation",
+    source: "Owner Block",
     arrival: "",
     departure: "",
     notes: "",
@@ -789,7 +815,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                             <button
                               type="button"
                               key={`${dateKey}-${reservation.id}`}
-                             className={`calendarEvent stackedCalendarEvent ${reservation.source.toLowerCase()}`}
+                             className={`calendarEvent stackedCalendarEvent source${reservation.source.replace(/\s/g, "")}`}
                             onClick={() => {
   
   setSelectedCalendarItem(reservation);
@@ -842,7 +868,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
           </div>
 
           <button className="primaryButton" onClick={() => setShowManualForm(true)}>
-            + Add Manual Reservation
+            + Add Property Task
           </button>
         </header>
 
@@ -924,11 +950,11 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                   <div>
                     <h3>{home?.name ?? "Imported reservation"}</h3>
                     <p>
-  {reservation.source === "Owner Block"
-    ? "Owner Block"
-    : reservation.source === "Guest Reservation"
-      ? home?.name ?? "Unknown property"
-      : "Imported reservation"}
+  {isImportedReservation(reservation)
+    ? "Imported reservation"
+    : isTaskSource(reservation.source)
+      ? "Property task"
+      : "Owner Block"}
 </p>
                   </div>
                   <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
@@ -1115,7 +1141,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
         <div className="panelHeader">
           <div>
             <p className="eyebrow">Manual add</p>
-            <h3>Add Reservation / Deep Clean</h3>
+            <h3>Add Owner Block / Property Task</h3>
           </div>
           <button className="ghostButton" onClick={() => setShowManualForm(false)}>
             Close
@@ -1124,11 +1150,11 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
 
         <form className="manualForm" onSubmit={createManualReservation}>
           <label>
-            Reservation name
+            Item name
             <input
               value={manualForm.guestName}
               onChange={(event) => setManualForm({ ...manualForm, guestName: event.target.value })}
-              placeholder="Guest name, deep clean, owner block"
+              placeholder="Owner block, deep clean, vendor visit, inspection"
             />
           </label>
 
@@ -1152,11 +1178,11 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
               value={manualForm.source}
               onChange={(event) => setManualForm({ ...manualForm, source: event.target.value as ReservationSource })}
             >
-              <option value="Guest Reservation">Guest Reservation</option>
-<option value="Owner Block">Owner Block</option>
-<option value="Cleaning Block">Cleaning Block</option>
-<option value="Maintenance Block">Maintenance Block</option>
-<option value="Vendor Block">Vendor Block</option>
+              <option value="Owner Block">Owner Block</option>
+<option value="Cleaning">Cleaning</option>
+<option value="Maintenance">Maintenance</option>
+<option value="Vendor Visit">Vendor Visit</option>
+<option value="Inspection">Inspection</option>
             </select>
           </label>
 
@@ -1252,12 +1278,12 @@ const availabilityClass = getDateAvailabilityClass(day.date, activeManualHomeId,
             <textarea
               value={manualForm.notes}
               onChange={(event) => setManualForm({ ...manualForm, notes: event.target.value })}
-              placeholder="Deep clean notes, supply needs, guest requests, maintenance flags"
+              placeholder="Cleaning notes, maintenance details, vendor instructions, inspection notes"
             />
           </label>
 
           <button className="primaryButton" type="submit">
-            Save Reservation
+            Save Property Item
           </button>
         </form>
       </section>
@@ -1523,7 +1549,7 @@ async function loadReservationsFromSupabase() {
     id: item.id,
     guestName: item.guest_name,
     homeId: item.property_id,
-    source: item.source,
+    source: normalizeReservationSource(item.source),
     arrival: item.arrival,
     departure: item.departure,
     status: item.status ?? "Unassigned",
@@ -3003,7 +3029,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
                 onClick={() => openReservationFromDashboard(reservation)}
               >
                 <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-                  {reservation.source === "Guest Reservation" ? "OWNER BLOCK" : reservation.source.toUpperCase()}
+                  {reservation.source.toUpperCase()}
                 </span>
 
                 <h3>{home?.name ?? "Imported reservation"}</h3>
@@ -3058,22 +3084,51 @@ function renderReservationDetail() {
 
   const home = homes.find((item) => item.id === reservation.homeId);
   const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+  const imported = isImportedReservation(reservation);
+  const isOwnerBlock = reservation.source === "Owner Block";
+  const isTask = isTaskSource(reservation.source);
+
+  const detailEyebrow = imported
+    ? "Source controlled reservation"
+    : isOwnerBlock
+      ? "Owner block"
+      : `${reservation.source} task`;
+
+  const detailSubtext = imported
+    ? "VRBO/Airbnb controls guest name and dates. AMR controls cleaner assignment, task status, and internal notes."
+    : isOwnerBlock
+      ? "Use this to track owner, family, or personal use that blocks the property calendar."
+      : "Use this as an operational task for the property team. It appears on the calendar but does not count as a guest reservation.";
+
+  const updateNotesWithLabel = (label: string, value: string) => {
+    const existingNotes = reservation.notes ?? "";
+    const lines = existingNotes
+      .split("\n")
+      .filter((line) => !line.startsWith(`${label}:`));
+
+    updateReservation(reservation.id, {
+      notes: [`${label}: ${value}`, ...lines].filter(Boolean).join("\n"),
+    });
+  };
+
+  const statusOptions: ReservationStatus[] = [
+    "Unassigned",
+    "Assigned",
+    "Accepted",
+    "In Process",
+    "Completed",
+    "Blocked",
+  ];
 
   return (
     <>
       <header className="pageHeader reservationDetailHeader">
         <div>
           <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-            {reservation.source === "Guest Reservation" ? "OWNER BLOCK" : reservation.source.toUpperCase()}
+            {reservation.source.toUpperCase()}
           </span>
-          <h2>{reservation.source === "Guest Reservation" ? reservation.guestName : home?.name ?? "Unknown property"}</h2>
-          <p className="headerSubtext">
-  {reservation.source === "Owner Block"
-    ? "Owner Block"
-    : reservation.source === "Guest Reservation"
-      ? home?.name ?? "Unknown property"
-      : "Imported reservation"}
-</p>
+          <h2>{imported ? home?.name ?? "Unknown property" : reservation.guestName}</h2>
+          <p className="headerSubtext">{detailSubtext}</p>
         </div>
 
         <button className="ghostButton" type="button" onClick={() => setActivePage("Dashboard")}>
@@ -3085,11 +3140,11 @@ function renderReservationDetail() {
         <article className="reservationHeroPanel">
           <div className="reservationHeroDates">
             <div>
-              <span>Arrival</span>
+              <span>{isTask ? "Start" : "Arrival"}</span>
               <strong>{formatDate(reservation.arrival)}</strong>
             </div>
             <div>
-              <span>Departure</span>
+              <span>{isTask ? "End" : "Departure"}</span>
               <strong>{formatDate(reservation.departure)}</strong>
             </div>
           </div>
@@ -3100,15 +3155,222 @@ function renderReservationDetail() {
               <strong>{reservation.status}</strong>
             </div>
             <div>
-              <span>Assigned Cleaner</span>
+              <span>{reservation.source === "Vendor Visit" ? "Vendor / Cleaner" : "Assigned Cleaner"}</span>
               <strong>{cleaner?.name ?? "Unassigned"}</strong>
             </div>
           </div>
         </article>
 
+        {imported && (
+          <article className="reservationWorkspaceCard">
+            <p className="eyebrow">{detailEyebrow}</p>
+            <h3>Reservation Information</h3>
+            <div className="detailStack">
+              <div>
+                <span>Property</span>
+                <strong>{home?.name ?? "Unknown property"}</strong>
+              </div>
+              <div>
+                <span>Guest / Calendar Title</span>
+                <strong>{reservation.guestName}</strong>
+              </div>
+              <div>
+                <span>Source</span>
+                <strong>{reservation.source}</strong>
+              </div>
+            </div>
+            <p className="sourceControlledNotice">
+              {getSourceControlledMessage(reservation.source)}
+            </p>
+          </article>
+        )}
+
+        {!imported && (
+          <article className="reservationWorkspaceCard">
+            <p className="eyebrow">{detailEyebrow}</p>
+            <h3>{isOwnerBlock ? "Owner Block Details" : `${reservation.source} Details`}</h3>
+
+            <label>
+              {isOwnerBlock ? "Block Name" : "Task Name"}
+              <input
+                value={reservation.guestName}
+                onChange={(event) =>
+                  updateReservation(reservation.id, {
+                    guestName: event.target.value,
+                  })
+                }
+                placeholder={isOwnerBlock ? "Owner stay, family use, personal block" : `${reservation.source} task name`}
+              />
+            </label>
+
+            <label>
+              Property
+              <select
+                value={reservation.homeId}
+                onChange={(event) =>
+                  updateReservation(reservation.id, {
+                    homeId: event.target.value,
+                  })
+                }
+              >
+                {homes.map((homeOption) => (
+                  <option key={homeOption.id} value={homeOption.id}>
+                    {homeOption.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Type
+              <select
+                value={reservation.source}
+                onChange={(event) =>
+                  updateReservation(reservation.id, {
+                    source: event.target.value as ReservationSource,
+                  })
+                }
+              >
+                <option value="Owner Block">Owner Block</option>
+                <option value="Cleaning">Cleaning</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Vendor Visit">Vendor Visit</option>
+                <option value="Inspection">Inspection</option>
+              </select>
+            </label>
+
+            <label>
+              {isTask ? "Start Date" : "Arrival"}
+              <input
+                type="date"
+                value={reservation.arrival}
+                onChange={(event) =>
+                  updateReservation(reservation.id, {
+                    arrival: event.target.value,
+                    departure:
+                      reservation.departure && event.target.value > reservation.departure
+                        ? event.target.value
+                        : reservation.departure,
+                  })
+                }
+              />
+            </label>
+
+            <label>
+              {isTask ? "End Date" : "Departure"}
+              <input
+                type="date"
+                value={reservation.departure}
+                min={reservation.arrival || undefined}
+                onChange={(event) =>
+                  updateReservation(reservation.id, {
+                    departure: event.target.value,
+                  })
+                }
+              />
+            </label>
+          </article>
+        )}
+
+        {reservation.source === "Cleaning" && (
+          <article className="reservationWorkspaceCard">
+            <p className="eyebrow">Cleaning task</p>
+            <h3>Cleaning Details</h3>
+            <label>
+              Cleaning Type
+              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Cleaning Type", event.target.value)}>
+                <option value="" disabled>Select cleaning type</option>
+                <option value="Standard Cleaning">Standard Cleaning</option>
+                <option value="Mid-Stay Cleaning">Mid-Stay Cleaning</option>
+                <option value="Deep Clean">Deep Clean</option>
+                <option value="Touch-Up Clean">Touch-Up Clean</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <p className="mutedText">Use this for added cleanings, mid-stay service, deep cleans, or quick touch-ups.</p>
+          </article>
+        )}
+
+        {reservation.source === "Maintenance" && (
+          <article className="reservationWorkspaceCard">
+            <p className="eyebrow">Maintenance task</p>
+            <h3>Maintenance Details</h3>
+            <label>
+              Priority
+              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Maintenance Priority", event.target.value)}>
+                <option value="" disabled>Select priority</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Urgent">Urgent</option>
+              </select>
+            </label>
+            <label>
+              Issue Category
+              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Maintenance Category", event.target.value)}>
+                <option value="" disabled>Select category</option>
+                <option value="General">General</option>
+                <option value="Plumbing">Plumbing</option>
+                <option value="HVAC">HVAC</option>
+                <option value="Electrical">Electrical</option>
+                <option value="Appliance">Appliance</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+          </article>
+        )}
+
+        {reservation.source === "Vendor Visit" && (
+          <article className="reservationWorkspaceCard">
+            <p className="eyebrow">Vendor task</p>
+            <h3>Vendor Visit Details</h3>
+            <label>
+              Vendor Type
+              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Vendor Type", event.target.value)}>
+                <option value="" disabled>Select vendor type</option>
+                <option value="HVAC">HVAC</option>
+                <option value="Plumbing">Plumbing</option>
+                <option value="Electrical">Electrical</option>
+                <option value="Pest Control">Pest Control</option>
+                <option value="Landscaping">Landscaping</option>
+                <option value="Pool / Hot Tub">Pool / Hot Tub</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label>
+              Vendor Name / Company
+              <input
+                placeholder="Example: Summit HVAC"
+                onBlur={(event) => {
+                  if (event.target.value.trim()) updateNotesWithLabel("Vendor", event.target.value.trim());
+                }}
+              />
+            </label>
+          </article>
+        )}
+
+        {reservation.source === "Inspection" && (
+          <article className="reservationWorkspaceCard">
+            <p className="eyebrow">Inspection task</p>
+            <h3>Inspection Details</h3>
+            <label>
+              Inspection Type
+              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Inspection Type", event.target.value)}>
+                <option value="" disabled>Select inspection type</option>
+                <option value="Arrival Inspection">Arrival Inspection</option>
+                <option value="Departure Inspection">Departure Inspection</option>
+                <option value="Seasonal Inspection">Seasonal Inspection</option>
+                <option value="Damage Inspection">Damage Inspection</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <p className="mutedText">Use this for walkthroughs, damage checks, seasonal reviews, or guest-ready verification.</p>
+          </article>
+        )}
+
         <article className="reservationWorkspaceCard">
-          <p className="eyebrow">Housekeeping</p>
-          <h3>Cleaner Assignment</h3>
+          <p className="eyebrow">Assignment</p>
+          <h3>{isTask ? "Task Assignment" : "Cleaner Assignment"}</h3>
 
           <label>
             Assigned cleaner
@@ -3130,6 +3392,24 @@ function renderReservationDetail() {
             </select>
           </label>
 
+          <label>
+            Status
+            <select
+              value={reservation.status}
+              onChange={(event) =>
+                updateReservation(reservation.id, {
+                  status: event.target.value as ReservationStatus,
+                })
+              }
+            >
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="cardActions">
             <button
               type="button"
@@ -3140,14 +3420,14 @@ function renderReservationDetail() {
                 })
               }
             >
-              Unassign Cleaner
+              Unassign
             </button>
           </div>
         </article>
 
         <article className="reservationWorkspaceCard">
-          <p className="eyebrow">Reservation Notes</p>
-          <h3>Owner Notes</h3>
+          <p className="eyebrow">Internal Notes</p>
+          <h3>{isTask ? "Task Notes" : "Owner Notes"}</h3>
 
           <textarea
             value={reservation.notes ?? ""}
@@ -3156,18 +3436,20 @@ function renderReservationDetail() {
                 notes: event.target.value,
               })
             }
-            placeholder="Add reservation notes, cleaner instructions, parking notes, guest requests, supplies, or reminders."
+            placeholder="Add cleaner instructions, owner notes, vendor notes, access details, supplies, or reminders."
           />
         </article>
 
-        <article className="reservationWorkspaceCard doorCodePreview">
-          <p className="eyebrow">Future Integration</p>
-          <h3>Door Code</h3>
-          <p>Smart lock and guest access codes will live here later.</p>
-          <button type="button" className="disabledButton" disabled>
-            Door Code Coming Soon
-          </button>
-        </article>
+        {imported && (
+          <article className="reservationWorkspaceCard doorCodePreview">
+            <p className="eyebrow">Future Integration</p>
+            <h3>Door Code</h3>
+            <p>Smart lock and guest access codes will live here later.</p>
+            <button type="button" className="disabledButton" disabled>
+              Door Code Coming Soon
+            </button>
+          </article>
+        )}
       </section>
     </>
   );
@@ -3862,17 +4144,16 @@ function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) 
   function renderOccupancy() {
     const totalDays = 365;
 
- const amrBlockSources: ReservationSource[] = [
+
+
+const occupancyBlockSources: ReservationSource[] = [
   "Owner Block",
-  "Cleaning Block",
-  "Maintenance Block",
-  "Vendor Block",
 ];
 
 const guestNights = reservations
   .filter(
     (reservation) =>
-      !amrBlockSources.includes(reservation.source) &&
+      isImportedReservation(reservation) &&
       reservation.status !== "Blocked"
   )
   .reduce((total, reservation) => {
@@ -3884,10 +4165,7 @@ const guestNights = reservations
 const ownerNights =
   reservations
     .filter(
-  (reservation) =>
-    ["Owner Block", "Cleaning Block", "Maintenance Block", "Vendor Block"].includes(
-      reservation.source
-    )
+  (reservation) => occupancyBlockSources.includes(reservation.source)
 )
     .reduce((total, reservation) => {
       const start = toDate(reservation.arrival);
@@ -3981,9 +4259,9 @@ const blockedNights =
           </article>
 
           <article className="occupancyCard">
-  <span>AMR Blocks</span>
+  <span>Owner Block Nights</span>
   <strong>{ownerNights}</strong>
-  <p>Maintenance, cleaning, vendor, and owner-created blocks</p>
+  <p>Owner-created unavailable nights</p>
   <small className="mutedText">
     Not synced to VRBO or Airbnb
   </small>
