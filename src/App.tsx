@@ -1009,10 +1009,10 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
         <header className="pageHeader">
           <div>
             <p className="eyebrow">Phase 1</p>
-            <h2>{selectedItemType === "tasks" ? "Property Tasks" : selectedItemType === "needs-cleaner" ? "Needs Cleaner Assigned" : "Reservations"}</h2>
+            <h2>{selectedItemType === "tasks" ? "Operations" : selectedItemType === "needs-cleaner" ? "Needs Cleaner Assigned" : "Reservations"}</h2>
             <p className="headerSubtext">
               {selectedItemType === "tasks"
-                ? "Review scheduled property tasks such as cleanings, vendor visits, and inspections."
+                ? "Review scheduled operations such as cleanings, vendor visits, and inspections."
                 : selectedItemType === "needs-cleaner"
                   ? "Imported reservations and cleaning tasks that still need a cleaner assigned assigned."
                   : "Review imported VRBO/Airbnb reservations, cleaner assignments, upcoming stays, and reservation status."}
@@ -1103,7 +1103,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
           <select value={selectedItemType} onChange={(event) => setSelectedItemType(event.target.value)}>
             <option value="all">All reservations</option>
             <option value="reservations">Imported reservations</option>
-            <option value="tasks">Property tasks</option>
+            <option value="tasks">Operations</option>
             <option value="needs-cleaner">Needs assigned cleaner</option>
           </select>
         </section>
@@ -1116,7 +1116,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
               <div>
                 <p className="eyebrow">Needs cleaner assignment</p>
                 <h3>{reservationsNeedingCleaner.length} reservation{reservationsNeedingCleaner.length === 1 ? "" : "s"} need a cleaner assigned</h3>
-                <p className="mutedText">These are imported reservations that still need housekeeping assigned. Property tasks are listed below.</p>
+                <p className="mutedText">These are imported reservations that still need housekeeping assigned. Operations are listed below.</p>
               </div>
             </div>
 
@@ -1349,7 +1349,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
 
 {filteredReservations.length === 0 && (
   <div className="emptyState">
-    {selectedItemType === "tasks" ? "No property tasks match your current filters." : "No reservations match your current filters."}
+    {selectedItemType === "tasks" ? "No operations match your current filters." : "No reservations match your current filters."}
   </div>
 )}
         </section>
@@ -1436,7 +1436,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             <p className="eyebrow">Manual add</p>
             <h3>Add {manualForm.source} Task</h3>
             <p className="mutedText">
-              Property tasks appear on the calendar for operations but do not count as guest reservations.
+              Operations appear on the calendar for coordination but do not count as guest reservations.
             </p>
           </div>
           <button className="ghostButton" onClick={() => setShowManualForm(false)} type="button">
@@ -1705,7 +1705,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
             <p className="eyebrow">Phase 2</p>
             <h2>Calendar</h2>
             <p className="headerSubtext">
-              See every reservation source in one scrollable operations calendar: VRBO, Airbnb, property tasks, conflicts, and cleaner visibility.
+              See every reservation source in one scrollable operations calendar: VRBO, Airbnb, operations, conflicts, and cleaner visibility.
             </p>
           </div>
 
@@ -1862,7 +1862,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
               <>
                 <h3>Click a calendar date</h3>
                 <p className="mutedText">
-                  Reservations and property tasks for that day will show here together.
+                  Reservations and operations for that day will show here together.
                 </p>
               </>
             )}
@@ -3620,7 +3620,7 @@ setSelectedCleanerId(remaining[0]?.id ?? "");
         >
           <span className="launchIcon">📋</span>
           <div>
-            <h3>Property Tasks</h3>
+            <h3>Operations</h3>
             <strong>{openPropertyTasks.length} Open Tasks</strong>
             <p>
               <span
