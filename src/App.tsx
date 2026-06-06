@@ -623,66 +623,75 @@ const boardStats = useMemo(() => {
     }
   }
 
-  function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
+  event.preventDefault();
 
-    if (!manualForm.guestName || !manualForm.arrival || !manualForm.departure) return;
+  if (!manualForm.guestName || !manualForm.homeId || !manualForm.arrival || !manualForm.departure) {
+    alert("Please complete the reservation/block name, property, arrival, and departure.");
+    return;
+  }
 
-    const conflictCount = getReservationConflictCount(
-      {
-        homeId: manualForm.homeId,
-        arrival: manualForm.arrival,
-        departure: manualForm.departure,
-      },
-      reservations
-    );
-    const home = homes.find((item) => item.id === manualForm.homeId);
-    const conflictNote = conflictCount > 0
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (!user) {
+    alert("You must be logged in to create a reservation or block.");
+    return;
+  }
+
+  const conflictCount = getReservationConflictCount(
+    {
+      homeId: manualForm.homeId,
+      arrival: manualForm.arrival,
+      departure: manualForm.departure,
+    },
+    reservations
+  );
+
+  const home = homes.find((item) => item.id === manualForm.homeId);
+
+  const conflictNote =
+    conflictCount > 0
       ? `Conflict warning: overlaps ${conflictCount} existing reservation/block for ${home?.name ?? "this home"}.`
       : "";
 
-    const nextReservation: Reservation = {
-      id: `res-${Date.now()}`,
-      guestName: manualForm.guestName,
-      homeId: manualForm.homeId,
-      source: manualForm.source,
-      arrival: manualForm.arrival,
-      departure: manualForm.departure,
-     status: conflictCount > 0 ? "In Process" : "Unassigned",
-      notes: [manualForm.notes, conflictNote].filter(Boolean).join("\\n"),
-      timeline: conflictCount > 0
-        ? ["Manual reservation created", conflictNote, "Saved with conflict for owner review"]
-        : ["Manual reservation created"],
-    };
+  const timeline =
+    conflictCount > 0
+      ? ["AMR reservation/block created", conflictNote, "Saved with conflict for owner review"]
+      : ["AMR reservation/block created"];
 
-    setReservations((current) => [nextReservation, ...current]);
+  const { error } = await supabase.from("reservations").insert({
+    owner_id: user.id,
+    property_id: manualForm.homeId,
+    guest_name: manualForm.guestName,
+    source: manualForm.source,
+    arrival: manualForm.arrival,
+    departure: manualForm.departure,
+    status: conflictCount > 0 ? "In Process" : "Unassigned",
+    cleaner_id: null,
+    notes: [manualForm.notes, conflictNote].filter(Boolean).join("\n"),
+    timeline,
+  });
 
-    if (conflictCount > 0) {
-      setNotifications((current) => [
-        {
-          id: `note-${Date.now()}`,
-          type: "Reservation",
-          priority: "High",
-          title: "Calendar conflict saved",
-          message: `${manualForm.guestName} overlaps ${conflictCount} existing reservation/block on ${home?.name ?? "this home"}.`,
-          relatedHomeId: manualForm.homeId,
-          createdAt: new Date().toLocaleString(),
-          read: false,
-        },
-        ...current,
-      ]);
-    }
-
-    setManualForm({
-      guestName: "",
-      homeId: homes[0]?.id ?? "",
-      source: "Guest Reservation",
-      arrival: "",
-      departure: "",
-      notes: "",
-    });
-    setShowManualForm(false);
+  if (error) {
+    console.error("Manual reservation save failed", error);
+    alert(error.message);
+    return;
   }
+
+  await loadReservationsFromSupabase();
+
+  setManualForm({
+    guestName: "",
+    homeId: homes[0]?.id ?? "",
+    source: "Guest Reservation",
+    arrival: "",
+    departure: "",
+    notes: "",
+  });
+
+  setShowManualForm(false);
+}
 
   function getStackedCalendarMonths(anchorDate: Date, count = 12) {
     const anchor = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
