@@ -4260,20 +4260,145 @@ function renderReservationDetail() {
   }
 
   function renderNotificationCenter() {
-    const visibleNotifications = notifications.filter((notification) => {
+    const reservationsNeedingCleanerAssigned = reservations
+      .filter((reservation) => needsCleanerAssignment(reservation) && isImportedReservation(reservation))
+      .sort((a, b) => a.arrival.localeCompare(b.arrival));
+
+    const criticalWorkOrders = workOrders
+      .filter(
+        (order) =>
+          order.status !== "Completed" &&
+          (order.urgency === "High" || order.urgency === "After Hours" || order.status === "Owner Review")
+      )
+      .sort((a, b) => a.createdDate.localeCompare(b.createdDate));
+
+    const upcomingOperations = reservations
+      .filter(
+        (reservation) =>
+          isTaskSource(reservation.source) &&
+         
+          reservation.status !== "Completed" &&
+          daysUntil(reservation.arrival) >= 0 &&
+          daysUntil(reservation.arrival) <= 3
+      )
+      .sort((a, b) => a.arrival.localeCompare(b.arrival));
+
+    type NotificationAction = "reservations-needs-cleaner" | "maintenance" | "operations" | "properties" | "cleaners" | "none";
+    type NotificationListItem = OwnerNotification & {
+      action: NotificationAction;
+      relatedWorkOrderId?: string;
+    };
+
+    const generatedNotifications: NotificationListItem[] = [
+      ...(reservationsNeedingCleanerAssigned.length > 0
+        ? [
+            {
+              id: "generated-needs-cleaner-assigned",
+              type: "Reservation" as NotificationType,
+              priority: "High" as NotificationPriority,
+              title: `${reservationsNeedingCleanerAssigned.length} Reservations Need Cleaner Assigned`,
+              message: "Imported reservations are waiting for a cleaner assignment.",
+              createdAt: "Live alert",
+              read: false,
+              action: "reservations-needs-cleaner" as NotificationAction,
+            },
+          ]
+        : []),
+      ...criticalWorkOrders.map((order) => {
+        const home = homes.find((item) => item.id === order.homeId);
+
+        return {
+          id: `generated-work-order-${order.id}`,
+          type: "Maintenance" as NotificationType,
+          priority:
+            order.urgency === "After Hours" || order.urgency === "High"
+              ? ("Critical" as NotificationPriority)
+              : ("High" as NotificationPriority),
+          title: `${order.urgency === "After Hours" ? "After-Hours" : order.urgency} Work Order`,
+          message: `${order.title} · ${home?.name ?? "Unknown property"}`,
+          relatedHomeId: order.homeId,
+          relatedWorkOrderId: order.id,
+          createdAt: order.scheduledDate ? `Scheduled ${formatDate(order.scheduledDate)}` : `Created ${formatDate(order.createdDate)}`,
+          read: false,
+          action: "maintenance" as NotificationAction,
+        };
+      }),
+      ...(upcomingOperations.length > 0
+        ? [
+            {
+              id: "generated-upcoming-operations",
+              type: "System" as NotificationType,
+              priority: "Normal" as NotificationPriority,
+              title: `${upcomingOperations.length} Upcoming Operations`,
+              message: "Cleaning, vendor visit, or inspection tasks are scheduled in the next 3 days.",
+              createdAt: "Live alert",
+              read: false,
+              action: "operations" as NotificationAction,
+            },
+          ]
+        : []),
+    ];
+
+    const savedNotifications: NotificationListItem[] = notifications.map((notification) => ({
+      ...notification,
+      action:
+        notification.type === "Reservation"
+          ? "reservations-needs-cleaner"
+          : notification.type === "Maintenance"
+            ? "maintenance"
+            : notification.type === "Property"
+              ? "properties"
+              : notification.type === "Cleaner"
+                ? "cleaners"
+                : "none",
+    }));
+
+    const allNotificationItems = [...generatedNotifications, ...savedNotifications];
+
+    const visibleNotifications = allNotificationItems.filter((notification) => {
       if (notificationFilter === "all") return true;
       if (notificationFilter === "unread") return !notification.read;
       return notification.type === notificationFilter;
     });
 
+    function openNotification(notification: NotificationListItem) {
+      if (notification.action === "reservations-needs-cleaner") {
+        setSelectedItemType("needs-cleaner");
+        setSelectedStatus("all");
+        setSelectedHome("all");
+        setSearch("");
+        setActivePage("Reservations");
+        return;
+      }
+
+      if (notification.action === "maintenance") {
+        const matchingWorkOrder = workOrders.find((order) => order.id === notification.relatedWorkOrderId);
+        if (matchingWorkOrder) setSelectedWorkOrder(matchingWorkOrder);
+        setWorkOrderFilter("all");
+        setActivePage("Maintenance");
+        return;
+      }
+
+      if (notification.action === "operations") {
+        setSelectedItemType("tasks");
+        setSelectedStatus("all");
+        setSearch("");
+        setActivePage("Reservations");
+        return;
+      }
+
+      if (notification.action === "properties") setActivePage("Properties");
+      if (notification.action === "cleaners") setActivePage("Cleaners");
+    }
+
     return (
       <>
         <header className="pageHeader">
           <div>
-            <p className="eyebrow">Owner communication</p>
+            <p className="eyebrow">Owner alert inbox</p>
             <h2>Notification Center</h2>
             <p className="headerSubtext">
-              Central hub for reservation risks, cleaner updates, maintenance alerts, property setup issues, and system messages.
+              Live alerts for cleaner assignment, critical maintenance, upcoming operations, property setup, and system messages.
             </p>
           </div>
 
@@ -4281,19 +4406,38 @@ function renderReservationDetail() {
             className="primaryButton"
             onClick={() => setNotifications((current) => current.map((notification) => ({ ...notification, read: true })))}
           >
-            Mark All Read
+            Mark Saved Alerts Read
           </button>
         </header>
 
+        <section className="statsGrid">
+          <div className="statCard warning">
+            <span>Need Cleaner Assigned</span>
+            <strong>{reservationsNeedingCleanerAssigned.length}</strong>
+          </div>
+          <div className="statCard warning">
+            <span>Critical Maintenance</span>
+            <strong>{criticalWorkOrders.length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Upcoming Operations</span>
+            <strong>{upcomingOperations.length}</strong>
+          </div>
+          <div className="statCard">
+            <span>Saved Alerts</span>
+            <strong>{notifications.length}</strong>
+          </div>
+        </section>
+
         <section className="filtersPanel maintenanceFilters">
           <select value={notificationFilter} onChange={(event) => setNotificationFilter(event.target.value)}>
-            <option value="all">All notifications</option>
+            <option value="all">All alerts</option>
             <option value="unread">Unread only</option>
             <option value="Reservation">Reservations</option>
             <option value="Cleaner">Cleaners</option>
             <option value="Maintenance">Maintenance</option>
             <option value="Property">Properties</option>
-            <option value="System">System</option>
+            <option value="System">System / Operations</option>
           </select>
         </section>
 
@@ -4318,19 +4462,26 @@ function renderReservationDetail() {
                 <div className="notificationMeta">
                   {home && <span>{home.name}</span>}
                   {cleaner && <span>{cleaner.name}</span>}
-                  <span>{notification.read ? "Read" : "Unread"}</span>
+                  <span>{notification.read ? "Read" : "Needs attention"}</span>
                 </div>
 
                 <div className="cardActions">
-                  {!notification.read && <button onClick={() => markNotificationRead(notification.id)}>Mark Read</button>}
-                  {notification.type === "Reservation" && <button onClick={() => setActivePage("Reservations")}>Open Reservations</button>}
-                  {notification.type === "Maintenance" && <button onClick={() => setActivePage("Maintenance")}>Open Maintenance</button>}
-                  {notification.type === "Property" && <button onClick={() => setActivePage("Properties")}>Open Properties</button>}
-                  {notification.type === "Cleaner" && <button onClick={() => setActivePage("Cleaners")}>Open Cleaners</button>}
+                  {!notification.id.startsWith("generated-") && !notification.read && (
+                    <button onClick={() => markNotificationRead(notification.id)}>Mark Read</button>
+                  )}
+                  <button className="primaryButton" type="button" onClick={() => openNotification(notification)}>
+                    Open
+                  </button>
                 </div>
               </article>
             );
           })}
+
+          {visibleNotifications.length === 0 && (
+            <div className="emptyState">
+              No alerts match your current filter.
+            </div>
+          )}
         </section>
       </>
     );
