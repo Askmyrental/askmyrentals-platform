@@ -665,6 +665,7 @@ useEffect(() => {
   useEffect(() => {
   loadPropertiesFromSupabase();
   loadReservationsFromSupabase();
+  loadWorkOrdersFromSupabase();
 }, []);
 
  
@@ -1695,7 +1696,9 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
   }
 
 
-  function updateWorkOrder(id: string, updates: Partial<WorkOrder>) {
+  async function updateWorkOrder(id: string, updates: Partial<WorkOrder>) {
+    let updatedOrderForSave: WorkOrder | null = null;
+
     setWorkOrders((current) =>
       current.map((order) => {
         if (order.id !== id) return order;
@@ -1711,6 +1714,8 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
           timeline: [...order.timeline, timelineNote],
         };
 
+        updatedOrderForSave = updatedOrder;
+
         if (selectedWorkOrder?.id === id) {
           setSelectedWorkOrder(updatedOrder);
         }
@@ -1718,6 +1723,28 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
         return updatedOrder;
       })
     );
+
+    setTimeout(async () => {
+      if (!updatedOrderForSave) return;
+
+      const { error } = await supabase
+        .from("work_orders")
+        .update({
+          title: updatedOrderForSave.title,
+          category: updatedOrderForSave.category,
+          urgency: updatedOrderForSave.urgency,
+          status: updatedOrderForSave.status,
+          vendor_id: updatedOrderForSave.vendorId ?? null,
+          scheduled_date: updatedOrderForSave.scheduledDate ?? null,
+          notes: updatedOrderForSave.notes,
+          timeline: updatedOrderForSave.timeline,
+        })
+        .eq("id", id);
+
+      if (error) {
+        console.error("Work order update failed", error);
+      }
+    }, 0);
   }
 
   function getRecommendedVendors(category: string, urgency: WorkOrderUrgency) {
@@ -1727,7 +1754,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
       .sort((a, b) => b.rating - a.rating);
   }
 
-  function createOwnerWorkOrder(event: React.FormEvent<HTMLFormElement>) {
+  async function createOwnerWorkOrder(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const selectedWorkOrderHomeId = ownerWorkOrderForm.homeId || selectedPropertyId || homes[0]?.id || "";
@@ -1743,30 +1770,64 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
       return;
     }
 
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    if (!user) {
+      window.alert("You must be logged in to create a work order.");
+      return;
+    }
+
     const selectedVendor = vendors.find((vendor) => vendor.id === ownerWorkOrderForm.vendorId);
+    const timeline = [
+      "Owner created work order",
+      ownerWorkOrderForm.vendorId
+        ? `Vendor assigned: ${selectedVendor?.name ?? "Vendor"}`
+        : "No vendor assigned yet",
+      ownerWorkOrderForm.scheduledDate
+        ? `Scheduled for ${formatDate(ownerWorkOrderForm.scheduledDate)}`
+        : "Schedule pending",
+    ];
+
+    const { data, error } = await supabase
+      .from("work_orders")
+      .insert({
+        owner_id: user.id,
+        property_id: selectedWorkOrderHomeId,
+        title: workOrderTitle,
+        category: ownerWorkOrderForm.category,
+        urgency: ownerWorkOrderForm.urgency,
+        status: ownerWorkOrderForm.vendorId ? "Assigned" : "New",
+        vendor_id: ownerWorkOrderForm.vendorId || null,
+        created_date: toInputDate(new Date()),
+        scheduled_date: ownerWorkOrderForm.scheduledDate || null,
+        notes: ownerWorkOrderForm.notes || "Owner-created maintenance work order.",
+        timeline,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Work order save failed", error);
+      window.alert(error.message);
+      return;
+    }
+
     const nextWorkOrder: WorkOrder = {
-      id: `wo-${Date.now()}`,
-      homeId: selectedWorkOrderHomeId,
-      title: workOrderTitle,
-      category: ownerWorkOrderForm.category,
-      urgency: ownerWorkOrderForm.urgency,
-      status: ownerWorkOrderForm.vendorId ? "Assigned" : "New",
-      vendorId: ownerWorkOrderForm.vendorId || undefined,
-      createdDate: toInputDate(new Date()),
-      scheduledDate: ownerWorkOrderForm.scheduledDate || undefined,
-      notes: ownerWorkOrderForm.notes || "Owner-created maintenance work order.",
-      timeline: [
-        "Owner created work order",
-        ownerWorkOrderForm.vendorId
-          ? `Vendor assigned: ${selectedVendor?.name ?? "Vendor"}`
-          : "No vendor assigned yet",
-        ownerWorkOrderForm.scheduledDate
-          ? `Scheduled for ${formatDate(ownerWorkOrderForm.scheduledDate)}`
-          : "Schedule pending",
-      ],
+      id: data.id,
+      homeId: data.property_id,
+      title: data.title,
+      category: data.category ?? "General",
+      urgency: (data.urgency ?? "Medium") as WorkOrderUrgency,
+      status: (data.status ?? "New") as WorkOrderStatus,
+      vendorId: data.vendor_id ?? undefined,
+      createdDate: data.created_date ?? toInputDate(new Date()),
+      scheduledDate: data.scheduled_date ?? undefined,
+      notes: data.notes ?? "",
+      timeline: Array.isArray(data.timeline) ? data.timeline : timeline,
     };
 
-    setWorkOrders((current) => [nextWorkOrder, ...current]);
+    await loadWorkOrdersFromSupabase();
     setSelectedWorkOrder(nextWorkOrder);
     setWorkOrderFilter("all");
     setNotifications((current) => [
@@ -1797,6 +1858,41 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
     });
     setShowWorkOrderForm(false);
   }
+
+async function loadWorkOrdersFromSupabase() {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from("work_orders")
+    .select("*")
+    .eq("owner_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Failed to load work orders", error);
+    return;
+  }
+
+  const mappedWorkOrders: WorkOrder[] = (data ?? []).map((item: any) => ({
+    id: item.id,
+    homeId: item.property_id,
+    title: item.title,
+    category: item.category ?? "General",
+    urgency: (item.urgency ?? "Medium") as WorkOrderUrgency,
+    status: (item.status ?? "New") as WorkOrderStatus,
+    vendorId: item.vendor_id ?? undefined,
+    createdDate: item.created_date ?? toInputDate(new Date()),
+    scheduledDate: item.scheduled_date ?? undefined,
+    notes: item.notes ?? "",
+    timeline: Array.isArray(item.timeline) ? item.timeline : [],
+  }));
+
+  setWorkOrders(mappedWorkOrders);
+}
+
 
 async function loadPropertiesFromSupabase() {
   const { data: userData } = await supabase.auth.getUser();
@@ -4064,7 +4160,7 @@ function renderReservationDetail() {
     }
   }
 
-function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) {
+async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
   if (!cleanerIssueForm.title.trim()) {
@@ -4098,7 +4194,34 @@ function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) 
     ],
   };
 
-  setWorkOrders((current) => [nextWorkOrder, ...current]);
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (user) {
+    const { error } = await supabase.from("work_orders").insert({
+      owner_id: user.id,
+      property_id: nextWorkOrder.homeId,
+      title: nextWorkOrder.title,
+      category: nextWorkOrder.category,
+      urgency: nextWorkOrder.urgency,
+      status: nextWorkOrder.status,
+      vendor_id: nextWorkOrder.vendorId ?? null,
+      created_date: nextWorkOrder.createdDate,
+      scheduled_date: nextWorkOrder.scheduledDate ?? null,
+      notes: nextWorkOrder.notes,
+      timeline: nextWorkOrder.timeline,
+    });
+
+    if (error) {
+      console.error("Cleaner work order save failed", error);
+      window.alert(error.message);
+      return;
+    }
+
+    await loadWorkOrdersFromSupabase();
+  } else {
+    setWorkOrders((current) => [nextWorkOrder, ...current]);
+  }
 
   setNotifications((current) => [
     {
