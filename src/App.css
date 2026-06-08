@@ -143,14 +143,28 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
+.ownerMobileNav {
+  display: none !important;
+}
 
+.mobileBottomNav {
+  display: grid !important;
+}
 .ownerMobileNav,
 .ownerMobileMenuOverlay,
 .mobileBottomNav,
 .trueMobileBottomNav {
   display: none;
 }
+@media (max-width: 900px) {
+  .sidebar {
+    display: none;
+  }
 
+  .mainContent {
+    padding-top: 0;
+  }
+}
 .mainContent {
   padding: 32px;
   overflow: auto;
