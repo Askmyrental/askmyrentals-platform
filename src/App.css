@@ -2417,3 +2417,67 @@ textarea:focus {
     margin-bottom: 78px !important;
   }
 }
+/* MOBILE NAV REPAIR OVERRIDE */
+@media (max-width: 900px) {
+  .sidebar {
+    display: none !important;
+  }
+
+  .ownerMobileNav {
+    display: none !important;
+  }
+
+  .mainContent {
+    padding: 18px 14px 110px !important;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  .mobileBottomNav {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    z-index: 9999 !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 2px !important;
+    height: 66px !important;
+    padding: 8px 6px !important;
+    border-radius: 22px !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.18) !important;
+  }
+
+  .mobileBottomNav button {
+    min-width: 0 !important;
+    width: 100% !important;
+    height: 50px !important;
+    padding: 4px 2px !important;
+    border: 0 !important;
+    background: transparent !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    font-size: 10px !important;
+  }
+
+  .mobileBottomNav button span {
+    font-size: 16px !important;
+    line-height: 1 !important;
+  }
+
+  .mobileBottomNav button small {
+    font-size: 9px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .mobileBottomNav button.active {
+    background: rgba(37, 99, 235, 0.1) !important;
+    border-radius: 16px !important;
+    color: #2563eb !important;
+  }
+}
