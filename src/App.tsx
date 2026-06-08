@@ -1687,205 +1687,172 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
   }
 
   function renderCalendar() {
-    const selectedDateReservations = selectedCalendarDateKey
-      ? reservations
-          .filter(
-            (reservation) =>
-              (selectedCalendarHome === "all" || reservation.homeId === selectedCalendarHome) &&
-              selectedCalendarDateKey >= reservation.arrival &&
-              selectedCalendarDateKey <= reservation.departure
-          )
-          .sort((a, b) => {
-            if (isTaskSource(a.source) && !isTaskSource(b.source)) return 1;
-            if (!isTaskSource(a.source) && isTaskSource(b.source)) return -1;
-            return a.arrival.localeCompare(b.arrival);
-          })
-      : [];
-    const selectedDateBlocks = selectedCalendarDateKey
-      ? calendarBlocks.filter(
-          (block) =>
-            (selectedCalendarHome === "all" || block.homeId === selectedCalendarHome) &&
-            selectedCalendarDateKey >= block.start &&
-            selectedCalendarDateKey <= block.end
+  const selectedDateReservations = selectedCalendarDateKey
+    ? reservations
+        .filter(
+          (reservation) =>
+            (selectedCalendarHome === "all" || reservation.homeId === selectedCalendarHome) &&
+            selectedCalendarDateKey >= reservation.arrival &&
+            selectedCalendarDateKey <= reservation.departure
         )
-      : [];
+        .sort((a, b) => {
+          if (isTaskSource(a.source) && !isTaskSource(b.source)) return 1;
+          if (!isTaskSource(a.source) && isTaskSource(b.source)) return -1;
+          return a.arrival.localeCompare(b.arrival);
+        })
+    : [];
 
-    return (
-      <>
-        <header className="pageHeader">
+  const selectedDateBlocks = selectedCalendarDateKey
+    ? calendarBlocks.filter(
+        (block) =>
+          (selectedCalendarHome === "all" || block.homeId === selectedCalendarHome) &&
+          selectedCalendarDateKey >= block.start &&
+          selectedCalendarDateKey <= block.end
+      )
+    : [];
+
+  return (
+    <>
+      <section className="calendarStickyHeader">
+        <div className="calendarStickyBrand">
+          <div className="brandIcon smallBrandIcon">AMR</div>
+          <strong>Ask My Rentals</strong>
+        </div>
+
+        <div className="calendarStickyTitleRow">
           <div>
-            <p className="eyebrow">Phase 2</p>
+            <p className="eyebrow">Calendar</p>
             <h2>Calendar</h2>
-            <p className="headerSubtext">
-              See every reservation source in one scrollable operations calendar: VRBO, Airbnb, operations, conflicts, and cleaner visibility.
-            </p>
           </div>
 
-          <div className="calendarHeaderActions">
-            <button className="ghostButton" onClick={() => setCalendarDate(new Date())}>
-              Jump to Current Month
-            </button>
+          <button className="ghostButton compactGhostButton" onClick={() => setCalendarDate(new Date())}>
+            Current Month
+          </button>
+        </div>
+
+        <label className="calendarPropertySelect">
+          Property
+          <select value={selectedCalendarHome} onChange={(event) => setSelectedCalendarHome(event.target.value)}>
+            <option value="all">All homes</option>
+            {homes.map((home) => (
+              <option key={home.id} value={home.id}>
+                {home.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="calendarLegendMini">
+          <span><i className="legendReservation" /> Booked</span>
+          <span><i className="legendUnassigned" /> Needs Cleaner</span>
+          <span><i className="legendMaintenance" /> Task</span>
+          <span><i className="legendConflict" /> Conflict</span>
+          <span><i className="legendOwner" /> Blocked</span>
+        </div>
+      </section>
+
+      <section className="calendarLayout">
+        <div className="calendarPanel stackedCalendarPanel">
+          <div className="taskBoardCalendarBox calendarPageCalendarBox">
+            {renderScrollableCalendarStack({
+              homeFilter: selectedCalendarHome,
+              anchorDate: calendarDate,
+              monthCount: 12,
+              compact: true,
+            })}
           </div>
-        </header>
+        </div>
 
-        <section className="calendarToolbar">
-          <label>
-            Property
-            <select value={selectedCalendarHome} onChange={(event) => setSelectedCalendarHome(event.target.value)}>
-              <option value="all">All homes</option>
-              {homes.map((home) => (
-                <option key={home.id} value={home.id}>
-                  {home.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <aside className="calendarDetailPanel" id="calendarDetailPanel">
+          <p className="eyebrow">Selected date</p>
+          {selectedCalendarDateKey ? (
+            <>
+              <h3>{formatDate(selectedCalendarDateKey)}</h3>
+              <p className="mutedText">
+                {selectedDateReservations.length + selectedDateBlocks.length} calendar item
+                {selectedDateReservations.length + selectedDateBlocks.length === 1 ? "" : "s"} on this date.
+              </p>
 
-          <div className="calendarLegendMini" aria-label="Calendar legend">
-            <span><i className="legendReservation" /> Assigned Reservation</span>
-            <span><i className="legendUnassigned" /> Needs Cleaner</span>
-            <span><i className="legendMaintenance" /> Task</span>
-            <span><i className="legendConflict" /> Conflict</span>
-            <span><i className="legendOwner" /> Blocked</span>
-          </div>
-        </section>
+              <div className="dashboardReservationCards">
+                {selectedDateReservations.map((reservation) => {
+                  const home = homes.find((item) => item.id === reservation.homeId);
+                  const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+                  const isTask = isTaskSource(reservation.source);
 
-        <section className="calendarLayout">
-          <div className="calendarPanel stackedCalendarPanel">
-           <div className="taskBoardCalendarBox calendarPageCalendarBox">
-  {renderScrollableCalendarStack({
-    homeFilter: selectedCalendarHome,
-    anchorDate: calendarDate,
-    monthCount: 12,
-    compact: true,
-  })}
-</div>
-          </div>
-
-         <aside className="calendarDetailPanel" id="calendarDetailPanel">
-            <p className="eyebrow">Selected date</p>
-            {selectedCalendarDateKey ? (
-              <>
-                <h3>{formatDate(selectedCalendarDateKey)}</h3>
-                <p className="mutedText">
-                  {selectedDateReservations.length + selectedDateBlocks.length} calendar item{selectedDateReservations.length + selectedDateBlocks.length === 1 ? "" : "s"} on this date.
-                </p>
-
-                <div className="dashboardReservationCards">
-                  {selectedDateReservations.map((reservation) => {
-                    const home = homes.find((item) => item.id === reservation.homeId);
-                    const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
-                    const isTask = isTaskSource(reservation.source);
-
-                    return (
-                      <button
-                        key={`calendar-detail-${reservation.id}`}
-                        type="button"
-                        className="dashboardReservationCard"
-                        onClick={() => {
-                          setSelectedCalendarItem(reservation);
-                          setActivePage("Reservation Detail");
-                        }}
-                      >
-                        <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-                          {isTask ? "TASK" : reservation.source.toUpperCase()}
-                        </span>
-                        <h3>{isTask ? getReservationDisplayTitle(reservation) : reservation.guestName}</h3>
-                        <p>{home?.name ?? "Unknown property"}</p>
-
-                        <div className="reservationPreviewMeta">
-                          <div>
-                            <span>{isTask ? "Task Date" : "Arrival"}</span>
-                            <strong>{formatDate(reservation.arrival)}</strong>
-                          </div>
-                          <div>
-                            <span>{isTask ? "Type" : "Departure"}</span>
-                            <strong>{isTask ? reservation.source : formatDate(reservation.departure)}</strong>
-                          </div>
-                        </div>
-
-                        <div className="assignedCleanerLine">
-                          <span>{isTask ? "Status" : "Cleaner"}</span>
-                          <strong>{isTask ? reservation.status : cleaner?.name ?? "Unassigned"}</strong>
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {selectedDateBlocks.map((block) => (
+                  return (
                     <button
-                      key={`calendar-detail-${block.id}`}
+                      key={`calendar-detail-${reservation.id}`}
                       type="button"
                       className="dashboardReservationCard"
-                      onClick={() => setSelectedCalendarItem(block)}
+                      onClick={() => {
+                        setSelectedCalendarItem(reservation);
+                        setActivePage("Reservation Detail");
+                      }}
                     >
-                      <span className="platformBadge">BLOCK</span>
-                      <h3>{block.title}</h3>
-                      <p>{homes.find((home) => home.id === block.homeId)?.name ?? "Unknown property"}</p>
+                      <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
+                        {isTask ? "TASK" : reservation.source.toUpperCase()}
+                      </span>
+                      <h3>{isTask ? getReservationDisplayTitle(reservation) : reservation.guestName}</h3>
+                      <p>{home?.name ?? "Unknown property"}</p>
+
                       <div className="reservationPreviewMeta">
                         <div>
-                          <span>Start</span>
-                          <strong>{formatDate(block.start)}</strong>
+                          <span>{isTask ? "Task Date" : "Arrival"}</span>
+                          <strong>{formatDate(reservation.arrival)}</strong>
                         </div>
                         <div>
-                          <span>End</span>
-                          <strong>{formatDate(block.end)}</strong>
+                          <span>{isTask ? "Type" : "Departure"}</span>
+                          <strong>{isTask ? reservation.source : formatDate(reservation.departure)}</strong>
                         </div>
                       </div>
+
+                      <div className="assignedCleanerLine">
+                        <span>{isTask ? "Status" : "Cleaner"}</span>
+                        <strong>{isTask ? reservation.status : cleaner?.name ?? "Unassigned"}</strong>
+                      </div>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
 
-                {selectedDateReservations.length + selectedDateBlocks.length === 0 && (
-                  <p className="mutedText">No reservations or tasks on this date.</p>
-                )}
-              </>
-            ) : selectedCalendarItem ? (
-              <>
-                <h3>
-                  {"guestName" in selectedCalendarItem
-                    ? selectedCalendarItem.guestName
-                    : selectedCalendarItem.title}
-                </h3>
-
-                <p className="mutedText">
-                  {"guestName" in selectedCalendarItem
-                    ? homes.find((home) => home.id === selectedCalendarItem.homeId)?.name
-                    : selectedCalendarItem.type}
-                </p>
-
-                {"guestName" in selectedCalendarItem && (
-                  <div className="detailStack">
-                    <div>
-                      <span>{isTaskSource(selectedCalendarItem.source) ? "Task Date" : "Arrival"}</span>
-                      <strong>{formatDate(selectedCalendarItem.arrival)}</strong>
+                {selectedDateBlocks.map((block) => (
+                  <button
+                    key={`calendar-detail-${block.id}`}
+                    type="button"
+                    className="dashboardReservationCard"
+                    onClick={() => setSelectedCalendarItem(block)}
+                  >
+                    <span className="platformBadge">BLOCK</span>
+                    <h3>{block.title}</h3>
+                    <p>{homes.find((home) => home.id === block.homeId)?.name ?? "Unknown property"}</p>
+                    <div className="reservationPreviewMeta">
+                      <div>
+                        <span>Start</span>
+                        <strong>{formatDate(block.start)}</strong>
+                      </div>
+                      <div>
+                        <span>End</span>
+                        <strong>{formatDate(block.end)}</strong>
+                      </div>
                     </div>
+                  </button>
+                ))}
+              </div>
 
-                    <div>
-                      <span>{isTaskSource(selectedCalendarItem.source) ? "Type" : "Departure"}</span>
-                      <strong>{isTaskSource(selectedCalendarItem.source) ? selectedCalendarItem.source : formatDate(selectedCalendarItem.departure)}</strong>
-                    </div>
-
-                    <div>
-                      <span>Status</span>
-                      <strong>{selectedCalendarItem.status}</strong>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <h3>Click a calendar date</h3>
-                <p className="mutedText">
-                  Reservations and operations for that day will show here together.
-                </p>
-              </>
-            )}
-          </aside>
-        </section>
-      </>
-    );
-  }
+              {selectedDateReservations.length + selectedDateBlocks.length === 0 && (
+                <p className="mutedText">No reservations or tasks on this date.</p>
+              )}
+            </>
+          ) : (
+            <>
+              <h3>Click a calendar date</h3>
+              <p className="mutedText">Reservations and operations for that day will show here together.</p>
+            </>
+          )}
+        </aside>
+      </section>
+    </>
+  );
+}
 
 
   async function updateWorkOrder(id: string, updates: Partial<WorkOrder>) {
