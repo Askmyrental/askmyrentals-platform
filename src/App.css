@@ -4938,3 +4938,54 @@ button:disabled {
     display: none !important;
   }
 }
+/* ==========================
+   Reservation Calendar Legend
+========================== */
+
+.reservationLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0 18px;
+  align-items: center;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.legendColor {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+/* Reservation */
+.legendReservation {
+  background: #2563eb;
+}
+
+/* Needs Cleaner */
+.legendNeedsCleaner {
+  background: #f59e0b;
+}
+
+/* Cleaner Assigned */
+.legendAssigned {
+  background: #10b981;
+}
+
+/* Maintenance */
+.legendMaintenance {
+  background: #ef4444;
+}
+
+/* Calendar Day Highlight */
+.needsCleanerEvent {
+  border: 2px solid #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}

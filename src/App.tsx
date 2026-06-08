@@ -965,7 +965,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                             <button
                               type="button"
                               key={`${dateKey}-${reservation.id}`}
-                             className={`calendarEvent stackedCalendarEvent source${reservation.source.replace(/\s/g, "")}`}
+                             className={`calendarEvent stackedCalendarEvent source${reservation.source.replace(/\s/g, "")} ${needsCleanerAssignment(reservation) ? "needsCleanerEvent" : ""}`}
                             onClick={(event) => {
   event.stopPropagation();
   setSelectedCalendarDateKey(dateKey);
@@ -1729,11 +1729,6 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
         </header>
 
         <section className="calendarToolbar">
-          <div>
-            <span>Calendar</span>
-            <strong>Compact reservation calendar</strong>
-          </div>
-
           <label>
             Property
             <select value={selectedCalendarHome} onChange={(event) => setSelectedCalendarHome(event.target.value)}>
@@ -1745,6 +1740,14 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
               ))}
             </select>
           </label>
+
+          <div className="calendarLegendMini" aria-label="Calendar legend">
+            <span><i className="legendReservation" /> Assigned Reservation</span>
+            <span><i className="legendUnassigned" /> Needs Cleaner</span>
+            <span><i className="legendMaintenance" /> Task</span>
+            <span><i className="legendConflict" /> Conflict</span>
+            <span><i className="legendOwner" /> Blocked</span>
+          </div>
         </section>
 
         <section className="calendarLayout">
