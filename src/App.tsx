@@ -3792,31 +3792,9 @@ function renderReservationDetail() {
       </header>
 
       <section className="reservationWorkspace">
-        <article className="reservationHeroPanel">
-          <div className="reservationHeroDates">
-            <div>
-              <span>{isTask ? "Task Date" : "Arrival"}</span>
-              <strong>{formatDate(reservation.arrival)}</strong>
-            </div>
-            <div>
-              <span>{isTask ? "Task Type" : "Departure"}</span>
-              <strong>{isTask ? reservation.source : formatDate(reservation.departure)}</strong>
-            </div>
-          </div>
+        
 
-          <div className="reservationHeroStatus">
-            <div>
-              <span>Status</span>
-              <strong>{reservation.status}</strong>
-            </div>
-            <div>
-              <span>{reservation.source === "Cleaning" || imported ? "Assigned Cleaner" : "Task Owner"}</span>
-              <strong>{reservation.source === "Cleaning" || imported ? (cleaner?.name ?? "Unassigned") : reservation.status}</strong>
-            </div>
-          </div>
-        </article>
-
-<article className="reservationHeroPanel compactReservationSummary desktopOnlyReservationSummary">
+<article className="reservationHeroPanel compactReservationSummary">
   <div className="compactReservationTop">
     <div>
       <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
