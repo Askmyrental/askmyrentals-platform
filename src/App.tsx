@@ -569,7 +569,6 @@ export default function App()
 
 {
   const [activePage, setActivePage] = useState("Dashboard");
-  const [reservationDetailReturnPage, setReservationDetailReturnPage] = useState("Dashboard");
   const [showOwnerMobileMenu, setShowOwnerMobileMenu] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
   const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
@@ -586,6 +585,7 @@ export default function App()
   const [calendarDate, setCalendarDate] = useState(new Date(2026, 4, 1));
   const [selectedCalendarItem, setSelectedCalendarItem] = useState<Reservation | CalendarBlock | null>(null);
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
+  const [reservationDetailReturnPage, setReservationDetailReturnPage] = useState("Dashboard");
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [workOrderFilter, setWorkOrderFilter] = useState("all");
  const [selectedPropertyId, setSelectedPropertyId] = useState("");
@@ -781,17 +781,18 @@ const propertyTaskStats = useMemo(() => {
   }
 
   function isMobileView() {
-  return window.matchMedia("(max-width: 768px)").matches;
-}
-
-function openReservationFromCalendar(reservation: Reservation) {
-  setSelectedCalendarItem(reservation);
-  setReservationDetailReturnPage(activePage);
-
-  if (isMobileView()) {
-    setActivePage("Reservation Detail");
+    return window.matchMedia("(max-width: 768px)").matches;
   }
-}
+
+  function openReservationFromCalendar(reservation: Reservation) {
+    setSelectedCalendarItem(reservation);
+    setReservationDetailReturnPage(activePage);
+
+    if (isMobileView()) {
+      setActivePage("Reservation Detail");
+    }
+  }
+
 async function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
@@ -967,10 +968,10 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                               key={`${dateKey}-${reservation.id}`}
                              className={`calendarEvent stackedCalendarEvent source${reservation.source.replace(/\s/g, "")} ${needsCleanerAssignment(reservation) ? "needsCleanerEvent" : ""}`}
                             onClick={(event) => {
-  event.stopPropagation();
-  setSelectedCalendarDateKey(dateKey);
-  openReservationFromCalendar(reservation);
-}}
+                              event.stopPropagation();
+                              setSelectedCalendarDateKey(dateKey);
+                              openReservationFromCalendar(reservation);
+                            }}
                               title={`${getReservationDisplayTitle(reservation)} · ${home?.name ?? ""}`}
                             >
                               <span>{home?.shortName ? `${home.shortName} · ${getReservationDisplayTitle(reservation)}` : getReservationDisplayTitle(reservation)}</span>
@@ -1687,172 +1688,183 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
   }
 
   function renderCalendar() {
-  const selectedDateReservations = selectedCalendarDateKey
-    ? reservations
-        .filter(
-          (reservation) =>
-            (selectedCalendarHome === "all" || reservation.homeId === selectedCalendarHome) &&
-            selectedCalendarDateKey >= reservation.arrival &&
-            selectedCalendarDateKey <= reservation.departure
+    const selectedDateReservations = selectedCalendarDateKey
+      ? reservations
+          .filter(
+            (reservation) =>
+              (selectedCalendarHome === "all" || reservation.homeId === selectedCalendarHome) &&
+              selectedCalendarDateKey >= reservation.arrival &&
+              selectedCalendarDateKey <= reservation.departure
+          )
+          .sort((a, b) => {
+            if (isTaskSource(a.source) && !isTaskSource(b.source)) return 1;
+            if (!isTaskSource(a.source) && isTaskSource(b.source)) return -1;
+            return a.arrival.localeCompare(b.arrival);
+          })
+      : [];
+
+    const selectedDateBlocks = selectedCalendarDateKey
+      ? calendarBlocks.filter(
+          (block) =>
+            (selectedCalendarHome === "all" || block.homeId === selectedCalendarHome) &&
+            selectedCalendarDateKey >= block.start &&
+            selectedCalendarDateKey <= block.end
         )
-        .sort((a, b) => {
-          if (isTaskSource(a.source) && !isTaskSource(b.source)) return 1;
-          if (!isTaskSource(a.source) && isTaskSource(b.source)) return -1;
-          return a.arrival.localeCompare(b.arrival);
-        })
-    : [];
+      : [];
 
-  const selectedDateBlocks = selectedCalendarDateKey
-    ? calendarBlocks.filter(
-        (block) =>
-          (selectedCalendarHome === "all" || block.homeId === selectedCalendarHome) &&
-          selectedCalendarDateKey >= block.start &&
-          selectedCalendarDateKey <= block.end
-      )
-    : [];
+    return (
+      <>
+        <section className="calendarStickyHeader compactCalendarHeader">
+          <div className="compactCalendarTopRow">
+            <div className="compactCalendarBrand">
+              <div className="brandIcon smallBrandIcon">AMR</div>
+              <strong>Ask My Rentals</strong>
+            </div>
 
-  return (
-    <>
-      <section className="calendarStickyHeader">
-        <div className="calendarStickyBrand">
-          <div className="brandIcon smallBrandIcon">AMR</div>
-          <strong>Ask My Rentals</strong>
-        </div>
-
-        <div className="calendarStickyTitleRow">
-          <div>
-            <p className="eyebrow">Calendar</p>
-            <h2>Calendar</h2>
+            <label className="compactCalendarProperty">
+              <span>Property</span>
+              <select value={selectedCalendarHome} onChange={(event) => setSelectedCalendarHome(event.target.value)}>
+                <option value="all">All homes</option>
+                {homes.map((home) => (
+                  <option key={home.id} value={home.id}>
+                    {home.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          <button className="ghostButton compactGhostButton" onClick={() => setCalendarDate(new Date())}>
-            Current Month
+          <button className="ghostButton compactMonthButton" onClick={() => setCalendarDate(new Date())}>
+            Jump to Current Month
           </button>
-        </div>
 
-        <label className="calendarPropertySelect">
-          Property
-          <select value={selectedCalendarHome} onChange={(event) => setSelectedCalendarHome(event.target.value)}>
-            <option value="all">All homes</option>
-            {homes.map((home) => (
-              <option key={home.id} value={home.id}>
-                {home.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="calendarLegendMini">
-          <span><i className="legendReservation" /> Booked</span>
-          <span><i className="legendUnassigned" /> Needs Cleaner</span>
-          <span><i className="legendMaintenance" /> Task</span>
-          <span><i className="legendConflict" /> Conflict</span>
-          <span><i className="legendOwner" /> Blocked</span>
-        </div>
-      </section>
-
-      <section className="calendarLayout">
-        <div className="calendarPanel stackedCalendarPanel">
-          <div className="taskBoardCalendarBox calendarPageCalendarBox">
-            {renderScrollableCalendarStack({
-              homeFilter: selectedCalendarHome,
-              anchorDate: calendarDate,
-              monthCount: 12,
-              compact: true,
-            })}
+          <div className="calendarLegendMini">
+            <span><i className="legendReservation" /> Booked</span>
+            <span><i className="legendUnassigned" /> Needs Cleaner</span>
+            <span><i className="legendMaintenance" /> Task</span>
+            <span><i className="legendConflict" /> Conflict</span>
+            <span><i className="legendOwner" /> Blocked</span>
           </div>
-        </div>
+        </section>
 
-        <aside className="calendarDetailPanel" id="calendarDetailPanel">
-          <p className="eyebrow">Selected date</p>
-          {selectedCalendarDateKey ? (
-            <>
-              <h3>{formatDate(selectedCalendarDateKey)}</h3>
-              <p className="mutedText">
-                {selectedDateReservations.length + selectedDateBlocks.length} calendar item
-                {selectedDateReservations.length + selectedDateBlocks.length === 1 ? "" : "s"} on this date.
-              </p>
+        <section className="calendarLayout">
+          <div className="calendarPanel stackedCalendarPanel">
+            <div className="taskBoardCalendarBox calendarPageCalendarBox">
+              {renderScrollableCalendarStack({
+                homeFilter: selectedCalendarHome,
+                anchorDate: calendarDate,
+                monthCount: 12,
+                compact: true,
+              })}
+            </div>
+          </div>
 
-              <div className="dashboardReservationCards">
-                {selectedDateReservations.map((reservation) => {
-                  const home = homes.find((item) => item.id === reservation.homeId);
-                  const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
-                  const isTask = isTaskSource(reservation.source);
+          <aside className="calendarDetailPanel" id="calendarDetailPanel">
+            <p className="eyebrow">Selected date</p>
+            {selectedCalendarDateKey ? (
+              <>
+                <h3>{formatDate(selectedCalendarDateKey)}</h3>
+                <p className="mutedText">
+                  {selectedDateReservations.length + selectedDateBlocks.length} calendar item
+                  {selectedDateReservations.length + selectedDateBlocks.length === 1 ? "" : "s"} on this date.
+                </p>
 
-                  return (
+                <div className="dashboardReservationCards">
+                  {selectedDateReservations.map((reservation) => {
+                    const home = homes.find((item) => item.id === reservation.homeId);
+                    const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+                    const isTask = isTaskSource(reservation.source);
+
+                    return (
+                      <button
+                        key={`calendar-detail-${reservation.id}`}
+                        type="button"
+                        className="dashboardReservationCard"
+                        onClick={() => {
+                          setSelectedCalendarItem(reservation);
+                          setReservationDetailReturnPage("Calendar");
+                          setActivePage("Reservation Detail");
+                        }}
+                      >
+                        <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
+                          {isTask ? "TASK" : reservation.source.toUpperCase()}
+                        </span>
+                        <h3>{isTask ? getReservationDisplayTitle(reservation) : reservation.guestName}</h3>
+                        <p>{home?.name ?? "Unknown property"}</p>
+
+                        <div className="reservationPreviewMeta">
+                          <div>
+                            <span>{isTask ? "Task Date" : "Arrival"}</span>
+                            <strong>{formatDate(reservation.arrival)}</strong>
+                          </div>
+                          <div>
+                            <span>{isTask ? "Type" : "Departure"}</span>
+                            <strong>{isTask ? reservation.source : formatDate(reservation.departure)}</strong>
+                          </div>
+                        </div>
+
+                        <div className="assignedCleanerLine">
+                          <span>{isTask ? "Status" : "Cleaner"}</span>
+                          <strong>{isTask ? reservation.status : cleaner?.name ?? "Unassigned"}</strong>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {selectedDateBlocks.map((block) => (
                     <button
-                      key={`calendar-detail-${reservation.id}`}
+                      key={`calendar-detail-${block.id}`}
                       type="button"
                       className="dashboardReservationCard"
-                      onClick={() => {
-                        setSelectedCalendarItem(reservation);
-                        setActivePage("Reservation Detail");
-                      }}
+                      onClick={() => setSelectedCalendarItem(block)}
                     >
-                      <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-                        {isTask ? "TASK" : reservation.source.toUpperCase()}
-                      </span>
-                      <h3>{isTask ? getReservationDisplayTitle(reservation) : reservation.guestName}</h3>
-                      <p>{home?.name ?? "Unknown property"}</p>
-
+                      <span className="platformBadge">BLOCK</span>
+                      <h3>{block.title}</h3>
+                      <p>{homes.find((home) => home.id === block.homeId)?.name ?? "Unknown property"}</p>
                       <div className="reservationPreviewMeta">
                         <div>
-                          <span>{isTask ? "Task Date" : "Arrival"}</span>
-                          <strong>{formatDate(reservation.arrival)}</strong>
+                          <span>Start</span>
+                          <strong>{formatDate(block.start)}</strong>
                         </div>
                         <div>
-                          <span>{isTask ? "Type" : "Departure"}</span>
-                          <strong>{isTask ? reservation.source : formatDate(reservation.departure)}</strong>
+                          <span>End</span>
+                          <strong>{formatDate(block.end)}</strong>
                         </div>
                       </div>
-
-                      <div className="assignedCleanerLine">
-                        <span>{isTask ? "Status" : "Cleaner"}</span>
-                        <strong>{isTask ? reservation.status : cleaner?.name ?? "Unassigned"}</strong>
-                      </div>
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
 
-                {selectedDateBlocks.map((block) => (
-                  <button
-                    key={`calendar-detail-${block.id}`}
-                    type="button"
-                    className="dashboardReservationCard"
-                    onClick={() => setSelectedCalendarItem(block)}
-                  >
-                    <span className="platformBadge">BLOCK</span>
-                    <h3>{block.title}</h3>
-                    <p>{homes.find((home) => home.id === block.homeId)?.name ?? "Unknown property"}</p>
-                    <div className="reservationPreviewMeta">
-                      <div>
-                        <span>Start</span>
-                        <strong>{formatDate(block.start)}</strong>
-                      </div>
-                      <div>
-                        <span>End</span>
-                        <strong>{formatDate(block.end)}</strong>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                {selectedDateReservations.length + selectedDateBlocks.length === 0 && (
+                  <p className="mutedText">No reservations or tasks on this date.</p>
+                )}
+              </>
+            ) : selectedCalendarItem ? (
+              <>
+                <h3>
+                  {"guestName" in selectedCalendarItem
+                    ? selectedCalendarItem.guestName
+                    : selectedCalendarItem.title}
+                </h3>
 
-              {selectedDateReservations.length + selectedDateBlocks.length === 0 && (
-                <p className="mutedText">No reservations or tasks on this date.</p>
-              )}
-            </>
-          ) : (
-            <>
-              <h3>Click a calendar date</h3>
-              <p className="mutedText">Reservations and operations for that day will show here together.</p>
-            </>
-          )}
-        </aside>
-      </section>
-    </>
-  );
-}
+                <p className="mutedText">
+                  {"guestName" in selectedCalendarItem
+                    ? homes.find((home) => home.id === selectedCalendarItem.homeId)?.name
+                    : selectedCalendarItem.type}
+                </p>
+              </>
+            ) : (
+              <>
+                <h3>Click a calendar date</h3>
+                <p className="mutedText">Reservations and operations for that day will show here together.</p>
+              </>
+            )}
+          </aside>
+        </section>
+      </>
+    );
+  }
+
 
 
   async function updateWorkOrder(id: string, updates: Partial<WorkOrder>) {
@@ -3752,57 +3764,51 @@ function renderReservationDetail() {
           <p className="headerSubtext">{detailSubtext}</p>
         </div>
 
-        <button
-  className="ghostButton"
-  type="button"
-  onClick={() => setActivePage(reservationDetailReturnPage)}
->
-  ← Back
-</button>
+        <button className="ghostButton" type="button" onClick={() => setActivePage(reservationDetailReturnPage)}>
+          ← Back
+        </button>
       </header>
 
       <section className="reservationWorkspace">
-        
-
-<article className="reservationHeroPanel compactReservationSummary">
-  <div className="compactReservationTop">
-    <div>
-      <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-        {reservation.source.toUpperCase()}
-      </span>
-      <h3>{home?.name ?? "Unknown property"}</h3>
-      <p>{reservation.guestName}</p>
-    </div>
-  </div>
-
-  <div className="reservationHeroDates">
-    <div>
-      <span>{isTask ? "Task Date" : "Arrival"}</span>
-      <strong>{formatDate(reservation.arrival)}</strong>
-    </div>
-    <div>
-      <span>{isTask ? "Task Type" : "Departure"}</span>
-      <strong>{isTask ? reservation.source : formatDate(reservation.departure)}</strong>
-    </div>
-  </div>
-
-  <div className="reservationHeroStatus">
-    <div>
-      <span>Status</span>
-      <strong>{reservation.status}</strong>
-    </div>
-    <div>
-      <span>{reservation.source === "Cleaning" || imported ? "Cleaner" : "Task Owner"}</span>
-      <strong>{reservation.source === "Cleaning" || imported ? (cleaner?.name ?? "Unassigned") : reservation.status}</strong>
-    </div>
-  </div>
-
-  {imported && (
-    <p className="sourceControlledNotice compactSourceNotice">
-      {getSourceControlledMessage(reservation.source)}
-    </p>
-  )}
-</article>
+        {imported && (
+          <article className="reservationWorkspaceCard">
+            <p className="eyebrow">{detailEyebrow}</p>
+            <h3>Reservation Information</h3>
+            <div className="detailStack">
+              <div>
+                <span>Property</span>
+                <strong>{home?.name ?? "Unknown property"}</strong>
+              </div>
+              <div>
+                <span>Source</span>
+                <strong>{reservation.source}</strong>
+              </div>
+              <div>
+                <span>Guest / Calendar Title</span>
+                <strong>{reservation.guestName || "Not provided"}</strong>
+              </div>
+              <div>
+                <span>Arrival</span>
+                <strong>{formatDate(reservation.arrival)}</strong>
+              </div>
+              <div>
+                <span>Departure</span>
+                <strong>{formatDate(reservation.departure)}</strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <strong>{reservation.status}</strong>
+              </div>
+              <div>
+                <span>Assigned Cleaner</span>
+                <strong>{cleaner?.name ?? "Unassigned"}</strong>
+              </div>
+            </div>
+            <p className="sourceControlledNotice">
+              {getSourceControlledMessage(reservation.source)}
+            </p>
+          </article>
+        )}
 
         {!imported && (
           <article className="reservationWorkspaceCard">

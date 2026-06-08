@@ -4989,3 +4989,77 @@ button:disabled {
   border: 2px solid #f59e0b !important;
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
 }
+.compactCalendarHeader {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  background: rgba(255,255,255,0.97) !important;
+  backdrop-filter: blur(10px);
+  padding: 6px 8px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.compactCalendarTopRow {
+  display: grid !important;
+  grid-template-columns: 1fr 1.4fr !important;
+  gap: 8px !important;
+  align-items: end !important;
+}
+
+.compactCalendarBrand .smallBrandIcon {
+  display: none !important;
+}
+
+.compactCalendarBrand {
+  font-size: 13px !important;
+  min-width: 0 !important;
+}
+
+.compactCalendarProperty {
+  margin: 0 !important;
+  font-size: 10px !important;
+}
+
+.compactCalendarProperty select {
+  min-height: 30px !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+}
+
+.compactMonthButton {
+  width: 100% !important;
+  margin-top: 5px !important;
+  min-height: 26px !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  border-radius: 10px !important;
+}
+
+.calendarLegendMini {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px 8px !important;
+  margin-top: 5px !important;
+  font-size: 9px !important;
+  color: #64748b !important;
+  line-height: 1.1 !important;
+}
+
+.calendarLegendMini span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+}
+
+.calendarLegendMini i {
+  width: 7px !important;
+  height: 7px !important;
+  border-radius: 999px !important;
+  display: inline-block !important;
+}
+
+.legendReservation { background: #2563eb !important; }
+.legendUnassigned { background: #f97316 !important; }
+.legendMaintenance { background: #22c55e !important; }
+.legendConflict { background: #dc2626 !important; }
+.legendOwner { background: #94a3b8 !important; }
