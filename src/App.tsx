@@ -3816,29 +3816,45 @@ function renderReservationDetail() {
           </div>
         </article>
 
-        {imported && (
-          <article className="reservationWorkspaceCard">
-            <p className="eyebrow">{detailEyebrow}</p>
-            <h3>Reservation Information</h3>
-            <div className="detailStack">
-              <div>
-                <span>Property</span>
-                <strong>{home?.name ?? "Unknown property"}</strong>
-              </div>
-              <div>
-                <span>Guest / Calendar Title</span>
-                <strong>{reservation.guestName}</strong>
-              </div>
-              <div>
-                <span>Source</span>
-                <strong>{reservation.source}</strong>
-              </div>
-            </div>
-            <p className="sourceControlledNotice">
-              {getSourceControlledMessage(reservation.source)}
-            </p>
-          </article>
-        )}
+<article className="reservationHeroPanel compactReservationSummary">
+  <div className="compactReservationTop">
+    <div>
+      <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
+        {reservation.source.toUpperCase()}
+      </span>
+      <h3>{home?.name ?? "Unknown property"}</h3>
+      <p>{reservation.guestName}</p>
+    </div>
+  </div>
+
+  <div className="reservationHeroDates">
+    <div>
+      <span>{isTask ? "Task Date" : "Arrival"}</span>
+      <strong>{formatDate(reservation.arrival)}</strong>
+    </div>
+    <div>
+      <span>{isTask ? "Task Type" : "Departure"}</span>
+      <strong>{isTask ? reservation.source : formatDate(reservation.departure)}</strong>
+    </div>
+  </div>
+
+  <div className="reservationHeroStatus">
+    <div>
+      <span>Status</span>
+      <strong>{reservation.status}</strong>
+    </div>
+    <div>
+      <span>{reservation.source === "Cleaning" || imported ? "Cleaner" : "Task Owner"}</span>
+      <strong>{reservation.source === "Cleaning" || imported ? (cleaner?.name ?? "Unassigned") : reservation.status}</strong>
+    </div>
+  </div>
+
+  {imported && (
+    <p className="sourceControlledNotice compactSourceNotice">
+      {getSourceControlledMessage(reservation.source)}
+    </p>
+  )}
+</article>
 
         {!imported && (
           <article className="reservationWorkspaceCard">
