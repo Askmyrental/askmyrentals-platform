@@ -4933,3 +4933,8 @@ button:disabled {
     padding-top: 12px !important;
   }
 }
+@media (max-width: 768px) {
+  .desktopOnlyReservationSummary {
+    display: none !important;
+  }
+}

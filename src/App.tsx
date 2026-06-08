@@ -3816,7 +3816,7 @@ function renderReservationDetail() {
           </div>
         </article>
 
-<article className="reservationHeroPanel compactReservationSummary">
+<article className="reservationHeroPanel compactReservationSummary desktopOnlyReservationSummary">
   <div className="compactReservationTop">
     <div>
       <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
