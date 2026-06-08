@@ -1714,38 +1714,39 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
 
     return (
       <>
-        <section className="calendarStickyHeader compactCalendarHeader">
-          <div className="compactCalendarTopRow">
-            <div className="compactCalendarBrand">
-              <div className="brandIcon smallBrandIcon">AMR</div>
-              <strong>Ask My Rentals</strong>
-            </div>
+<section className="calendarMobileControls">
+  <h2>Calendar</h2>
 
-            <label className="compactCalendarProperty">
-              <span>Property</span>
-              <select value={selectedCalendarHome} onChange={(event) => setSelectedCalendarHome(event.target.value)}>
-                <option value="all">All homes</option>
-                {homes.map((home) => (
-                  <option key={home.id} value={home.id}>
-                    {home.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+  <label>
+    Property
+    <select
+      value={selectedCalendarHome}
+      onChange={(event) => setSelectedCalendarHome(event.target.value)}
+    >
+      <option value="all">All homes</option>
+      {homes.map((home) => (
+        <option key={home.id} value={home.id}>
+          {home.name}
+        </option>
+      ))}
+    </select>
+  </label>
 
-          <button className="ghostButton compactMonthButton" onClick={() => setCalendarDate(new Date())}>
-            Jump to Current Month
-          </button>
+  <button
+    className="ghostButton"
+    onClick={() => setCalendarDate(new Date())}
+  >
+    Jump to Current Month
+  </button>
 
-          <div className="calendarLegendMini">
-            <span><i className="legendReservation" /> Booked</span>
-            <span><i className="legendUnassigned" /> Needs Cleaner</span>
-            <span><i className="legendMaintenance" /> Task</span>
-            <span><i className="legendConflict" /> Conflict</span>
-            <span><i className="legendOwner" /> Blocked</span>
-          </div>
-        </section>
+  <div className="calendarLegendMini">
+    <span><i className="legendReservation" /> Booked</span>
+    <span><i className="legendUnassigned" /> Needs Cleaner</span>
+    <span><i className="legendMaintenance" /> Task</span>
+    <span><i className="legendConflict" /> Conflict</span>
+    <span><i className="legendOwner" /> Blocked</span>
+  </div>
+</section>
 
         <section className="calendarLayout">
           <div className="calendarPanel stackedCalendarPanel">
