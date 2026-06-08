@@ -569,6 +569,7 @@ export default function App()
 
 {
   const [activePage, setActivePage] = useState("Dashboard");
+  const [reservationDetailReturnPage, setReservationDetailReturnPage] = useState("Dashboard");
   const [showOwnerMobileMenu, setShowOwnerMobileMenu] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
   const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
@@ -779,7 +780,18 @@ const propertyTaskStats = useMemo(() => {
     }
   }
 
-  
+  function isMobileView() {
+  return window.matchMedia("(max-width: 768px)").matches;
+}
+
+function openReservationFromCalendar(reservation: Reservation) {
+  setSelectedCalendarItem(reservation);
+  setReservationDetailReturnPage(activePage);
+
+  if (isMobileView()) {
+    setActivePage("Reservation Detail");
+  }
+}
 async function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
@@ -955,10 +967,10 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
                               key={`${dateKey}-${reservation.id}`}
                              className={`calendarEvent stackedCalendarEvent source${reservation.source.replace(/\s/g, "")}`}
                             onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedCalendarDateKey(dateKey);
-                              setSelectedCalendarItem(reservation);
-                            }}
+  event.stopPropagation();
+  setSelectedCalendarDateKey(dateKey);
+  openReservationFromCalendar(reservation);
+}}
                               title={`${getReservationDisplayTitle(reservation)} · ${home?.name ?? ""}`}
                             >
                               <span>{home?.shortName ? `${home.shortName} · ${getReservationDisplayTitle(reservation)}` : getReservationDisplayTitle(reservation)}</span>
@@ -3770,9 +3782,13 @@ function renderReservationDetail() {
           <p className="headerSubtext">{detailSubtext}</p>
         </div>
 
-        <button className="ghostButton" type="button" onClick={() => setActivePage("Dashboard")}>
-          ← Back to Dashboard
-        </button>
+        <button
+  className="ghostButton"
+  type="button"
+  onClick={() => setActivePage(reservationDetailReturnPage)}
+>
+  ← Back
+</button>
       </header>
 
       <section className="reservationWorkspace">
