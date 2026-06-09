@@ -4918,7 +4918,44 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
           </aside>
         </section>
 
-             </>
+        <nav className="cleanerMobileNav" aria-label="Cleaner mobile navigation">
+          <button
+            type="button"
+            onClick={() => document.querySelector(".cleanerTaskStack")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <span>✓</span>
+            Tasks
+          </button>
+          <button
+            type="button"
+            onClick={() => document.querySelector(".cleanerQuickStats")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <span>◷</span>
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("cleanerIssueForm")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <span>⚠</span>
+            Issues
+          </button>
+          <button
+            type="button"
+            onClick={() => window.alert("Cleaner messaging is the next build step.")}
+          >
+            <span>✉</span>
+            Messages
+          </button>
+          <button
+            type="button"
+            onClick={() => document.querySelector(".cleanerPortalTop")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <span>●</span>
+            Profile
+          </button>
+        </nav>
+      </>
     );
   }
 
@@ -5220,7 +5257,35 @@ const blockedNights =
           )}
         </nav>
 
-        {/* Mobile navigation is handled only by .mobileBottomNav below. */}
+        <nav className="ownerMobileNav" aria-label="Owner mobile navigation">
+          {[
+            { label: "Home", page: "Dashboard", icon: "⌂" },
+            { label: "Reservations", page: "Reservations", icon: "▦" },
+            { label: "Calendar", page: "Calendar", icon: "◷" },
+          ].map((item) => (
+            <button
+              key={item.page}
+              type="button"
+              className={activePage === item.page ? "active" : ""}
+              onClick={() => {
+                setActivePage(item.page);
+                setShowOwnerMobileMenu(false);
+              }}
+            >
+              <span>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            className={showOwnerMobileMenu ? "active" : ""}
+            onClick={() => setShowOwnerMobileMenu((current) => !current)}
+          >
+            <span>☰</span>
+            Menu
+          </button>
+        </nav>
 
       </aside>
 
