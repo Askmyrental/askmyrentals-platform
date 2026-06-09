@@ -4918,44 +4918,7 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
           </aside>
         </section>
 
-        <nav className="cleanerMobileNav" aria-label="Cleaner mobile navigation">
-          <button
-            type="button"
-            onClick={() => document.querySelector(".cleanerTaskStack")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            <span>✓</span>
-            Tasks
-          </button>
-          <button
-            type="button"
-            onClick={() => document.querySelector(".cleanerQuickStats")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            <span>◷</span>
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={() => document.getElementById("cleanerIssueForm")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            <span>⚠</span>
-            Issues
-          </button>
-          <button
-            type="button"
-            onClick={() => window.alert("Cleaner messaging is the next build step.")}
-          >
-            <span>✉</span>
-            Messages
-          </button>
-          <button
-            type="button"
-            onClick={() => document.querySelector(".cleanerPortalTop")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            <span>●</span>
-            Profile
-          </button>
-        </nav>
-      </>
+             </>
     );
   }
 
