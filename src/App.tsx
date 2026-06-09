@@ -5257,35 +5257,7 @@ const blockedNights =
           )}
         </nav>
 
-        <nav className="ownerMobileNav" aria-label="Owner mobile navigation">
-          {[
-            { label: "Home", page: "Dashboard", icon: "⌂" },
-            { label: "Reservations", page: "Reservations", icon: "▦" },
-            { label: "Calendar", page: "Calendar", icon: "◷" },
-          ].map((item) => (
-            <button
-              key={item.page}
-              type="button"
-              className={activePage === item.page ? "active" : ""}
-              onClick={() => {
-                setActivePage(item.page);
-                setShowOwnerMobileMenu(false);
-              }}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-
-          <button
-            type="button"
-            className={showOwnerMobileMenu ? "active" : ""}
-            onClick={() => setShowOwnerMobileMenu((current) => !current)}
-          >
-            <span>☰</span>
-            Menu
-          </button>
-        </nav>
+        {/* Mobile navigation is handled only by .mobileBottomNav below. */}
 
       </aside>
 
