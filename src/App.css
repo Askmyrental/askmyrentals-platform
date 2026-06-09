@@ -2337,3 +2337,6 @@ textarea:focus {
     min-height: 100vh !important;
     overflow: visible !important;
   }
+  .cleanerMobileNav {
+  display: none !important;
+}}
