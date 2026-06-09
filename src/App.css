@@ -2522,3 +2522,6 @@ textarea:focus {
   }
 }
 
+.mobileBottomNav {
+  background: red !important;
+}
