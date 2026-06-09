@@ -2522,3 +2522,80 @@ textarea:focus {
   }
 }
 
+@media (max-width: 900px) {
+  .ownerMobileMenuOverlay {
+    display: none !important;
+  }
+
+  .ownerMobileMenuOverlay:has(.ownerMobileMenuSheet) {
+    display: grid !important;
+  }
+
+  .mobileBottomNav {
+    display: grid !important;
+    position: fixed !important;
+    left: 50% !important;
+    bottom: 10px !important;
+    transform: translateX(-50%) !important;
+    width: min(calc(100vw - 20px), 410px) !important;
+    height: 66px !important;
+  }
+}/* FINAL MOBILE NAV HARD RESET — keep this at the very bottom */
+@media (max-width: 900px) {
+  .mobileBottomNav {
+    all: unset !important;
+    box-sizing: border-box !important;
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: 10px !important;
+    transform: translateX(-50%) !important;
+    z-index: 999999 !important;
+    width: min(calc(100vw - 20px), 410px) !important;
+    height: 66px !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    padding: 6px !important;
+    border-radius: 22px !important;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.2) !important;
+  }
+
+  .mobileBottomNav button {
+    all: unset !important;
+    box-sizing: border-box !important;
+    height: 54px !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    color: #475569 !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+  }
+
+  .mobileBottomNav button span {
+    font-size: 16px !important;
+    line-height: 1 !important;
+  }
+
+  .mobileBottomNav button small {
+    font-size: 9px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .mobileBottomNav button.active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+  }
+
+  .mainContent {
+    padding-bottom: 110px !important;
+  }
+}
