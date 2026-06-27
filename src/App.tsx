@@ -1,5 +1,21 @@
+import GuestReadyPage from "./pages/GuestReadyPage";
+import HousekeepingPage from "./pages/HousekeepingPage";
+import { parseICalTextToReservations } from "./utils/calendarSync";
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import { getMonthDays, getStackedCalendarMonths } from "./utils/calendarUtils";
+import { ScrollableCalendarStack } from "./components/ScrollableCalendarStack";
+import { CalendarPage } from "./pages/CalendarPage";
+import ReservationsPage from "./pages/ReservationsPage";
+import ReservationDetailPage from "./pages/ReservationDetailPage";
+import CleanerPortalPage from "./pages/CleanerPortalPage";
+import CleanersPage from "./pages/CleanersPage";
+import PropertiesPage from "./pages/PropertiesPage";
+import MaintenancePage from "./pages/MaintenancePage";
+import NotificationCenterPage from "./pages/NotificationCenterPage";
+import OccupancyPage from "./pages/OccupancyPage";
+import RecordsPage from "./pages/RecordsPage";
+import DashboardPage from "./pages/DashboardPage";
 import PropertyOperationsHub from "./components/PropertyOperationsHub";
 import { supabase } from "./utils/supabase";
 type ReservationStatus =
@@ -8,17 +24,23 @@ type ReservationStatus =
   | "Accepted"
   | "In Process"
   | "Completed"
-  | "Blocked";
+  | "Blocked"
+  | "No Clean Needed";
 
 type ReservationSource =
   | "VRBO"
   | "Airbnb"
+  | "Guest Reservation"
   | "Owner Block"
   | "Cleaning"
   | "Maintenance"
   | "Vendor Visit"
   | "Inspection";
-
+type ReservationType =
+  | "Reservation"
+  | "Mirror Block"
+  | "Owner Block"
+  | "Operational Task";
 type BlockType = "Owner Block" | "Maintenance";
 
 type Home = {
@@ -78,6 +100,7 @@ type Reservation = {
   guestName: string;
   homeId: string;
   source: ReservationSource;
+  type: ReservationType;
   arrival: string;
   departure: string;
   status: ReservationStatus;
@@ -192,17 +215,6 @@ const vendors: Vendor[] = [
 ];
 
 
-
-
-
-const statusOrder: ReservationStatus[] = [
-  "Unassigned",
-  "Assigned",
-  "Accepted",
-  "In Process",
-  "Completed",
-];
-
 const monthNames = [
   "January",
   "February",
@@ -264,85 +276,27 @@ function makeTimelineNote(status: ReservationStatus, cleanerId?: string) {
   return "Status updated";
 }
 
-function getMonthDays(year: number, month: number) {
-  const firstDay = new Date(year, month, 1);
-  const startDay = firstDay.getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const days: Array<{ date: Date; inMonth: boolean }> = [];
 
-  for (let i = startDay - 1; i >= 0; i -= 1) {
-    days.push({ date: new Date(year, month, -i), inMonth: false });
-  }
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    days.push({ date: new Date(year, month, day), inMonth: true });
-  }
-
-  while (days.length % 7 !== 0) {
-    const last = days[days.length - 1].date;
-    days.push({
-      date: new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1),
-      inMonth: false,
-    });
-  }
-
-  return days;
-}
 
 function isDateInRange(date: Date, start: string, end: string) {
   const target = toInputDate(date);
-  return target >= start && target <= end;
+  return target >= start && target < end;
 }
-
 function isSameDay(date: Date, dateString: string) {
   return toInputDate(date) === dateString;
 }
 
-function doDateRangesOverlap(startA: string, endA: string, startB: string, endB: string) {
-  return startA <= endB && endA >= startB;
-}
 
-function getReservationConflictCount(candidate: Pick<Reservation, "homeId" | "arrival" | "departure">, reservations: Reservation[]) {
-  return reservations.filter(
-    (reservation) =>
-      reservation.homeId === candidate.homeId &&
-      doDateRangesOverlap(candidate.arrival, candidate.departure, reservation.arrival, reservation.departure)
-  ).length;
-}
 
-function getDateAvailabilityClass(
-  date: Date,
-  homeId: string,
-  reservations: Reservation[],
-  calendarBlocks: CalendarBlock[]
-) {
-  const dateKey = toInputDate(date);
-  const reservationHits = reservations.filter(
-    (reservation) => reservation.homeId === homeId && dateKey >= reservation.arrival && dateKey <= reservation.departure
-  );
-  const blockHits = calendarBlocks.filter(
-    (block) => block.homeId === homeId && dateKey >= block.start && dateKey <= block.end
-  );
 
-  const hasReservation = reservationHits.some((reservation) => reservation.source !== "Owner Block");
-  const hasOwnerBlock = reservationHits.some((reservation) => reservation.source === "Owner Block") ||
-    blockHits.some((block) => block.type === "Owner Block");
-  const hasMaintenance = blockHits.some((block) => block.type === "Maintenance");
-  const hasConflict = reservationHits.length + blockHits.length > 1;
 
-  if (hasConflict) return "previewConflict";
-  if (hasMaintenance) return "previewMaintenance";
-  if (hasOwnerBlock) return "previewOwnerBlock";
-  if (hasReservation) return "previewReservation";
-  return "previewOpen";
-}
+
 
 function isImportedReservation(reservation: Reservation) {
   return reservation.source === "VRBO" || reservation.source === "Airbnb";
 }
 
 function normalizeReservationSource(source: string): ReservationSource {
-  if (source === "Guest Reservation") return "Owner Block";
   if (source === "Cleaning Block") return "Cleaning";
   if (source === "Maintenance Block") return "Maintenance";
   if (source === "Vendor Block") return "Vendor Visit";
@@ -353,7 +307,30 @@ function normalizeReservationSource(source: string): ReservationSource {
 function isTaskSource(source: ReservationSource) {
   return source === "Cleaning" || source === "Vendor Visit" || source === "Inspection";
 }
+function getReservationType(
+  source: ReservationSource,
+  status: ReservationStatus,
+  guestName = ""
+): ReservationType {
+  const normalizedGuestName = String(guestName).toLowerCase();
 
+  const looksLikePlatformBlock =
+    normalizedGuestName.includes("block") ||
+    normalizedGuestName.includes("not available") ||
+    normalizedGuestName.includes("unavailable");
+
+  if (source === "Owner Block") return "Owner Block";
+  if (isTaskSource(source)) return "Operational Task";
+
+  if (
+    (source === "VRBO" || source === "Airbnb") &&
+    (status === "Blocked" || looksLikePlatformBlock)
+  ) {
+    return "Mirror Block";
+  }
+
+  return "Reservation";
+}
 
 function getNotesValue(notes: string | undefined, label: string) {
   const prefix = `${label}:`;
@@ -388,10 +365,27 @@ function getReservationDisplayTitle(reservation: Reservation) {
 }
 
 function needsCleanerAssignment(reservation: Reservation) {
-  return (isImportedReservation(reservation) || reservation.source === "Cleaning") &&
+  if (
+    reservation.type === "Mirror Block" ||
+    reservation.status === "Blocked"
+  ) {
+    return false;
+  }
+
+  const cleanerRequiredSources: ReservationSource[] = [
+    "VRBO",
+    "Airbnb",
+    "Guest Reservation",
+    "Owner Block",
+    "Cleaning",
+  ];
+
+  return (
+    cleanerRequiredSources.includes(reservation.source) &&
     reservation.status !== "Completed" &&
-    reservation.status !== "Blocked" &&
-    !reservation.cleanerId;
+    reservation.status !== "No Clean Needed" &&
+    !reservation.cleanerId
+  );
 }
 
 function getReservationDetailLabel(reservation: Reservation) {
@@ -415,174 +409,365 @@ function getSyncDateRangeLabel(start: string, end: string) {
 }
 
 function getCalendarSyncIssues(reservations: Reservation[], homes: Home[], dismissedIds: string[]) {
-  const importedItems = reservations.filter((reservation) => isImportedReservation(reservation));
-  const activeImportedItems = importedItems.filter((reservation) => reservation.status !== "Completed");
+  type CalendarSyncIssue = {
+    id: string;
+    property: string;
+    dateRange: string;
+    message: string;
+    severity: string;
+    status: string;
+    primaryReservation: Reservation;
+    overlappingReservation: Reservation;
+  };
 
-  const issues = activeImportedItems.flatMap((reservation) => {
-    const home = homes.find((item) => item.id === reservation.homeId);
-    const matchingSource = reservation.source === "VRBO" ? "Airbnb" : "VRBO";
-    const matchingItems = activeImportedItems.filter(
-      (item) =>
-        item.id !== reservation.id &&
-        item.homeId === reservation.homeId &&
-        item.source === matchingSource &&
-        doDateRangesOverlap(reservation.arrival, reservation.departure, item.arrival, item.departure)
+  const todayKey = toInputDate(new Date());
+
+  const addMonths = (date: Date, months: number) => {
+    const copy = new Date(date);
+    copy.setMonth(copy.getMonth() + months);
+    return copy;
+  };
+
+  const twelveMonthsFromTodayKey = toInputDate(addMonths(new Date(), 12));
+
+  const isCalendarHealthEligible = (reservation: Reservation) => {
+    if (!reservation.arrival || !reservation.departure) return false;
+
+    // Ignore reservations that have already checked out.
+    if (reservation.departure <= todayKey) return false;
+
+    // Ignore reservations already in progress.
+    // Airbnb iCal may not export the past portion of active reservations,
+    // so these can create false missing-protection alerts.
+    if (reservation.arrival < todayKey && reservation.departure > todayKey) return false;
+
+    // Only evaluate today through 12 months ahead.
+    if (reservation.arrival < todayKey) return false;
+    if (reservation.arrival > twelveMonthsFromTodayKey) return false;
+
+    return true;
+  };
+
+  const isOperationalReservation = (reservation: Reservation) => {
+    if (reservation.type === "Mirror Block") return false;
+    if (reservation.status === "Blocked") return false;
+    if (isTaskSource(reservation.source)) return false;
+
+    return (
+      reservation.type === "Reservation" ||
+      reservation.type === "Owner Block"
+    );
+  };
+
+  const healthReservations = reservations.filter(isCalendarHealthEligible);
+
+  const getNightKeys = (start: string, end: string) => {
+    const nights: string[] = [];
+    const current = toDate(start);
+    const checkout = toDate(end);
+
+    while (current < checkout) {
+      nights.push(toInputDate(current));
+      current.setDate(current.getDate() + 1);
+    }
+
+    return nights;
+  };
+
+  const getDateRangesFromNights = (nights: string[]) => {
+    if (nights.length === 0) return [];
+
+    const sorted = [...nights].sort();
+    const ranges: { start: string; end: string }[] = [];
+
+    let rangeStart = sorted[0];
+    let previous = sorted[0];
+
+    sorted.slice(1).forEach((night) => {
+      const expectedNext = toDate(previous);
+      expectedNext.setDate(expectedNext.getDate() + 1);
+
+      if (night === toInputDate(expectedNext)) {
+        previous = night;
+        return;
+      }
+
+      const rangeEnd = toDate(previous);
+      rangeEnd.setDate(rangeEnd.getDate() + 1);
+
+      ranges.push({
+        start: rangeStart,
+        end: toInputDate(rangeEnd),
+      });
+
+      rangeStart = night;
+      previous = night;
+    });
+
+    const finalEnd = toDate(previous);
+    finalEnd.setDate(finalEnd.getDate() + 1);
+
+    ranges.push({
+      start: rangeStart,
+      end: toInputDate(finalEnd),
+    });
+
+    return ranges;
+  };
+
+  const getDayDifference = (dateA: string, dateB: string) => {
+    return Math.abs(
+      Math.round((toDate(dateA).getTime() - toDate(dateB).getTime()) / 86400000)
+    );
+  };
+
+  const addRangeToSet = (set: Set<string>, start: string, end: string) => {
+    getNightKeys(start, end).forEach((night) => set.add(night));
+  };
+
+  const issues: CalendarSyncIssue[] = [];
+
+  homes.forEach((home) => {
+    const propertyHealthItems = healthReservations.filter(
+      (reservation) => reservation.homeId === home.id
     );
 
-    if (matchingItems.length === 0) {
-      return [
-        {
-          id: `missing-counterpart-${reservation.id}`,
-          property: home?.name ?? "Unknown property",
-          dateRange: getSyncDateRangeLabel(reservation.arrival, reservation.departure),
-          message: `${reservation.source} has an imported item with no overlapping ${matchingSource} item. Confirm the other calendar is blocked or synced.`,
+    const platformItems = propertyHealthItems.filter(
+      (reservation) => reservation.source === "VRBO" || reservation.source === "Airbnb"
+    );
+
+    // Calendar mirror protection checks only run when both platform calendar links exist.
+    if (home.iCalUrl?.trim() && home.airbnbUrl?.trim()) {
+      const vrboNights = new Set<string>();
+      const airbnbNights = new Set<string>();
+
+      const vrboNightSource = new Map<string, Reservation>();
+      const airbnbNightSource = new Map<string, Reservation>();
+
+      platformItems.forEach((reservation) => {
+        const nights = getNightKeys(reservation.arrival, reservation.departure);
+
+        nights.forEach((night) => {
+          if (reservation.source === "VRBO") {
+            vrboNights.add(night);
+            if (!vrboNightSource.has(night)) vrboNightSource.set(night, reservation);
+          }
+
+          if (reservation.source === "Airbnb") {
+            airbnbNights.add(night);
+            if (!airbnbNightSource.has(night)) airbnbNightSource.set(night, reservation);
+          }
+        });
+      });
+
+      const vrboRanges = getDateRangesFromNights([...vrboNights]);
+      const airbnbRanges = getDateRangesFromNights([...airbnbNights]);
+
+      vrboRanges.forEach((vrboRange) => {
+        airbnbRanges.forEach((airbnbRange) => {
+          const startsClose = getDayDifference(vrboRange.start, airbnbRange.start) <= 1;
+          const endsClose = getDayDifference(vrboRange.end, airbnbRange.end) <= 1;
+
+          if (startsClose && endsClose) {
+            const mergedStart =
+              vrboRange.start < airbnbRange.start ? vrboRange.start : airbnbRange.start;
+            const mergedEnd =
+              vrboRange.end > airbnbRange.end ? vrboRange.end : airbnbRange.end;
+
+            addRangeToSet(vrboNights, mergedStart, mergedEnd);
+            addRangeToSet(airbnbNights, mergedStart, mergedEnd);
+          }
+        });
+      });
+
+      const createIssue = (
+        source: "VRBO" | "Airbnb",
+        oppositeSource: "VRBO" | "Airbnb",
+        missingNights: string[],
+        sourceMap: Map<string, Reservation>
+      ) => {
+        if (missingNights.length === 0) return;
+
+        const ranges = getDateRangesFromNights(missingNights);
+
+        ranges.forEach((range) => {
+          const dateRange = getSyncDateRangeLabel(range.start, range.end);
+          const primaryReservation =
+            sourceMap.get(range.start) ||
+            missingNights
+              .map((night) => sourceMap.get(night))
+              .find(Boolean);
+
+          if (!primaryReservation) return;
+
+          const overlapsReservationAlreadyInProgress = reservations.some((reservation) => {
+            if (reservation.homeId !== home.id) return false;
+            if (reservation.source !== "VRBO" && reservation.source !== "Airbnb") return false;
+
+            return (
+              reservation.arrival < todayKey &&
+              reservation.departure > todayKey &&
+              reservation.arrival < range.end &&
+              reservation.departure > range.start
+            );
+          });
+
+          if (overlapsReservationAlreadyInProgress) return;
+
+          const itemLabel =
+            primaryReservation.type === "Mirror Block" ? "blocked dates" : "reservation";
+
+          const issueId = `calendar-coverage-${home.id}-${source}-${range.start}-${range.end}`;
+
+          issues.push({
+            id: issueId,
+            property: home.name ?? "Unknown property",
+            dateRange,
+            message: `${source} ${itemLabel} are not protected on ${oppositeSource}. Missing protection: ${dateRange}.`,
+            severity: "High",
+            status: dismissedIds.includes(issueId) ? "Dismissed" : "Open",
+            primaryReservation,
+            overlappingReservation: {
+              ...primaryReservation,
+              source: oppositeSource,
+              guestName: `No ${oppositeSource} protection found`,
+            },
+          });
+        });
+      };
+
+      createIssue(
+        "VRBO",
+        "Airbnb",
+        [...vrboNights].filter((night) => !airbnbNights.has(night)),
+        vrboNightSource
+      );
+
+      createIssue(
+        "Airbnb",
+        "VRBO",
+        [...airbnbNights].filter((night) => !vrboNights.has(night)),
+        airbnbNightSource
+      );
+    }
+
+    // Cleaner not assigned checks use all future property reservations, not just platform imports.
+    propertyHealthItems.forEach((reservation) => {
+      if (!needsCleanerAssignment(reservation)) return;
+
+      const issueId = `cleaner-not-assigned-${reservation.id}`;
+
+      issues.push({
+        id: issueId,
+        property: home.name ?? "Unknown property",
+        dateRange: getSyncDateRangeLabel(reservation.arrival, reservation.departure),
+        message: `No cleaner has been assigned for ${reservation.guestName}.`,
+        severity: "High",
+        status: dismissedIds.includes(issueId) ? "Dismissed" : "Open",
+        primaryReservation: reservation,
+        overlappingReservation: reservation,
+      });
+    });
+
+    // Cleaner assigned but not accepted for near-term arrivals.
+    propertyHealthItems.forEach((reservation) => {
+      if (!isOperationalReservation(reservation)) return;
+      if (!reservation.cleanerId) return;
+      if (reservation.status !== "Assigned") return;
+
+      const daysUntilArrival = daysUntil(reservation.arrival);
+
+      if (daysUntilArrival > 3) return;
+
+      const issueId = `cleaner-not-accepted-${reservation.id}`;
+
+      issues.push({
+        id: issueId,
+        property: home.name ?? "Unknown property",
+        dateRange: getSyncDateRangeLabel(reservation.arrival, reservation.departure),
+        message: `Cleaner has not accepted the upcoming clean for ${reservation.guestName}.`,
+        severity: "High",
+        status: dismissedIds.includes(issueId) ? "Dismissed" : "Open",
+        primaryReservation: reservation,
+        overlappingReservation: reservation,
+      });
+    });
+
+    // Reservation Conflict Detection.
+    const operationalReservations = propertyHealthItems.filter(isOperationalReservation);
+
+    for (let i = 0; i < operationalReservations.length; i++) {
+      for (let j = i + 1; j < operationalReservations.length; j++) {
+        const first = operationalReservations[i];
+        const second = operationalReservations[j];
+
+        const overlaps =
+          first.arrival < second.departure &&
+          first.departure > second.arrival;
+
+        if (!overlaps) continue;
+
+        const issueId = `reservation-conflict-${first.id}-${second.id}`;
+
+        issues.push({
+          id: issueId,
+          property: home.name ?? "Unknown property",
+          dateRange: getSyncDateRangeLabel(
+            first.arrival < second.arrival ? first.arrival : second.arrival,
+            first.departure > second.departure
+              ? first.departure
+              : second.departure
+          ),
+          message: `${first.guestName} overlaps ${second.guestName}.`,
           severity: "High",
-          status: dismissedIds.includes(`missing-counterpart-${reservation.id}`) ? "Dismissed" : "Open",
-        },
-      ];
+          status: dismissedIds.includes(issueId) ? "Dismissed" : "Open",
+          primaryReservation: first,
+          overlappingReservation: second,
+        });
+      }
     }
-
-    const dateMismatch = matchingItems.find(
-      (item) => item.arrival !== reservation.arrival || item.departure !== reservation.departure
-    );
-
-    if (dateMismatch) {
-      return [
-        {
-          id: `date-mismatch-${reservation.id}-${dateMismatch.id}`,
-          property: home?.name ?? "Unknown property",
-          dateRange: getSyncDateRangeLabel(reservation.arrival, reservation.departure),
-          message: `${reservation.source} dates do not exactly match the overlapping ${matchingSource} calendar item. Review both calendars before the next sync.`,
-          severity: "Medium",
-          status: dismissedIds.includes(`date-mismatch-${reservation.id}-${dateMismatch.id}`) ? "Dismissed" : "Open",
-        },
-      ];
-    }
-
-    return [];
   });
 
-  const uniqueIssues = new Map<string, { id: string; property: string; dateRange: string; message: string; severity: string; status: string }>();
+  const uniqueIssues = new Map<string, CalendarSyncIssue>();
   issues.forEach((issue) => uniqueIssues.set(issue.id, issue));
+
   return Array.from(uniqueIssues.values());
 }
-
 function getSourceControlledMessage(source: ReservationSource) {
   return `Imported from ${source}. To change or remove this reservation, update it in ${source} and re-sync.`;
 }
-
-function unfoldICalLines(icalText: string) {
-  return icalText
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .split("\n")
-    .reduce<string[]>((lines, line) => {
-      if ((line.startsWith(" ") || line.startsWith("\t")) && lines.length > 0) {
-        lines[lines.length - 1] += line.slice(1);
-      } else {
-        lines.push(line);
-      }
-      return lines;
-    }, []);
+function getReservationHomeId(reservation: any) {
+  return reservation.homeId ?? reservation.propertyId ?? reservation.property_id ?? "";
 }
 
-function getICalValue(lines: string[], field: string) {
-  const line = lines.find((item) => item.startsWith(`${field}:`) || item.startsWith(`${field};`));
-  if (!line) return "";
-  const colonIndex = line.indexOf(":");
-  return colonIndex >= 0 ? line.slice(colonIndex + 1).trim() : "";
-}
 
-function parseICalDate(value: string) {
-  if (!value) return "";
-  const cleanValue = value.trim();
-  const datePart = cleanValue.includes("T") ? cleanValue.split("T")[0] : cleanValue.slice(0, 8);
 
-  if (datePart.length !== 8) return "";
 
-  return `${datePart.slice(0, 4)}-${datePart.slice(4, 6)}-${datePart.slice(6, 8)}`;
-}
 
-function cleanICalText(value: string) {
-  return value
-    .replace(/\\,/g, ",")
-    .replace(/\\;/g, ";")
-    .replace(/\\n/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
-function parseICalReservations(icalText: string, homeId: string, source: Extract<ReservationSource, "VRBO" | "Airbnb">) {
-  const lines = unfoldICalLines(icalText);
-  const reservations: Reservation[] = [];
-  let currentEvent: string[] = [];
-  let insideEvent = false;
 
-  lines.forEach((line) => {
-    if (line === "BEGIN:VEVENT") {
-      insideEvent = true;
-      currentEvent = [];
-      return;
-    }
 
-    if (line === "END:VEVENT") {
-      const uid = getICalValue(currentEvent, "UID") || `${source}-${homeId}-${reservations.length}`;
-      const summary = cleanICalText(getICalValue(currentEvent, "SUMMARY")) || `${source} Reservation`;
-      const arrival = parseICalDate(getICalValue(currentEvent, "DTSTART"));
-      const departure = parseICalDate(getICalValue(currentEvent, "DTEND"));
-      const description = cleanICalText(getICalValue(currentEvent, "DESCRIPTION"));
 
-if (arrival && departure) {
-  const normalizedSummary = summary.toLowerCase();
-  const normalizedDescription = description.toLowerCase();
-
-  const isBlocked =
-    normalizedSummary.includes("blocked") ||
-    normalizedSummary.includes("block") ||
-    normalizedDescription.includes("blocked") ||
-    normalizedDescription.includes("block");
-
-  reservations.push({
-    id: `${source.toLowerCase()}-${homeId}-${uid}`.replace(/[^a-zA-Z0-9-_]/g, "-"),
-    guestName: isBlocked ? "Blocked" : summary || "Imported reservation",
-    homeId,
-    source,
-    arrival,
-    departure,
-    status: isBlocked ? "Blocked" : "Unassigned",
-    notes: description ? `Imported calendar note: ${description}` : "",
-    timeline: [`Imported from ${source} iCal`],
-  });
-}
-      insideEvent = false;
-      currentEvent = [];
-      return;
-    }
-
-    if (insideEvent) currentEvent.push(line);
-  });
-
-  return reservations;
-}
 
 export default function App() 
-
 {
   const [activePage, setActivePage] = useState("Dashboard");
   const [showOwnerMobileMenu, setShowOwnerMobileMenu] = useState(false);
   const [homes, setHomes] = useState<Home[]>([]);
-  const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
+ const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [calendarBlocks, setCalendarBlocks] = useState<CalendarBlock[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [notifications, setNotifications] = useState<OwnerNotification[]>([]);
-  const [selectedHome, setSelectedHome] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedItemType, setSelectedItemType] = useState("all");
   const [search, setSearch] = useState("");
-  const [showManualForm, setShowManualForm] = useState(false);
-  const [selectedCalendarHome, setSelectedCalendarHome] = useState("all");
-  const [calendarDate, setCalendarDate] = useState(new Date(2026, 4, 1));
+  const [selectedHome, setSelectedHome] = useState("all");
+ const [, setSelectedStatus] = useState("all");
+  const [selectedItemType, setSelectedItemType] = useState("all");
+ const today = new Date();
+
+const [calendarDate, setCalendarDate] = useState(
+  new Date(today.getFullYear(), today.getMonth() - 1, 1)
+);
   const [selectedCalendarItem, setSelectedCalendarItem] = useState<Reservation | CalendarBlock | null>(null);
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
   const [reservationDetailReturnPage, setReservationDetailReturnPage] = useState("Dashboard");
@@ -644,14 +829,7 @@ useEffect(() => {
   urgency: "Medium",
   notes: "",
 });
-  const [manualForm, setManualForm] = useState({
-    guestName: "",
-    homeId: homes[0]?.id ?? "",
-    source: "Cleaning" as ReservationSource,
-    arrival: "",
-    departure: "",
-    notes: "",
-  });
+
   const [showWorkOrderForm, setShowWorkOrderForm] = useState(false);
   const [ownerWorkOrderForm, setOwnerWorkOrderForm] = useState({
     homeId: homes[0]?.id ?? "",
@@ -669,61 +847,24 @@ useEffect(() => {
   loadPropertiesFromSupabase();
   loadReservationsFromSupabase();
   loadWorkOrdersFromSupabase();
+  loadCleanersFromSupabase();
 }, []);
 
- 
 
- 
-
-  const filteredReservations = useMemo(() => {
-    return reservations
-      .filter((reservation) => {
-        const home = homes.find((item) => item.id === reservation.homeId);
-        const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
-        const combined = `${reservation.guestName} ${home?.name ?? ""} ${cleaner?.name ?? ""} ${reservation.source}`.toLowerCase();
-
-        if (selectedHome !== "all" && reservation.homeId !== selectedHome) return false;
-        if (
-  selectedStatus !== "all" &&
-  !(
-    reservation.status === selectedStatus ||
-    (selectedStatus === "Unassigned" && !reservation.cleanerId)
-  )
-) {
-  return false;
-}
-        if ((selectedItemType === "all" || selectedItemType === "reservations") && !isImportedReservation(reservation)) return false;
-        if (selectedItemType === "tasks" && !isTaskSource(reservation.source)) return false;
-        if (selectedItemType === "needs-cleaner" && !needsCleanerAssignment(reservation)) return false;
-        if (search.trim() && !combined.includes(search.trim().toLowerCase())) return false;
-
-        return true;
-      })
-      .sort((a, b) => a.arrival.localeCompare(b.arrival));
-  }, [reservations, search, selectedHome, selectedStatus, selectedItemType]);
-
-const boardStats = useMemo(() => {
-  const importedReservations = reservations.filter((item) => isImportedReservation(item));
-  const futureReservations = importedReservations.filter((item) => item.departure >= toInputDate(new Date()));
-  const pastReservations = importedReservations.filter((item) => item.departure < toInputDate(new Date()));
-  const reservationsNeedingCleaner = importedReservations.filter((item) => needsCleanerAssignment(item));
-  const inProcessReservations = importedReservations.filter((item) => item.status === "In Process");
-
-  return {
-    total: importedReservations.length,
-    future: futureReservations.length,
-    past: pastReservations.length,
-    needCleanerAssigned: reservationsNeedingCleaner.length,
-    inProcess: inProcessReservations.length,
-  };
-}, [reservations]);
-
+const urgentNotificationCount =
+  workOrders.filter(
+    (order) =>
+      order.homeId === selectedPropertyId &&
+      (order.urgency === "High" || order.urgency === "After Hours") &&
+      order.status !== "Completed"
+  ).length;
 const propertyTaskStats = useMemo(() => {
   const propertyTasks = reservations.filter((item) => isTaskSource(item.source));
   const openTasks = propertyTasks.filter((item) => item.status !== "Completed");
   const cleaningTasksNeedingCleaner = propertyTasks.filter((item) => needsCleanerAssignment(item));
   const upcomingTasks = propertyTasks.filter((item) => item.arrival >= toInputDate(new Date()));
 
+  
   return {
     total: propertyTasks.length,
     open: openTasks.length,
@@ -733,136 +874,208 @@ const propertyTaskStats = useMemo(() => {
 }, [reservations]);
 
 
-  function updateReservation(id: string, updates: Partial<Reservation>) {
-    let updatedReservation: Reservation | null = null;
 
-    setReservations((current) =>
-      current.map((reservation) => {
-        if (reservation.id !== id) return reservation;
-
-        const nextStatus = updates.status ?? reservation.status;
-        const nextCleaner = updates.cleanerId ?? reservation.cleanerId;
-        const shouldAddTimeline = updates.status || updates.cleanerId;
-
-        updatedReservation = {
-          ...reservation,
-          ...updates,
-          timeline: shouldAddTimeline
-            ? [...reservation.timeline, makeTimelineNote(nextStatus, nextCleaner)]
-            : reservation.timeline,
-        };
-
-        return updatedReservation;
-      })
-    );
-
-    if (
-      updatedReservation &&
-      selectedCalendarItem &&
-      "guestName" in selectedCalendarItem &&
-      selectedCalendarItem.id === id
-    ) {
-      setSelectedCalendarItem(updatedReservation);
-    }
-  }
-
-  function deleteReservation(id: string) {
-    const reservationToDelete = reservations.find((reservation) => reservation.id === id);
-
-    if (reservationToDelete && isImportedReservation(reservationToDelete)) {
-      window.alert(getSourceControlledMessage(reservationToDelete.source));
-      return;
-    }
-
-    setReservations((current) => current.filter((reservation) => reservation.id !== id));
-    if (selectedCalendarItem && "guestName" in selectedCalendarItem && selectedCalendarItem.id === id) {
-      setSelectedCalendarItem(null);
-    }
-  }
-
-  function isMobileView() {
-    return window.matchMedia("(max-width: 768px)").matches;
-  }
-
-  function openReservationFromCalendar(reservation: Reservation) {
-    setSelectedCalendarItem(reservation);
-    setReservationDetailReturnPage(activePage);
-
-    if (isMobileView()) {
-      setActivePage("Reservation Detail");
-    }
-  }
-
-async function createManualReservation(event: React.FormEvent<HTMLFormElement>) {
-  event.preventDefault();
-
-  const selectedManualHomeId = manualForm.homeId || selectedPropertyId || homes[0]?.id || "";
-  const isPropertyTask = isTaskSource(manualForm.source);
-  const effectiveDeparture = isPropertyTask ? manualForm.arrival : manualForm.departure;
-
-  if (!manualForm.guestName || !selectedManualHomeId || !manualForm.arrival || !effectiveDeparture) {
-    alert("Please complete the task name, property, and task date.");
-    return;
-  }
-
+async function createManualReservation(form: any) {
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
 
   if (!user) {
-    alert("You must be logged in to create a property item.");
+    window.alert("You must be logged in to create a reservation.");
     return;
   }
 
-  const conflictNote = "";
-  const timeline = [`AMR ${manualForm.source} task created`];
+  const manualHomeId = form.homeId || selectedPropertyId;
+  const overlapsExistingReservation = reservations.find((reservation) => {
+  if (reservation.homeId !== manualHomeId) return false;
 
-  const { error } = await supabase.from("reservations").insert({
-    owner_id: user.id,
-    property_id: selectedManualHomeId,
-    guest_name: manualForm.guestName,
-    source: manualForm.source,
-    arrival: manualForm.arrival,
-    departure: effectiveDeparture,
-    status: "Unassigned",
-    cleaner_id: null,
-    notes: [manualForm.notes, conflictNote].filter(Boolean).join("\n"),
-    timeline,
-  });
+  return (
+    form.arrival < reservation.departure &&
+    form.departure > reservation.arrival
+  );
+});
+
+if (overlapsExistingReservation) {
+  const confirmOverride = window.confirm(
+    `This date range overlaps an existing item:\n\n${overlapsExistingReservation.guestName}\n${formatDate(
+      overlapsExistingReservation.arrival
+    )} → ${formatDate(
+      overlapsExistingReservation.departure
+    )}\n\nDo you still want to create it anyway?`
+  );
+
+  if (!confirmOverride) return;
+}
+const selectedProperty = homes.find((home) => home.id === manualHomeId);
+  const defaultCleanerId = selectedProperty?.defaultCleanerId ?? "";
+  const cleanerId =
+  form.cleanerId === "default"
+    ? defaultCleanerId || undefined
+    : form.cleanerId || defaultCleanerId || undefined;
+  const reservationStatus = cleanerId ? "Assigned" : "Unassigned";
+  const timeline = [
+    "Created manually",
+    cleanerId ? makeTimelineNote("Assigned", cleanerId) : "No cleaner assigned",
+  ];
+
+  const { error } = await supabase
+    .from("reservations")
+    .insert({
+      owner_id: user.id,
+     property_id: manualHomeId,
+      guest_name: form.guestName || form.source,
+      source: form.source,
+      arrival: form.arrival,
+      departure: form.departure,
+      status: reservationStatus,
+      cleaner_id: cleanerId ?? null,
+      notes: form.notes ?? "",
+      timeline,
+    })
+    
 
   if (error) {
-    console.error("Property item save failed", error);
-    alert(error.message);
+    console.error("Manual reservation creation failed", error);
+    window.alert(error.message);
     return;
   }
 
   await loadReservationsFromSupabase();
-
-  setManualForm({
-    guestName: "",
-    homeId: homes[0]?.id ?? "",
-    source: "Cleaning",
-    arrival: "",
-    departure: "",
-    notes: "",
-  });
-
-  setShowManualForm(false);
 }
-function getStackedCalendarMonths(anchorDate: Date, count = 12) {
-  const anchor = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
+ async function updateReservation(id: string, updates: Partial<Reservation>) {
+  let updatedReservation: Reservation | null = null;
 
-  return Array.from(
-    { length: count },
-    (_item, index) =>
-      new Date(anchor.getFullYear(), anchor.getMonth() + index, 1)
+  setReservations((current) =>
+    current.map((reservation) => {
+      if (reservation.id !== id) return reservation;
+
+      const nextCleaner =
+  "cleanerId" in updates ? updates.cleanerId : reservation.cleanerId;
+
+const nextStatus =
+  "cleanerId" in updates && !updates.cleanerId
+    ? "Unassigned"
+    : updates.status ?? reservation.status;
+
+      const shouldAddTimeline =
+        updates.status !== undefined || "cleanerId" in updates;
+
+      updatedReservation = {
+        ...reservation,
+        ...updates,
+        cleanerId: nextCleaner,
+        timeline: shouldAddTimeline
+          ? [...reservation.timeline, makeTimelineNote(nextStatus, nextCleaner)]
+          : reservation.timeline,
+      };
+
+      return updatedReservation;
+    })
   );
+
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (user) {
+    const supabaseUpdates: Record<string, any> = {};
+
+    if ("cleanerId" in updates) {
+      supabaseUpdates.cleaner_id = updates.cleanerId ?? null;
+    }
+
+    if (updates.status !== undefined) {
+      supabaseUpdates.status = updates.status;
+    }
+
+    if (updates.notes !== undefined) {
+      supabaseUpdates.notes = updates.notes;
+    }
+console.log("UPDATE CALLED", {
+  id,
+  updates,
+  supabaseUpdates,
+});
+ const { error } = await supabase
+  .from("reservations")
+  .update(supabaseUpdates)
+  .eq("id", id)
+  .eq("owner_id", user.id)
+  .select();
+
+console.log("SUPABASE UPDATE RESULT", { error });
+
+    if (error) {
+      console.error("Reservation update failed", error);
+      window.alert(error.message);
+      return;
+    }
+  }
+
+  if (
+    updatedReservation &&
+    selectedCalendarItem &&
+    "guestName" in selectedCalendarItem &&
+    selectedCalendarItem.id === id
+  ) {
+    setSelectedCalendarItem(updatedReservation);
+  }
 }
-  function getCalendarDayData(date: Date, homeFilter: string) {
-    const dayReservations = reservations.filter(
-      (reservation) =>
-        (homeFilter === "all" || reservation.homeId === homeFilter) &&
-        isDateInRange(date, reservation.arrival, reservation.departure)
+
+  async function deleteReservation(id: string) {
+  const reservationToDelete = reservations.find((reservation) => reservation.id === id);
+
+  if (!reservationToDelete) return;
+
+  if (reservationToDelete.source === "VRBO" || reservationToDelete.source === "Airbnb") {
+    window.alert(getSourceControlledMessage(reservationToDelete.source));
+    return;
+  }
+
+  const confirmation = window.confirm(
+    `Delete ${reservationToDelete.guestName}? This cannot be undone.`
+  );
+
+  if (!confirmation) return;
+
+  const { error } = await supabase
+    .from("reservations")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("Reservation delete failed", error);
+    window.alert(error.message);
+    return;
+  }
+
+  setReservations((current) => current.filter((reservation) => reservation.id !== id));
+  setSelectedCalendarItem(null);
+  setActivePage("Reservations");
+}
+  function openReservationFromCalendar(reservation: Reservation) {
+    setSelectedCalendarItem(reservation);
+    setReservationDetailReturnPage(activePage);
+
+  setActivePage("Reservation Detail");
+  }
+
+
+
+function getCalendarDayData(date: Date, homeFilter: string) {
+  const dayReservations = reservations.filter((reservation) => {
+    const dateKey = toInputDate(date);
+
+    const includeDepartureDay =
+      reservation.type === "Reservation" ||
+      (reservation.source === "VRBO" && reservation.status === "Blocked");
+
+    return (
+      (homeFilter === "all" || reservation.homeId === homeFilter) &&
+      dateKey >= reservation.arrival &&
+      (includeDepartureDay
+        ? dateKey <= reservation.departure
+        : dateKey < reservation.departure)
     );
+  });
 
     const dayBlocks = calendarBlocks.filter(
       (block) =>
@@ -895,974 +1108,59 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
     };
   }
 
-  function renderScrollableCalendarStack(options?: { homeFilter?: string; anchorDate?: Date; monthCount?: number; compact?: boolean }) {
-    const homeFilter = options?.homeFilter ?? "all";
-    const anchorDate = options?.anchorDate ?? calendarDate;
-    const monthCount = options?.monthCount ?? 12;
-    const months = getStackedCalendarMonths(anchorDate, monthCount);
-
+  function renderScrollableCalendarStack(options?: {
+    homeFilter?: string;
+    anchorDate?: Date;
+    monthCount?: number;
+    compact?: boolean;
+  }) {
     return (
-      <div className={`stackedCalendarScroller ${options?.compact ? "compactStackedCalendar" : ""}`}>
-        {months.map((monthDate) => {
-          const monthDays = getMonthDays(monthDate.getFullYear(), monthDate.getMonth());
-
-          return (
-            <section className="stackedMonthCard" key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}>
-              <div className="stackedMonthHeader">
-                <h3>
-                  {monthNames[monthDate.getMonth()]} {monthDate.getFullYear()}
-                </h3>
-              </div>
-
-              <div className="stackedWeekdayGrid">
-                {[
-                  "Sun",
-                  "Mon",
-                  "Tue",
-                  "Wed",
-                  "Thu",
-                  "Fri",
-                  "Sat",
-                ].map((day) => (
-                  <span key={`${monthDate.toISOString()}-${day}`}>{day}</span>
-                ))}
-              </div>
-
-              <div className="stackedCalendarGrid">
-                {monthDays.map((day) => {
-                  const dateKey = toInputDate(day.date);
-                  const { dayReservations, dayBlocks, isB2B, hasTasks, hasConflict } = getCalendarDayData(day.date, homeFilter);
-                  const visibleReservationEvents = dayReservations.slice(0, options?.compact ? 2 : 4);
-                  const visibleBlockEvents = dayBlocks.slice(0, Math.max(0, (options?.compact ? 3 : 5) - visibleReservationEvents.length));
-                  const hiddenEventCount = Math.max(
-                    0,
-                    dayReservations.length + dayBlocks.length - visibleReservationEvents.length - visibleBlockEvents.length
-                  );
-
-                  return (
-                    <div
-                      className={`stackedCalendarDay ${day.inMonth ? "" : "mutedDay"}`}
-                      key={`stacked-${dateKey}`}
-                      onClick={() => {
-                        setSelectedCalendarDateKey(dateKey);
-                        setSelectedCalendarItem(null);
-                      }}
-                    >
-                      <div className="dayTop">
-                        <span>{day.date.getDate()}</span>
-                        <div className="dayBadges">
-                          {isB2B && <strong className="b2bBadge">B2B</strong>}
-                          {hasTasks && <strong className="conflictBadge">Task</strong>}
-                          {hasConflict && <strong className="conflictBadge">Conflict</strong>}
-                        </div>
-                      </div>
-
-                      <div className="dayEvents">
-                        {visibleReservationEvents.map((reservation) => {
-                          const home = homes.find((item) => item.id === reservation.homeId);
-                          const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
-
-                          return (
-                            <button
-                              type="button"
-                              key={`${dateKey}-${reservation.id}`}
-                             className={`calendarEvent stackedCalendarEvent source${reservation.source.replace(/\s/g, "")} ${needsCleanerAssignment(reservation) ? "needsCleanerEvent" : ""}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedCalendarDateKey(dateKey);
-                              openReservationFromCalendar(reservation);
-                            }}
-                              title={`${getReservationDisplayTitle(reservation)} · ${home?.name ?? ""}`}
-                            >
-                              <span>{home?.shortName ? `${home.shortName} · ${getReservationDisplayTitle(reservation)}` : getReservationDisplayTitle(reservation)}</span>
-                              <small>{cleaner?.name ?? getReservationDetailLabel(reservation)}</small>
-                            </button>
-                          );
-                        })}
-
-                        {visibleBlockEvents.map((block) => (
-                          <button
-                            type="button"
-                            key={`${dateKey}-${block.id}`}
-                            className={`calendarEvent block${block.type.replace(/\s/g, "")}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedCalendarDateKey(dateKey);
-                              setSelectedCalendarItem(block);
-                            }}
-                            title={block.title}
-                          >
-                            <span>{block.title}</span>
-                            <small>{block.type}</small>
-                          </button>
-                        ))}
-
-                        {hiddenEventCount > 0 && <p className="moreEvents">+{hiddenEventCount} more</p>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+     <ScrollableCalendarStack
+  homeFilter={options?.homeFilter ?? selectedPropertyId}
+        anchorDate={options?.anchorDate ?? calendarDate}
+        monthCount={options?.monthCount ?? 12}
+        compact={options?.compact ?? false}
+        getStackedCalendarMonths={getStackedCalendarMonths}
+        getMonthDays={getMonthDays}
+        getCalendarDayData={getCalendarDayData}
+        monthNames={monthNames}
+        toInputDate={toInputDate}
+        homes={homes}
+        cleaners={cleaners}
+        needsCleanerAssignment={needsCleanerAssignment}
+        getReservationDisplayTitle={getReservationDisplayTitle}
+        getReservationDetailLabel={getReservationDetailLabel}
+        openReservationFromCalendar={openReservationFromCalendar}
+        setSelectedCalendarDateKey={setSelectedCalendarDateKey}
+        setSelectedCalendarItem={setSelectedCalendarItem}
+      />
     );
   }
 
 
-  function renderReservationBoard() {
-    const reservationsNeedingCleaner = reservations
-      .filter((reservation) => needsCleanerAssignment(reservation) && isImportedReservation(reservation))
-      .filter((reservation) => selectedHome === "all" || reservation.homeId === selectedHome)
-      .sort((a, b) => a.arrival.localeCompare(b.arrival));
+ 
 
-    return (
-      <>
-        <header className="pageHeader">
-          <div>
-            <p className="eyebrow">Phase 1</p>
-            <h2>{selectedItemType === "tasks" ? "Operations" : selectedItemType === "needs-cleaner" ? "Needs Cleaner Assigned" : "Reservations"}</h2>
-            <p className="headerSubtext">
-              {selectedItemType === "tasks"
-                ? "Review scheduled operations such as cleanings, vendor visits, and inspections."
-                : selectedItemType === "needs-cleaner"
-                  ? "Imported reservations and cleaning tasks that still need a cleaner assigned assigned."
-                  : "Review imported VRBO/Airbnb reservations, cleaner assignments, upcoming stays, and reservation status."}
-            </p>
-          </div>
-
-          <button className="primaryButton" onClick={() => setShowManualForm(true)}>
-            + Add Property Task
-          </button>
-        </header>
-
-        <section className="statsGrid">
-          {selectedItemType === "tasks" ? (
-            <>
-              <div className="statCard">
-                <span>Total Tasks</span>
-                <strong>{propertyTaskStats.total}</strong>
-              </div>
-              <div className="statCard warning">
-                <span>Open Tasks</span>
-                <strong>{propertyTaskStats.open}</strong>
-              </div>
-              <div className="statCard">
-                <span>Upcoming Tasks</span>
-                <strong>{propertyTaskStats.upcoming}</strong>
-              </div>
-              <div className="statCard">
-                <span>Need Cleaner Assigned</span>
-                <strong>{propertyTaskStats.needCleaner}</strong>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="statCard">
-                <span>Total Reservations</span>
-                <strong>{boardStats.total}</strong>
-              </div>
-              <div
-                className="statCard warning"
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedItemType("needs-cleaner")}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") setSelectedItemType("needs-cleaner");
-                }}
-                title="Show reservations that need a cleaner assigned"
-              >
-                <span>Need Cleaner Assigned</span>
-                <strong>{boardStats.needCleanerAssigned}</strong>
-              </div>
-              <div className="statCard">
-                <span>Future Reservations</span>
-                <strong>{boardStats.future}</strong>
-              </div>
-              <div className="statCard">
-                <span>In Process</span>
-                <strong>{boardStats.inProcess}</strong>
-              </div>
-            </>
-          )}
-        </section>
-
-        <section className="filtersPanel">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search guest, home, cleaner, or source"
-          />
-
-          <select value={selectedHome} onChange={(event) => setSelectedHome(event.target.value)}>
-            <option value="all">All homes</option>
-            {homes.map((home) => (
-              <option key={home.id} value={home.id}>
-                {home.name}
-              </option>
-            ))}
-          </select>
-
-          <select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
-            <option value="all">All statuses</option>
-            {statusOrder.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-
-          <select value={selectedItemType} onChange={(event) => setSelectedItemType(event.target.value)}>
-            <option value="all">All reservations</option>
-            <option value="reservations">Imported reservations</option>
-            <option value="tasks">Operations</option>
-            <option value="needs-cleaner">Needs assigned cleaner</option>
-          </select>
-        </section>
-
-        {renderManualForm()}
-
-        {selectedItemType === "tasks" && reservationsNeedingCleaner.length > 0 && (
-          <section className="manualPanel">
-            <div className="panelHeader compact">
-              <div>
-                <p className="eyebrow">Needs cleaner assignment</p>
-                <h3>{reservationsNeedingCleaner.length} reservation{reservationsNeedingCleaner.length === 1 ? "" : "s"} need a cleaner assigned</h3>
-                <p className="mutedText">These are imported reservations that still need housekeeping assigned. Operations are listed below.</p>
-              </div>
-            </div>
-
-            <div className="dashboardReservationCards">
-              {reservationsNeedingCleaner.slice(0, 4).map((reservation) => {
-                const home = homes.find((item) => item.id === reservation.homeId);
-
-                return (
-                  <button
-                    key={`needs-cleaner-${reservation.id}`}
-                    type="button"
-                    className="dashboardReservationCard"
-                    onClick={() => {
-                      setSelectedCalendarItem(reservation);
-                      setActivePage("Reservation Detail");
-                    }}
-                  >
-                    <span className="urgencyBadge urgent">Needs Cleaner Assigned</span>
-                    <h3>{home?.name ?? "Imported reservation"}</h3>
-                    <p>{reservation.source} · {reservation.guestName}</p>
-
-                    <div className="reservationPreviewMeta">
-                      <div>
-                        <span>Arrival</span>
-                        <strong>{formatDate(reservation.arrival)}</strong>
-                      </div>
-
-                      <div>
-                        <span>Departure</span>
-                        <strong>{formatDate(reservation.departure)}</strong>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {reservationsNeedingCleaner.length > 4 && (
-              <button
-                className="secondaryButton fullWidthButton"
-                type="button"
-                onClick={() => setSelectedItemType("needs-cleaner")}
-              >
-                View all reservations needing cleaners →
-              </button>
-            )}
-          </section>
-        )}
-
-        <section className="operationsCalendarPanel">
-          <div className="panelHeader compact">
-            <div>
-              <p className="eyebrow">Operations calendar</p>
-              <h3>Scrollable Operations Calendar</h3>
-              <p className="mutedText">Scroll through upcoming months without clicking next. Use the filters above to focus reservations and tasks by property.</p>
-            </div>
-          </div>
-         <div className="taskBoardCalendarBox">
-  {renderScrollableCalendarStack({
-    homeFilter: selectedHome,
-    anchorDate: new Date(),
-    monthCount: 12,
-    compact: true,
-  })}
-</div>
-        </section>
-
-        <section className="reservationGrid">
-         {filteredReservations.map((reservation) => {
-            const home = homes.find((item) => item.id === reservation.homeId);
-            const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
-            const urgency = getUrgency(reservation.arrival);
-            const isTask = isTaskSource(reservation.source);
-            const isCleanerAssignable = isImportedReservation(reservation) || reservation.source === "Cleaning";
-
-            return (
-              <article className="reservationCard" key={reservation.id}>
-                <div className="cardTop">
-                  <div className="homeBadge">{home?.shortName ?? "HM"}</div>
-                  <div>
-                    <h3>{isTask ? getReservationDisplayTitle(reservation) : home?.name ?? "Imported reservation"}</h3>
-                    <p>
-  {isTask ? `${home?.name ?? "Unknown property"} · ${getReservationDetailLabel(reservation)}` : getReservationDetailLabel(reservation)}
-</p>
-                  </div>
-                  <div className="dayBadges">
-                    {isTask && <span className="urgencyBadge normal">Property Task</span>}
-                    {needsCleanerAssignment(reservation) ? (
-                      <span className="urgencyBadge urgent">Needs Cleaner Assigned</span>
-                    ) : (
-                      <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="reservationMeta">
-                  <div>
-                    <span>{isTaskSource(reservation.source) ? "Task Date" : "Arrival"}</span>
-                    <strong>{formatDate(reservation.arrival)}</strong>
-                  </div>
-                  <div>
-                    <span>{isTaskSource(reservation.source) ? "Type" : "Departure"}</span>
-                    <strong>{isTaskSource(reservation.source) ? reservation.source : formatDate(reservation.departure)}</strong>
-                  </div>
-                  <div>
-                    <span>Source</span>
-                    <strong>{reservation.source}</strong>
-                  </div>
-                </div>
-
-                <div className="assignmentRow">
-                  {isCleanerAssignable && (
-                    <label>
-                      Cleaner
-                      <select
-                        value={reservation.cleanerId ?? ""}
-                        onChange={(event) =>
-                          updateReservation(reservation.id, {
-                            cleanerId: event.target.value || undefined,
-                            status: event.target.value ? "Assigned" : "Unassigned",
-                          })
-                        }
-                      >
-                        <option value="">Unassigned</option>
-                        {cleaners.map((cleanerOption) => (
-                          <option key={cleanerOption.id} value={cleanerOption.id}>
-                            {cleanerOption.name} — {cleanerOption.status}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-
-                  <label>
-                    Status
-                    <select
-                      value={reservation.status}
-                      onChange={(event) =>
-                        updateReservation(reservation.id, {
-                          status: event.target.value as ReservationStatus,
-                        })
-                      }
-                    >
-                      {statusOrder.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <div className="statusRail">
-                  {statusOrder.map((status) => (
-                    <span
-                      key={status}
-                      className={statusOrder.indexOf(status) <= statusOrder.indexOf(reservation.status) ? "done" : ""}
-                    />
-                  ))}
-                </div>
-
-                <label className="cleanerReminderField">
-                  {isCleanerAssignable ? "Cleaner Reminder / Notes" : "Task Notes"}
-                  <textarea
-                    value={reservation.notes ?? ""}
-                    onChange={(event) =>
-                      updateReservation(reservation.id, {
-                        notes: event.target.value,
-                      })
-                    }
-                    placeholder={isCleanerAssignable ? "Add cleaner instructions, reminders, parking notes, supply notes, or guest-specific details" : "Add owner notes, vendor notes, access details, or task reminders"}
-                  />
-                </label>
-
-                {isImportedReservation(reservation) && (
-                  <p className="sourceControlledNotice">
-                    {getSourceControlledMessage(reservation.source)}
-                  </p>
-                )}
-
-                <div className="timeline">
-                  <h4>Timeline</h4>
-                  {reservation.timeline.map((item, index) => (
-                    <div key={`${reservation.id}-${item}-${index}`} className="timelineItem">
-                      <span />
-                      <p>{item}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="cardActions">
-                  <button
-                    type="button"
-                    className="secondaryButton"
-                    onClick={() => {
-                      setSelectedCalendarItem(reservation);
-                      setActivePage("Reservation Detail");
-                    }}
-                  >
-                    Open Details
-                  </button>
-                  <button
-                    onClick={() =>
-                      updateReservation(reservation.id, {
-                        status: reservation.status === "In Process" ?"Completed" : "In Process",
-                      })
-                    }
-                  >
-                    {reservation.status === "In Process" ? "Mark Ready" : "In Process"}
-                  </button>
-                  <button onClick={() => updateReservation(reservation.id, { status: "Completed" })}>Complete</button>
-                  {isImportedReservation(reservation) ? (
-                    <button className="disabledButton" disabled title={getSourceControlledMessage(reservation.source)}>
-                      Source Controlled
-                    </button>
-                  ) : (
-                    <button className="dangerButton" onClick={() => deleteReservation(reservation.id)}>
-                      Delete
-                    </button>
-                  )}
-                </div>
-
-                <div className="cleanerFooter">
-                  <span>{isCleanerAssignable ? "Cleaner status" : "Task status"}</span>
-                  <strong>{isCleanerAssignable ? (cleaner ? `${cleaner.name} · ${cleaner.status}` : "No cleaner assigned") : reservation.status}</strong>
-                </div>
-              </article>
-            );
-        })}
-
-{filteredReservations.length === 0 && (
-  <div className="emptyState">
-    {selectedItemType === "tasks" ? "No operations match your current filters." : "No reservations match your current filters."}
-  </div>
-)}
-        </section>
-      </>
-    );
-  }
-
-  function renderManualForm() {
-    if (!showManualForm) return null;
-
-    const selectedPreviewHome = homes.find((home) => home.id === manualForm.homeId);
-    const isPropertyTask = isTaskSource(manualForm.source);
-    const selectedDateRangeActive = Boolean(
-      manualForm.arrival && (isPropertyTask || manualForm.departure)
-    );
-    const effectiveDeparture = isPropertyTask ? manualForm.arrival : manualForm.departure;
-    const selectedConflictCount =
-      manualForm.source === "Owner Block" && selectedDateRangeActive
-        ? getReservationConflictCount(
-            {
-              homeId: manualForm.homeId,
-              arrival: manualForm.arrival,
-              departure: effectiveDeparture,
-            },
-            reservations
-          )
-        : 0;
-
-    const currentMonthAnchor = manualForm.arrival ? toDate(manualForm.arrival) : new Date();
-    currentMonthAnchor.setDate(1);
-    currentMonthAnchor.setHours(12, 0, 0, 0);
-
-    const availabilityMonths = Array.from({ length: 6 }, (_item, index) => {
-      const monthDate = new Date(currentMonthAnchor.getFullYear(), currentMonthAnchor.getMonth() + index, 1);
-      return {
-        key: `${monthDate.getFullYear()}-${monthDate.getMonth()}`,
-        label: monthDate.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
-        days: getMonthDays(monthDate.getFullYear(), monthDate.getMonth()),
-      };
-    });
-
-    function setManualNoteValue(label: string, value: string) {
-      const lines = manualForm.notes
-        .split("\n")
-        .filter((line) => !line.startsWith(`${label}:`));
-
-      setManualForm({
-        ...manualForm,
-        notes: [`${label}: ${value}`, ...lines].filter(Boolean).join("\n"),
-      });
-    }
-
-    function handleAvailabilityDateClick(dateKey: string) {
-      if (isPropertyTask) {
-        setManualForm({ ...manualForm, arrival: dateKey, departure: dateKey });
-        return;
-      }
-
-      if (!manualForm.arrival || (manualForm.arrival && manualForm.departure)) {
-        setManualForm({ ...manualForm, arrival: dateKey, departure: "" });
-        return;
-      }
-
-      if (dateKey < manualForm.arrival) {
-        setManualForm({ ...manualForm, arrival: dateKey, departure: manualForm.arrival });
-        return;
-      }
-
-      setManualForm({ ...manualForm, departure: dateKey });
-    }
-
-    const itemNameLabel = "Task name";
-    const itemNamePlaceholder =
-      manualForm.source === "Cleaning"
-        ? "Example: Mid-stay towel refresh"
-        : manualForm.source === "Vendor Visit"
-          ? "Example: HVAC service visit"
-          : "Example: Damage check walkthrough";
-
-    return (
-      <section className="manualPanel">
-        <div className="panelHeader">
-          <div>
-            <p className="eyebrow">Manual add</p>
-            <h3>Add {manualForm.source} Task</h3>
-            <p className="mutedText">
-              Operations appear on the calendar for coordination but do not count as guest reservations.
-            </p>
-          </div>
-          <button className="ghostButton" onClick={() => setShowManualForm(false)} type="button">
-            Close
-          </button>
-        </div>
-
-        <form className="manualForm" onSubmit={createManualReservation}>
-          <label>
-            Type
-            <select
-              value={manualForm.source}
-              onChange={(event) => {
-                const nextSource = event.target.value as ReservationSource;
-                const nextIsTask = isTaskSource(nextSource);
-                setManualForm({
-                  ...manualForm,
-                  source: nextSource,
-                  departure: nextIsTask ? manualForm.arrival : manualForm.departure,
-                });
-              }}
-            >
-              <option value="Cleaning">Cleaning</option>
-              <option value="Vendor Visit">Vendor Visit</option>
-              <option value="Inspection">Inspection</option>
-            </select>
-          </label>
-
-          <label>
-            {itemNameLabel}
-            <input
-              value={manualForm.guestName}
-              onChange={(event) => setManualForm({ ...manualForm, guestName: event.target.value })}
-              placeholder={itemNamePlaceholder}
-            />
-          </label>
-
-          <label>
-            Home
-            <select
-              value={manualForm.homeId || selectedPropertyId || homes[0]?.id || ""}
-              onChange={(event) => setManualForm({ ...manualForm, homeId: event.target.value })}
-            >
-              {homes.map((home) => (
-                <option key={home.id} value={home.id}>
-                  {home.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {manualForm.source === "Cleaning" && (
-            <label>
-              Cleaning Type
-              <select defaultValue="" onChange={(event) => setManualNoteValue("Cleaning Type", event.target.value)}>
-                <option value="" disabled>Select cleaning type</option>
-                <option value="Standard Cleaning">Standard Cleaning</option>
-                <option value="Mid-Stay Cleaning">Mid-Stay Cleaning</option>
-                <option value="Deep Clean">Deep Clean</option>
-                <option value="Touch-Up Clean">Touch-Up Clean</option>
-                <option value="Other">Other</option>
-              </select>
-            </label>
-          )}
-
-
-          {manualForm.source === "Vendor Visit" && (
-            <>
-              <label>
-                Vendor Type
-                <select defaultValue="" onChange={(event) => setManualNoteValue("Vendor Type", event.target.value)}>
-                  <option value="" disabled>Select vendor type</option>
-                  <option value="HVAC">HVAC</option>
-                  <option value="Plumbing">Plumbing</option>
-                  <option value="Electrical">Electrical</option>
-                  <option value="Pest Control">Pest Control</option>
-                  <option value="Landscaping">Landscaping</option>
-                  <option value="Pool / Hot Tub">Pool / Hot Tub</option>
-                  <option value="Other">Other</option>
-                </select>
-              </label>
-
-              <label>
-                Vendor Name / Company
-                <input
-                  placeholder="Example: Summit HVAC"
-                  onBlur={(event) => {
-                    if (event.target.value.trim()) setManualNoteValue("Vendor", event.target.value.trim());
-                  }}
-                />
-              </label>
-            </>
-          )}
-
-          {manualForm.source === "Inspection" && (
-            <label>
-              Inspection Type
-              <select defaultValue="" onChange={(event) => setManualNoteValue("Inspection Type", event.target.value)}>
-                <option value="" disabled>Select inspection type</option>
-                <option value="Arrival Inspection">Arrival Inspection</option>
-                <option value="Departure Inspection">Departure Inspection</option>
-                <option value="Seasonal Inspection">Seasonal Inspection</option>
-                <option value="Damage Inspection">Damage Inspection</option>
-                <option value="Other">Other</option>
-              </select>
-            </label>
-          )}
-
-          {isPropertyTask ? (
-            <label>
-              Task date
-              <input
-                type="date"
-                value={manualForm.arrival}
-                onChange={(event) =>
-                  setManualForm({
-                    ...manualForm,
-                    arrival: event.target.value,
-                    departure: event.target.value,
-                  })
-                }
-              />
-            </label>
-          ) : (
-            <>
-              <label>
-                Start date
-                <input
-                  type="date"
-                  value={manualForm.arrival}
-                  onChange={(event) =>
-                    setManualForm({
-                      ...manualForm,
-                      arrival: event.target.value,
-                      departure: manualForm.departure && event.target.value > manualForm.departure ? event.target.value : manualForm.departure,
-                    })
-                  }
-                />
-              </label>
-
-              <label>
-                End date
-                <input
-                  type="date"
-                  value={manualForm.departure}
-                  onChange={(event) => setManualForm({ ...manualForm, departure: event.target.value })}
-                  min={manualForm.arrival || undefined}
-                />
-              </label>
-            </>
-          )}
-
-          <div className="availabilityPreview fullWidth largeAvailabilityCalendar">
-            <div className="availabilityPreviewHeader">
-              <div>
-                <p className="eyebrow">{isPropertyTask ? "Calendar preview" : "Availability calendar"}</p>
-                <h4>{selectedPreviewHome ? selectedPreviewHome.name : "Select a home"}</h4>
-                <p className="mutedText">
-                  {isPropertyTask
-                    ? "Click a date to schedule this task. Tasks can happen even when the property has a guest reservation."
-                    : "Click once for the start date, then click again for the end date."}
-                </p>
-              </div>
-              {selectedConflictCount > 0 && (
-                <span className="conflictWarningPill">{selectedConflictCount} conflict{selectedConflictCount === 1 ? "" : "s"}</span>
-              )}
-            </div>
-
-            <div className="availabilityLegend">
-              <span><i className="legendReservation" /> Reservation</span>
-              <span><i className="legendOwner" /> Owner block</span>
-              <span><i className="legendMaintenance" /> Task</span>
-              <span><i className="legendConflict" /> Conflict</span>
-              <span><i className="legendSelected" /> Selected</span>
-            </div>
-
-            <div className="availabilityMonthScroller">
-              {availabilityMonths.map((month) => (
-                <section className="availabilityMonth" key={month.key}>
-                  <h5>{month.label}</h5>
-                  <div className="availabilityWeekdays">
-                    {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-                      <span key={`${month.key}-${day}-${index}`}>{day}</span>
-                    ))}
-                  </div>
-
-                  <div className="availabilityGrid">
-                    {month.days.map((day) => {
-                      const dateKey = toInputDate(day.date);
-                      const activeManualHomeId = manualForm.homeId || selectedPropertyId || homes[0]?.id || "";
-                      const availabilityClass = getDateAvailabilityClass(day.date, activeManualHomeId, reservations, calendarBlocks);
-                      const isSelectedRange = selectedDateRangeActive && dateKey >= manualForm.arrival && dateKey <= effectiveDeparture;
-
-                      return (
-                        <button
-                          type="button"
-                          key={`preview-${dateKey}`}
-                          className={`availabilityDay ${day.inMonth ? "" : "mutedPreviewDay"} ${availabilityClass} ${isSelectedRange ? "selectedPreviewRange" : ""}`}
-                          onClick={() => handleAvailabilityDateClick(dateKey)}
-                          title={dateKey}
-                        >
-                          {day.date.getDate()}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
-
-            {manualForm.arrival && effectiveDeparture && (
-              <p className={selectedConflictCount > 0 ? "conflictWarningBox" : "sourceControlledNotice"}>
-                {isPropertyTask
-                  ? `Scheduled date: ${formatDate(manualForm.arrival)}`
-                  : `Selected range: ${formatDate(manualForm.arrival)} → ${formatDate(effectiveDeparture)}`}
-                {selectedConflictCount > 0 ? ` · overlaps ${selectedConflictCount} existing item${selectedConflictCount === 1 ? "" : "s"}` : ""}
-              </p>
-            )}
-          </div>
-
-          <label className="fullWidth">
-            Notes
-            <textarea
-              value={manualForm.notes}
-              onChange={(event) => setManualForm({ ...manualForm, notes: event.target.value })}
-              placeholder="Cleaning notes, maintenance details, vendor instructions, inspection notes"
-            />
-          </label>
-
-          <button className="primaryButton" type="submit">
-            Save {manualForm.source} Task
-          </button>
-        </form>
-      </section>
-    );
-  }
-
+  
   function renderCalendar() {
-    const selectedDateReservations = selectedCalendarDateKey
-      ? reservations
-          .filter(
-            (reservation) =>
-              (selectedCalendarHome === "all" || reservation.homeId === selectedCalendarHome) &&
-              selectedCalendarDateKey >= reservation.arrival &&
-              selectedCalendarDateKey <= reservation.departure
-          )
-          .sort((a, b) => {
-            if (isTaskSource(a.source) && !isTaskSource(b.source)) return 1;
-            if (!isTaskSource(a.source) && isTaskSource(b.source)) return -1;
-            return a.arrival.localeCompare(b.arrival);
-          })
-      : [];
-
-    const selectedDateBlocks = selectedCalendarDateKey
-      ? calendarBlocks.filter(
-          (block) =>
-            (selectedCalendarHome === "all" || block.homeId === selectedCalendarHome) &&
-            selectedCalendarDateKey >= block.start &&
-            selectedCalendarDateKey <= block.end
-        )
-      : [];
-
     return (
-      <>
-<section className="calendarMobileControls">
-  <h2>Calendar</h2>
-
-  <label>
-    Property
-    <select
-      value={selectedCalendarHome}
-      onChange={(event) => setSelectedCalendarHome(event.target.value)}
-    >
-      <option value="all">All homes</option>
-      {homes.map((home) => (
-        <option key={home.id} value={home.id}>
-          {home.name}
-        </option>
-      ))}
-    </select>
-  </label>
-
-  <button
-    className="ghostButton"
-    onClick={() => setCalendarDate(new Date())}
-  >
-    Jump to Current Month
-  </button>
-
-  <div className="calendarLegendMini">
-    <span><i className="legendReservation" /> Booked</span>
-    <span><i className="legendUnassigned" /> Needs Cleaner</span>
-    <span><i className="legendMaintenance" /> Task</span>
-    <span><i className="legendConflict" /> Conflict</span>
-    <span><i className="legendOwner" /> Blocked</span>
-  </div>
-</section>
-
-        <section className="calendarLayout">
-          <div className="calendarPanel stackedCalendarPanel">
-            <div className="taskBoardCalendarBox calendarPageCalendarBox">
-              {renderScrollableCalendarStack({
-                homeFilter: selectedCalendarHome,
-                anchorDate: calendarDate,
-                monthCount: 12,
-                compact: true,
-              })}
-            </div>
-          </div>
-
-          <aside className="calendarDetailPanel" id="calendarDetailPanel">
-            <p className="eyebrow">Selected date</p>
-            {selectedCalendarDateKey ? (
-              <>
-                <h3>{formatDate(selectedCalendarDateKey)}</h3>
-                <p className="mutedText">
-                  {selectedDateReservations.length + selectedDateBlocks.length} calendar item
-                  {selectedDateReservations.length + selectedDateBlocks.length === 1 ? "" : "s"} on this date.
-                </p>
-
-                <div className="dashboardReservationCards">
-                  {selectedDateReservations.map((reservation) => {
-                    const home = homes.find((item) => item.id === reservation.homeId);
-                    const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
-                    const isTask = isTaskSource(reservation.source);
-
-                    return (
-                      <button
-                        key={`calendar-detail-${reservation.id}`}
-                        type="button"
-                        className="dashboardReservationCard"
-                        onClick={() => {
-                          setSelectedCalendarItem(reservation);
-                          setReservationDetailReturnPage("Calendar");
-                          setActivePage("Reservation Detail");
-                        }}
-                      >
-                        <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-                          {isTask ? "TASK" : reservation.source.toUpperCase()}
-                        </span>
-                        <h3>{isTask ? getReservationDisplayTitle(reservation) : reservation.guestName}</h3>
-                        <p>{home?.name ?? "Unknown property"}</p>
-
-                        <div className="reservationPreviewMeta">
-                          <div>
-                            <span>{isTask ? "Task Date" : "Arrival"}</span>
-                            <strong>{formatDate(reservation.arrival)}</strong>
-                          </div>
-                          <div>
-                            <span>{isTask ? "Type" : "Departure"}</span>
-                            <strong>{isTask ? reservation.source : formatDate(reservation.departure)}</strong>
-                          </div>
-                        </div>
-
-                        <div className="assignedCleanerLine">
-                          <span>{isTask ? "Status" : "Cleaner"}</span>
-                          <strong>{isTask ? reservation.status : cleaner?.name ?? "Unassigned"}</strong>
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {selectedDateBlocks.map((block) => (
-                    <button
-                      key={`calendar-detail-${block.id}`}
-                      type="button"
-                      className="dashboardReservationCard"
-                      onClick={() => setSelectedCalendarItem(block)}
-                    >
-                      <span className="platformBadge">BLOCK</span>
-                      <h3>{block.title}</h3>
-                      <p>{homes.find((home) => home.id === block.homeId)?.name ?? "Unknown property"}</p>
-                      <div className="reservationPreviewMeta">
-                        <div>
-                          <span>Start</span>
-                          <strong>{formatDate(block.start)}</strong>
-                        </div>
-                        <div>
-                          <span>End</span>
-                          <strong>{formatDate(block.end)}</strong>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                {selectedDateReservations.length + selectedDateBlocks.length === 0 && (
-                  <p className="mutedText">No reservations or tasks on this date.</p>
-                )}
-              </>
-            ) : selectedCalendarItem ? (
-              <>
-                <h3>
-                  {"guestName" in selectedCalendarItem
-                    ? selectedCalendarItem.guestName
-                    : selectedCalendarItem.title}
-                </h3>
-
-                <p className="mutedText">
-                  {"guestName" in selectedCalendarItem
-                    ? homes.find((home) => home.id === selectedCalendarItem.homeId)?.name
-                    : selectedCalendarItem.type}
-                </p>
-              </>
-            ) : (
-              <>
-                <h3>Click a calendar date</h3>
-                <p className="mutedText">Reservations and operations for that day will show here together.</p>
-              </>
-            )}
-          </aside>
-        </section>
-      </>
+      <CalendarPage
+        reservations={reservations}
+        calendarBlocks={calendarBlocks}
+        homes={homes}
+        cleaners={cleaners}
+        selectedPropertyId={selectedPropertyId}
+        calendarDate={calendarDate}
+        setCalendarDate={setCalendarDate}
+        selectedCalendarDateKey={selectedCalendarDateKey}
+        selectedCalendarItem={selectedCalendarItem}
+        setSelectedCalendarItem={setSelectedCalendarItem}
+        setReservationDetailReturnPage={setReservationDetailReturnPage}
+        setActivePage={setActivePage}
+        renderScrollableCalendarStack={renderScrollableCalendarStack}
+        formatDate={formatDate}
+        isTaskSource={isTaskSource}
+        getReservationDisplayTitle={getReservationDisplayTitle}
+      />
     );
   }
 
@@ -2000,7 +1298,7 @@ function getStackedCalendarMonths(anchorDate: Date, count = 12) {
     };
 
     await loadWorkOrdersFromSupabase();
-    setSelectedWorkOrder(nextWorkOrder);
+    
     setWorkOrderFilter("all");
     setNotifications((current) => [
       {
@@ -2068,6 +1366,7 @@ async function loadWorkOrdersFromSupabase() {
 
 async function loadPropertiesFromSupabase() {
   const { data: userData } = await supabase.auth.getUser();
+  
   const user = userData.user;
 
   if (!user) return;
@@ -2095,22 +1394,34 @@ async function loadPropertiesFromSupabase() {
       .toUpperCase(),
     address: "",
     setupMode: "VRBO",
-    vrboId: property.vrbo_property_id ?? "",
-    airbnbUrl: property.airbnb_property_id ?? "",
-    iCalUrl: "",
-    defaultCleanerId: undefined,
+    vrboId: property.vrbo_listing_id ?? "",
+    airbnbUrl:
+      property.airbnb_ical_url ??
+      property.airbnb_calendar_url ??
+      property.airbnb_property_id ??
+      "",
+    iCalUrl:
+      property.vrbo_ical_url ??
+      property.vrbo_calendar_url ??
+      property.vrbo_property_id ??
+      "",
+    defaultCleanerId: property.default_cleaner_id ?? "",
     bedrooms: 0,
     bathrooms: 0,
     maxGuests: 0,
     status: "Active",
     notes: "",
+    
   }));
 
   setHomes(mappedHomes);
 
-  if (mappedHomes.length > 0) {
-    setSelectedPropertyId(mappedHomes[0].id);
-  }
+if (mappedHomes.length > 0) {
+  setSelectedPropertyId((currentSelectedPropertyId) => {
+    const stillExists = mappedHomes.some((home) => home.id === currentSelectedPropertyId);
+    return stillExists ? currentSelectedPropertyId : mappedHomes[0].id;
+  });
+}
 }
 async function loadReservationsFromSupabase() {
   const { data: userData } = await supabase.auth.getUser();
@@ -2129,25 +1440,91 @@ async function loadReservationsFromSupabase() {
     return;
   }
 
-  const mappedReservations: Reservation[] = (data ?? []).map((item: any) => ({
+const mappedReservations: Reservation[] = (data ?? []).map((item: any) => {
+  const source = normalizeReservationSource(item.source);
+  const status = (item.status ?? "Unassigned") as ReservationStatus;
+
+  return {
     id: item.id,
     guestName: item.guest_name,
     homeId: item.property_id,
-    source: normalizeReservationSource(item.source),
+    source,
+    type: getReservationType(source, status, item.guest_name),
     arrival: item.arrival,
     departure: item.departure,
-    status: item.status ?? "Unassigned",
+    status,
     cleanerId: item.cleaner_id ?? undefined,
     notes: item.notes ?? "",
     timeline: Array.isArray(item.timeline) ? item.timeline : [],
-  }));
-
+  };
+});
+console.table(
+  mappedReservations
+    .filter(
+      (r) =>
+        r.arrival.startsWith("2026-08") ||
+        r.departure.startsWith("2026-08")
+    )
+    .map((r) => ({
+      guest: r.guestName,
+      source: r.source,
+      type: r.type,
+      status: r.status,
+      arrival: r.arrival,
+      departure: r.departure,
+      nights: Math.round(
+        (new Date(r.departure).getTime() - new Date(r.arrival).getTime()) /
+          86400000
+      ),
+    }))
+);
   setReservations(mappedReservations);
 }
+async function loadCleanersFromSupabase() {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from("cleaners")
+    .select("*")
+    .eq("owner_id", user.id)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Failed to load cleaners", error);
+    return;
+  }
+
+  const mappedCleaners: Cleaner[] = (data ?? []).map((cleaner: any) => ({
+    id: cleaner.id,
+    name: cleaner.name ?? "",
+    phone: cleaner.phone ?? "",
+    status: cleaner.status ?? "Available",
+    serviceArea: cleaner.service_area ?? "",
+    rating: 5,
+    activeJobs: 0,
+    specialties: [],
+    notes: "",
+  }));
+
+  setCleaners(mappedCleaners);
+
+  if (mappedCleaners.length > 0) {
+    setSelectedCleanerId(mappedCleaners[0].id);
+    setCleanerPortalId(mappedCleaners[0].id);
+  }
+}
+  
+ 
   async function createProperty(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
-  if (!propertyForm.name.trim() || !propertyForm.city.trim()) return;
+if (!propertyForm.name.trim()) {
+  alert("Property name is required.");
+  return;
+}
 
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -2159,10 +1536,12 @@ async function loadReservationsFromSupabase() {
 
   const { error } = await supabase.from("properties").insert({
     owner_id: user.id,
+  
     property_name: propertyForm.name.trim(),
+    default_cleaner_id: propertyForm.defaultCleanerId || null,
     market: propertyForm.city.trim(),
-    vrbo_property_id: propertyForm.vrboId || null,
-    airbnb_property_id: propertyForm.airbnbUrl || null,
+    vrbo_property_id: propertyForm.iCalUrl || null,
+airbnb_property_id: propertyForm.airbnbUrl || null,
   });
 
   if (error) {
@@ -2190,13 +1569,20 @@ async function loadReservationsFromSupabase() {
   });
 }
 async function updateProperty(id: string, updates: Partial<Home>) {
+  const existingHome = homes.find((home) => home.id === id);
+  const nextHome = {
+    ...existingHome,
+    ...updates,
+  };
+
   const { error } = await supabase
     .from("properties")
     .update({
-      property_name: updates.name,
-      market: updates.city,
-      vrbo_property_id: updates.vrboId || null,
-      airbnb_property_id: updates.airbnbUrl || null,
+      property_name: nextHome.name,
+      market: nextHome.city,
+      vrbo_property_id: String(nextHome.iCalUrl ?? "").trim() || null,
+      airbnb_property_id: String(nextHome.airbnbUrl ?? "").trim() || null,
+      default_cleaner_id: nextHome.defaultCleanerId || null,
     })
     .eq("id", id);
 
@@ -2208,7 +1594,6 @@ async function updateProperty(id: string, updates: Partial<Home>) {
 
   await loadPropertiesFromSupabase();
 }
-
   function archiveProperty(id: string) {
     updateProperty(id, { status: "Paused" });
     setEditingPropertyId(null);
@@ -2251,145 +1636,289 @@ async function deleteProperty(id: string) {
   setEditingPropertyId(null);
   setShowPropertyForm(false);
 }
-  async function createLivePropertyShell(event: React.FormEvent<HTMLFormElement>) {
-  event.preventDefault();
+  
+async function syncReservations() {
+  try {
+    if (!selectedPropertyId) {
+      alert("Please select a property first.");
+      return;
+    }
 
-  if (!sourceForm.propertyName.trim() && !sourceForm.vrboId.trim()) return;
+    const selectedProperty = homes.find((home) => home.id === selectedPropertyId);
 
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
+    if (!selectedProperty) {
+      alert("Selected property not found.");
+      return;
+    }
 
-  if (!user) {
-    alert("You must be logged in to create a property.");
-    return;
-  }
+    if (!selectedProperty.iCalUrl && !selectedProperty.airbnbUrl) {
+      alert("This property does not have any calendar links yet.");
+      return;
+    }
 
-  const name = sourceForm.propertyName.trim() || `VRBO ${sourceForm.vrboId.trim()}`;
+    let importedReservations: any[] = [];
 
-  const { data: savedProperty, error } = await supabase
-    .from("properties")
-    .insert({
-      owner_id: user.id,
-      property_name: name,
-      market: sourceForm.market.trim() || "Market pending",
-      vrbo_property_id: sourceForm.vrboId || null,
-      airbnb_property_id: sourceForm.airbnbUrl || null,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Live property save failed", error);
-    alert(error.message);
-    return;
-  }
-
-  const nextHomeId = savedProperty.id;
-  const importedReservations: Reservation[] = [];
-  const importWarnings: string[] = [];
-
-  async function getCalendarText(url: string, pastedText: string, source: "VRBO" | "Airbnb") {
-    if (pastedText.trim()) return pastedText;
-    if (!url.trim()) return "";
-
-    try {
-      const response = await fetch("http://localhost:4000/api/fetch-ical", {
+    if (selectedProperty.iCalUrl) {
+      const vrboResponse = await fetch("http://localhost:4000/api/fetch-ical", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim(), source }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: selectedProperty.iCalUrl,
+          source: "VRBO",
+        }),
       });
 
-      if (!response.ok) throw new Error(`Backend calendar request failed with ${response.status}`);
+      const vrboResult = await vrboResponse.json();
 
-      const data = await response.json();
-      if (!data.icalText) throw new Error("Backend did not return calendar text");
+      if (!vrboResponse.ok) {
+        throw new Error(vrboResult.error || "Failed to fetch VRBO calendar");
+      }
 
-      return data.icalText as string;
-    } catch {
-      importWarnings.push(`${source} calendar URL could not be fetched. Paste the raw .ics text if needed.`);
-      return "";
+      const vrboReservations = parseICalTextToReservations(
+        vrboResult.icalText,
+        selectedProperty.id,
+        "VRBO"
+      );
+
+      importedReservations = [...importedReservations, ...vrboReservations];
     }
-  }
 
-  const vrboText = await getCalendarText(sourceForm.vrboICalUrl, sourceForm.vrboICalText, "VRBO");
-  const airbnbText = await getCalendarText(sourceForm.airbnbICalUrl, sourceForm.airbnbICalText, "Airbnb");
+    if (selectedProperty.airbnbUrl) {
+      const airbnbResponse = await fetch("http://localhost:4000/api/fetch-ical", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: selectedProperty.airbnbUrl,
+          source: "Airbnb",
+        }),
+      });
 
-  const todayKey = toInputDate(new Date());
+      const airbnbResult = await airbnbResponse.json();
 
-  if (vrboText.trim()) {
-    importedReservations.push(
-      ...parseICalReservations(vrboText, nextHomeId, "VRBO").filter(
-        (reservation) => reservation.departure >= todayKey
-      )
+      if (!airbnbResponse.ok) {
+        throw new Error(airbnbResult.error || "Failed to fetch Airbnb calendar");
+      }
+
+      const airbnbReservations = parseICalTextToReservations(
+        airbnbResult.icalText,
+        selectedProperty.id,
+        "Airbnb"
+      );
+
+      console.log("PARSED AIRBNB NOVEMBER BLOCKS");
+      console.table(
+        airbnbReservations
+          .filter(
+            (reservation: any) =>
+              reservation.arrival.startsWith("2026-08") ||
+              reservation.departure.startsWith("2026-08")
+          )
+          .map((reservation: any) => ({
+            guest_name: reservation.guest_name,
+            source: reservation.source,
+            status: reservation.status,
+            arrival: reservation.arrival,
+            departure: reservation.departure,
+          }))
+      );
+
+      importedReservations = [...importedReservations, ...airbnbReservations];
+    }
+
+    console.log("ALL IMPORTED NOVEMBER ITEMS");
+    console.table(
+      importedReservations
+        .filter(
+          (reservation: any) =>
+            reservation.arrival.startsWith("2026-08") ||
+            reservation.departure.startsWith("2026-08")
+        )
+        .map((reservation: any) => ({
+          guest_name: reservation.guest_name,
+          source: reservation.source,
+          status: reservation.status,
+          arrival: reservation.arrival,
+          departure: reservation.departure,
+            ical_uid: reservation.ical_uid, 
+        }))
     );
-  }
+const importWindowStart = toInputDate(new Date());
 
-  if (airbnbText.trim()) {
-    importedReservations.push(
-      ...parseICalReservations(airbnbText, nextHomeId, "Airbnb").filter(
-        (reservation) => reservation.departure >= todayKey
-      )
+const importWindowEndDate = new Date();
+importWindowEndDate.setMonth(importWindowEndDate.getMonth() + 12);
+const importWindowEnd = toInputDate(importWindowEndDate);
+
+importedReservations = importedReservations.filter(
+  (reservation: any) =>
+    reservation.departure >= importWindowStart &&
+    reservation.arrival <= importWindowEnd
+);
+
+importedReservations = importedReservations.filter((reservation: any) => {
+  const duplicateOneNightBlock = importedReservations.some((other: any) => {
+    if (other === reservation) return false;
+
+    return (
+      reservation.source === other.source &&
+      reservation.status === "Blocked" &&
+      other.status === "Blocked" &&
+      reservation.arrival === other.departure &&
+      reservation.departure > reservation.arrival
     );
-  }
-
-  setDataMode("Live");
-
-  await loadPropertiesFromSupabase();
-
- if (importedReservations.length > 0) {
-  alert(`Imported reservations count: ${importedReservations.length}`);
-  alert(`Imported reservations count: ${importedReservations.length}`);
-  const reservationRows = importedReservations.map((reservation) => ({
-    owner_id: user.id,
-    property_id: nextHomeId,
-    guest_name: reservation.guestName,
-    source: reservation.source,
-    arrival: reservation.arrival,
-    departure: reservation.departure,
-    status: reservation.status,
-    cleaner_id: reservation.cleanerId ?? null,
-    notes: reservation.notes ?? null,
-    timeline: reservation.timeline ?? [],
-  }));
-
-  const { error: reservationSaveError } = await supabase
-    .from("reservations")
-    .insert(reservationRows);
-
-  if (reservationSaveError) {
-    console.error("Reservation save failed", reservationSaveError);
-    alert(reservationSaveError.message);
-  }
-}
-
-await loadReservationsFromSupabase();
-
-  setSelectedPropertyId(nextHomeId);
-  setSelectedCalendarHome(nextHomeId);
-  setSelectedHome("all");
-
-  const importedCount = importedReservations.length;
-  const warningText = importWarnings.length ? ` ${importWarnings.join(" ")}` : "";
-
-  setImportMessage(
-    importedCount > 0
-      ? `Live property saved to Supabase and ${importedCount} current/future reservations imported.${warningText}`
-      : `Live property saved to Supabase. No current/future reservations were imported.${warningText}`
-  );
-
-  setSourceForm({
-    propertyName: "",
-    market: "",
-    vrboId: "",
-    vrboICalUrl: "",
-    vrboICalText: "",
-    airbnbUrl: "",
-    airbnbICalUrl: "",
-    airbnbICalText: "",
+    
   });
+
+  return !duplicateOneNightBlock;
+});
+importedReservations = importedReservations.filter((reservation: any) => {
+  const isOneNightBlock =
+    reservation.status === "Blocked" &&
+    reservation.source === "VRBO" &&
+    Math.round(
+      (new Date(reservation.departure).getTime() -
+        new Date(reservation.arrival).getTime()) /
+        86400000
+    ) === 1;
+
+  const attachedToLongerVrboBlock = importedReservations.some((other: any) => {
+    if (other === reservation) return false;
+
+    return (
+      other.source === "VRBO" &&
+      other.status === "Blocked" &&
+      other.arrival < other.departure &&
+      reservation.arrival === other.departure
+    );
+  });
+
+  return !(isOneNightBlock && attachedToLongerVrboBlock);
+});
+if (!importedReservations.length) {
+  alert("No reservations found in the calendars.");
+  return;
 }
-async function syncReservations() {
-  alert("Reservation sync coming next. Property and reservation persistence are now working.");
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    if (!user) {
+      throw new Error("You must be logged in to sync reservations.");
+    }
+
+    const defaultCleanerId = selectedProperty.defaultCleanerId ?? "";
+    const importedUids = importedReservations
+      .map((reservation: any) => reservation.ical_uid)
+      .filter(Boolean);
+
+    const { data: existingReservationRows, error: existingReservationError } =
+      await supabase
+        .from("reservations")
+        .select("id, property_id, source, ical_uid, cleaner_id, status")
+        .eq("owner_id", user.id)
+        .eq("property_id", selectedProperty.id)
+        .in("ical_uid", importedUids);
+
+    if (existingReservationError) {
+      throw existingReservationError;
+    }
+
+    const existingReservationMap = new Map(
+      (existingReservationRows ?? []).map((reservation: any) => [
+        `${reservation.property_id}-${reservation.source}-${reservation.ical_uid}`,
+        reservation,
+      ])
+    );
+
+    const reservationRows = importedReservations.map((reservation: any) => {
+      const reservationKey = `${selectedProperty.id}-${reservation.source}-${reservation.ical_uid}`;
+      const existingReservation = existingReservationMap.get(reservationKey);
+      const existingCleanerId = existingReservation?.cleaner_id ?? null;
+      const existingStatus = existingReservation?.status ?? null;
+      const isImportedBlock = reservation.status === "Blocked";
+
+      const cleanerId = isImportedBlock
+        ? null
+        : existingCleanerId || defaultCleanerId || null;
+
+      const status = isImportedBlock
+        ? "Blocked"
+        : existingStatus || (cleanerId ? "Assigned" : "Unassigned");
+
+      return {
+        owner_id: user.id,
+        property_id: selectedProperty.id,
+        ical_uid: reservation.ical_uid,
+        guest_name: reservation.guest_name,
+        source: reservation.source,
+        arrival: reservation.arrival,
+        departure: reservation.departure,
+        cleaner_id: cleanerId,
+        status,
+      };
+    });
+
+    const { error: upsertError } = await supabase
+      .from("reservations")
+      .upsert(reservationRows, {
+        onConflict: "property_id,source,ical_uid",
+      });
+
+    if (upsertError) {
+      throw upsertError;
+    }
+
+    const { data: allExistingImportedRows, error: allExistingImportedError } =
+      await supabase
+        .from("reservations")
+        .select("id, source, ical_uid")
+        .eq("owner_id", user.id)
+        .eq("property_id", selectedProperty.id)
+        .not("ical_uid", "is", null);
+
+    if (allExistingImportedError) {
+      throw allExistingImportedError;
+    }
+
+    const latestImportedUidSet = new Set(
+      importedReservations
+        .filter((reservation: any) => reservation.ical_uid)
+        .map((reservation: any) => `${reservation.source}-${reservation.ical_uid}`)
+    );
+
+    const staleReservationIds = (allExistingImportedRows ?? [])
+      .filter((reservation: any) => {
+        const existingKey = `${reservation.source}-${reservation.ical_uid}`;
+        return !latestImportedUidSet.has(existingKey);
+      })
+      .map((reservation: any) => reservation.id);
+
+    if (staleReservationIds.length > 0) {
+      const { error: staleDeleteError } = await supabase
+        .from("reservations")
+        .delete()
+        .in("id", staleReservationIds);
+
+      if (staleDeleteError) {
+        throw staleDeleteError;
+      }
+    }
+
+    alert(
+      `Imported ${importedReservations.length} reservations successfully.${
+        staleReservationIds.length > 0
+          ? ` Removed ${staleReservationIds.length} stale reservations.`
+          : ""
+      }`
+    );
+
+    window.location.reload();
+  } catch (error: any) {
+    console.error("Reservation sync failed:", error);
+    alert(error.message || "Failed to sync reservations.");
+  }
 }
 async function handleLogout() {
   await supabase.auth.signOut();
@@ -2423,7 +1952,6 @@ function startLiveMode() {
   setNotifications([]);
   
   setSelectedHome("all");
-  setSelectedCalendarHome("all");
   setSelectedCalendarItem(null);
   setSelectedCalendarDateKey(null);
   setSelectedWorkOrder(null);
@@ -2435,6 +1963,63 @@ function startLiveMode() {
 
 async function autoFillListing() {
   alert("Auto Fill Listing is temporarily parked while Supabase property setup is being connected.");
+}
+
+async function createLivePropertyFromSourceForm(event: React.FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+
+  const propertyName = sourceForm.propertyName.trim();
+  const vrboCalendarUrl = sourceForm.vrboICalUrl.trim();
+  const airbnbCalendarUrl = (sourceForm.airbnbICalUrl || sourceForm.airbnbUrl).trim();
+
+  if (!propertyName) {
+    alert("Property name is required.");
+    return;
+  }
+
+  if (!vrboCalendarUrl && !airbnbCalendarUrl) {
+    alert("Add at least one iCal URL before creating the live property.");
+    return;
+  }
+
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (!user) {
+    alert("You must be logged in to create a property.");
+    return;
+  }
+
+  const { error } = await supabase.from("properties").insert({
+    owner_id: user.id,
+    property_name: propertyName,
+    market: sourceForm.market.trim(),
+    vrbo_property_id: vrboCalendarUrl || null,
+    airbnb_property_id: airbnbCalendarUrl || null,
+    default_cleaner_id: null,
+  });
+
+  if (error) {
+    console.error("Live property save failed", error);
+    alert(error.message);
+    return;
+  }
+
+  await loadPropertiesFromSupabase();
+
+  setSourceForm({
+    propertyName: "",
+    market: "",
+    vrboId: "",
+    vrboICalUrl: "",
+    vrboICalText: "",
+    airbnbUrl: "",
+    airbnbICalUrl: "",
+    airbnbICalText: "",
+  });
+
+  setImportMessage("Live property saved. Select it in Property Setup, confirm both calendar links are visible, then run Sync Reservations.");
+  setActivePage("Property Setup");
 }
 
   function renderDataIntegrationPanel() {
@@ -2459,8 +2044,8 @@ async function autoFillListing() {
 
         <p className="dataIntegrationMessage">{importMessage}</p>
 
-        <form className="dataSourceForm" onSubmit={createLivePropertyShell}>
-          <label>
+        <form className="dataSourceForm" onSubmit={createLivePropertyFromSourceForm}>
+  <label>
             Property name
             <input
               value={sourceForm.propertyName}
@@ -2506,11 +2091,11 @@ async function autoFillListing() {
           </label>
 
           <label>
-            Airbnb listing URL
+            Airbnb calendar URL backup
             <input
               value={sourceForm.airbnbUrl}
               onChange={(event) => setSourceForm({ ...sourceForm, airbnbUrl: event.target.value })}
-              placeholder="https://airbnb.com/rooms/..."
+              placeholder="Optional backup: paste Airbnb .ics URL here too"
             />
           </label>
 
@@ -2541,1971 +2126,221 @@ async function autoFillListing() {
     );
   }
 
-  function renderProperties() {
-    const selectedProperty = homes.find((home) => home.id === selectedPropertyId) ?? homes[0];
-    const selectedReservations = selectedProperty
-      ? reservations.filter((reservation) => reservation.homeId === selectedProperty.id)
-      : [];
-    const selectedWorkOrders = selectedProperty
-      ? workOrders.filter((order) => order.homeId === selectedProperty.id)
-      : [];
-    const activeHomes = homes.filter((home) => home.status === "Active").length;
-    const setupNeeded = homes.filter((home) => home.status === "Setup Needed").length;
+async function addCleaner(cleaner: Cleaner) {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
 
-    if (showPropertyForm && editingPropertyId) {
-      const editingProperty = homes.find((home) => home.id === editingPropertyId);
-
-      return (
-        <>
-          <header className="pageHeader">
-            <div>
-              <p className="eyebrow">Edit home profile</p>
-              <h2>{editingProperty?.name ?? "Edit Property"}</h2>
-              <p className="headerSubtext">
-                Update the full home profile, listing details, cleaner assignment, capacity, and property notes.
-              </p>
-            </div>
-
-            <button
-              className="ghostButton"
-              onClick={() => {
-                setEditingPropertyId(null);
-                setShowPropertyForm(false);
-              }}
-            >
-              ← Back to Properties
-            </button>
-          </header>
-
-          <section className="manualPanel">
-            <div className="panelHeader">
-              <div>
-                <p className="eyebrow">Property editor</p>
-                <h3>Edit Property Details</h3>
-              </div>
-            </div>
-
-            <form
-              className="propertyForm"
-              onSubmit={(event) => {
-                event.preventDefault();
-
-                updateProperty(editingPropertyId, {
-                  name: propertyForm.name,
-                  city: propertyForm.city,
-                  address: propertyForm.address,
-                  setupMode: propertyForm.setupMode,
-                  vrboId: propertyForm.vrboId,
-                  airbnbUrl: propertyForm.airbnbUrl,
-                  iCalUrl: propertyForm.iCalUrl,
-                  defaultCleanerId: propertyForm.defaultCleanerId || undefined,
-                  bedrooms: Number(propertyForm.bedrooms) || 0,
-                  bathrooms: Number(propertyForm.bathrooms) || 0,
-                  maxGuests: Number(propertyForm.maxGuests) || 0,
-                  status: propertyForm.iCalUrl || propertyForm.vrboId || propertyForm.airbnbUrl ? "Active" : "Setup Needed",
-                  notes: propertyForm.notes,
-                });
-
-                setEditingPropertyId(null);
-                setShowPropertyForm(false);
-              }}
-            >
-              <label>
-                Home name
-                <input
-                  value={propertyForm.name}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, name: event.target.value })}
-                  placeholder="Example: Coates Cabin"
-                />
-              </label>
-
-              <label>
-                City / market
-                <input
-                  value={propertyForm.city}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, city: event.target.value })}
-                  placeholder="Broken Bow"
-                />
-              </label>
-
-              <label>
-                Setup method
-                <select
-                  value={propertyForm.setupMode}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, setupMode: event.target.value as Home["setupMode"] })}
-                >
-                  <option value="VRBO">Use VRBO Listing ID</option>
-                  <option value="Airbnb">Use Airbnb Listing URL</option>
-                  <option value="Guest Reservation">Manually Set Up House</option>
-                </select>
-              </label>
-              <label className="fullWidth">
-                VRBO property ID
-                <input
-                  value={propertyForm.vrboId}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, vrboId: event.target.value })}
-                  placeholder="VRBO ID"
-                />
-              </label>
-
-              <label className="fullWidth">
-                Airbnb listing URL
-                <input
-                  value={propertyForm.airbnbUrl}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, airbnbUrl: event.target.value })}
-                  placeholder="https://airbnb.com/rooms/..."
-                />
-              </label>
-
-              <div className="cardActions fullWidth">
-                <button
-                  type="button"
-                  className="secondaryButton"
-                  onClick={autoFillListing}
-                >
-                  Auto Fill Listing
-                </button>
-              </div>
-
-              <label>
-                iCal link
-                <input
-                  value={propertyForm.iCalUrl}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, iCalUrl: event.target.value })}
-                  placeholder="Calendar feed URL"
-                />
-              </label>
-
-              <label>
-                Default cleaner
-                <select
-                  value={propertyForm.defaultCleanerId}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, defaultCleanerId: event.target.value })}
-                >
-                  <option value="">No default cleaner</option>
-                  {cleaners.map((cleaner) => (
-                    <option key={cleaner.id} value={cleaner.id}>
-                      {cleaner.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Bedrooms
-                <input
-                  type="number"
-                  value={propertyForm.bedrooms}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, bedrooms: event.target.value })}
-                />
-              </label>
-
-              <label>
-                Bathrooms
-                <input
-                  type="number"
-                  value={propertyForm.bathrooms}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, bathrooms: event.target.value })}
-                />
-              </label>
-
-              <label>
-                Max guests
-                <input
-                  type="number"
-                  value={propertyForm.maxGuests}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, maxGuests: event.target.value })}
-                />
-              </label>
-
-              <label className="fullWidth">
-                Address / internal notes
-                <input
-                  value={propertyForm.address}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, address: event.target.value })}
-                  placeholder="Address or private location notes"
-                />
-              </label>
-
-              <label className="fullWidth">
-                Property notes
-                <textarea
-                  value={propertyForm.notes}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, notes: event.target.value })}
-                  placeholder="Owner notes, parking, supplies, access, known issues"
-                />
-              </label>
-              <PropertyOperationsHub
-  property={propertyForm}
-  onChange={setPropertyForm}
-/>
-
-              <div className="cardActions fullWidth">
-                <button className="primaryButton" type="submit">
-                  Save Property Changes
-                </button>
-                <button
-  className="secondaryButton"
-  onClick={syncReservations}
-  type="button"
->
-  Sync Reservations
-</button>
-                <button
-                  className="ghostButton"
-                  type="button"
-                  onClick={() => archiveProperty(editingPropertyId)}
-                >
-                  Archive Property
-                </button>
-                <button
-                  className="dangerButton"
-                  type="button"
-                  onClick={() => deleteProperty(editingPropertyId)}
-                >
-                  Delete Property
-                </button>
-                <button
-                  className="ghostButton"
-                  type="button"
-                  onClick={() => {
-                    setEditingPropertyId(null);
-                    setShowPropertyForm(false);
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </section>
-        </>
-      );
-    }
-
-    return (
-      <>
-        <header className="pageHeader">
-          <div>
-            <p className="eyebrow">Phase 4</p>
-            <h2>Properties</h2>
-            <p className="headerSubtext">
-              Build home profiles, connect VRBO/Airbnb/iCal sources, set default cleaners, and prepare property intelligence.
-            </p>
-          </div>
-
-          <button
-            className="primaryButton"
-            onClick={() => {
-              setEditingPropertyId(null);
-              setPropertyForm({
-                name: "",
-                city: "",
-                address: "",
-                setupMode: "VRBO",
-                vrboId: "",
-                airbnbUrl: "",
-                iCalUrl: "",
-                defaultCleanerId: "",
-                bedrooms: "3",
-                bathrooms: "2",
-                maxGuests: "8",
-                notes: "",
-              });
-              setShowPropertyForm(true);
-            }}
-          >
-            + Create Home Profile
-          </button>
-        </header>
-
-        {showPropertyForm && (
-          <section className="manualPanel">
-            <div className="panelHeader">
-              <div>
-                <p className="eyebrow">{editingPropertyId ? "Edit home profile" : "Create home profile"}</p>
-                <h3>{editingPropertyId ? "Edit Property" : "Add Property"}</h3>
-              </div>
-              <button
-                className="ghostButton"
-                onClick={() => {
-                  setEditingPropertyId(null);
-                  setShowPropertyForm(false);
-                }}
-              >
-                Close
-              </button>
-            </div>
-
-            <form
-              className="propertyForm"
-              onSubmit={(event) => {
-                if (editingPropertyId) {
-                  event.preventDefault();
-
-                  updateProperty(editingPropertyId, {
-                    name: propertyForm.name,
-                    city: propertyForm.city,
-                    address: propertyForm.address,
-                    setupMode: propertyForm.setupMode,
-                    vrboId: propertyForm.vrboId,
-                    airbnbUrl: propertyForm.airbnbUrl,
-                    iCalUrl: propertyForm.iCalUrl,
-                    defaultCleanerId: propertyForm.defaultCleanerId || undefined,
-                    bedrooms: Number(propertyForm.bedrooms) || 0,
-                    bathrooms: Number(propertyForm.bathrooms) || 0,
-                    maxGuests: Number(propertyForm.maxGuests) || 0,
-                    status: propertyForm.iCalUrl || propertyForm.vrboId || propertyForm.airbnbUrl ? "Active" : "Setup Needed",
-                    notes: propertyForm.notes,
-                  });
-
-                  setEditingPropertyId(null);
-                  setShowPropertyForm(false);
-                  return;
-                }
-
-                createProperty(event);
-              }}
-            >
-              <label>
-                Home name
-                <input
-                  value={propertyForm.name}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, name: event.target.value })}
-                  placeholder="Example: Coates Cabin"
-                />
-              </label>
-
-              <label>
-                City / market
-                <input
-                  value={propertyForm.city}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, city: event.target.value })}
-                  placeholder="Broken Bow"
-                />
-              </label>
-
-              <label>
-                Setup method
-                <select
-                  value={propertyForm.setupMode}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, setupMode: event.target.value as Home["setupMode"] })}
-                >
-                  <option value="VRBO">Use VRBO Listing ID</option>
-                  <option value="Airbnb">Use Airbnb Listing URL</option>
-                  <option value="Guest Reservation">Manually Set Up House</option>
-                </select>
-              </label>
-              <label className="fullWidth">
-                VRBO property ID
-                <input
-                  value={propertyForm.vrboId}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, vrboId: event.target.value })}
-                  placeholder="VRBO ID"
-                />
-              </label>
-
-              <label className="fullWidth">
-                Airbnb listing URL
-                <input
-                  value={propertyForm.airbnbUrl}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, airbnbUrl: event.target.value })}
-                  placeholder="https://airbnb.com/rooms/..."
-                />
-              </label>
-
-              <div className="cardActions fullWidth">
-                <button
-                  type="button"
-                  className="secondaryButton"
-                  onClick={autoFillListing}
-                >
-                  Auto Fill Listing
-                </button>
-              </div>
-
-              <label>
-                iCal link
-                <input
-                  value={propertyForm.iCalUrl}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, iCalUrl: event.target.value })}
-                  placeholder="Calendar feed URL"
-                />
-              </label>
-
-              <label>
-                Default cleaner
-                <select
-                  value={propertyForm.defaultCleanerId}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, defaultCleanerId: event.target.value })}
-                >
-                  <option value="">No default cleaner</option>
-                  {cleaners.map((cleaner) => (
-                    <option key={cleaner.id} value={cleaner.id}>
-                      {cleaner.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Bedrooms
-                <input
-                  type="number"
-                  value={propertyForm.bedrooms}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, bedrooms: event.target.value })}
-                />
-              </label>
-
-              <label>
-                Bathrooms
-                <input
-                  type="number"
-                  value={propertyForm.bathrooms}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, bathrooms: event.target.value })}
-                />
-              </label>
-
-              <label>
-                Max guests
-                <input
-                  type="number"
-                  value={propertyForm.maxGuests}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, maxGuests: event.target.value })}
-                />
-              </label>
-
-              <label className="fullWidth">
-                Address / internal notes
-                <input
-                  value={propertyForm.address}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, address: event.target.value })}
-                  placeholder="Address or private location notes"
-                />
-              </label>
-
-              <label className="fullWidth">
-                Property notes
-                <textarea
-                  value={propertyForm.notes}
-                  onChange={(event) => setPropertyForm({ ...propertyForm, notes: event.target.value })}
-                  placeholder="Owner notes, parking, supplies, access, known issues"
-                />
-              </label>
-
-              <button className="primaryButton" type="submit">
-                {editingPropertyId ? "Save Property Changes" : "Save Home Profile"}
-              </button>
-            </form>
-          </section>
-        )}
-
-
-        {renderDataIntegrationPanel()}
-
-        <section className="statsGrid">
-          <div className="statCard">
-            <span>Total homes</span>
-            <strong>{homes.length}</strong>
-          </div>
-          <div className="statCard">
-            <span>Active</span>
-            <strong>{activeHomes}</strong>
-          </div>
-          <div className="statCard warning">
-            <span>Setup needed</span>
-            <strong>{setupNeeded}</strong>
-          </div>
-          <div className="statCard">
-            <span>Calendar feeds</span>
-            <strong>{homes.filter((home) => home.iCalUrl).length}</strong>
-          </div>
-        </section>
-
-        <section className="propertiesLayout">
-          <div className="propertyCardGrid">
-            {homes.map((home) => {
-              const defaultCleaner = cleaners.find((cleaner) => cleaner.id === home.defaultCleanerId);
-              const homeReservations = reservations.filter((reservation) => reservation.homeId === home.id);
-              const homeWorkOrders = workOrders.filter((order) => order.homeId === home.id && order.status !== "Completed");
-
-              return (
-                <button
-                  key={home.id}
-                  className={`propertyCard ${selectedProperty?.id === home.id ? "selected" : ""}`}
-                  onClick={() => {
-                    setSelectedPropertyId(home.id);
-                    startEditingProperty(home);
-                  }}
-                >
-                  <div className="propertyCardTop">
-                    <div className="homeBadge">{home.shortName}</div>
-                    <div>
-                      <h3>{home.name}</h3>
-                      <p>{home.city}</p>
-                    </div>
-                    <span className={`propertyStatus status${home.status.replace(/\s/g, "")}`}>{home.status}</span>
-                  </div>
-
-                  <div className="propertyMiniStats">
-                    <span>{home.bedrooms} bd</span>
-                    <span>{home.bathrooms} ba</span>
-                    <span>{home.maxGuests} guests</span>
-                  </div>
-
-                  <div className="propertySourceRow">
-                    <span>{home.setupMode}</span>
-                    <span>{home.iCalUrl ? "iCal connected" : "No iCal"}</span>
-                    <span>{defaultCleaner?.name ?? "No cleaner"}</span>
-                  </div>
-
-                  <p>{homeReservations.length} reservations · {homeWorkOrders.length} open work orders</p>
-                </button>
-              );
-            })}
-          </div>
-
-          <aside className="propertyDetailPanel">
-            {!selectedProperty ? (
-              <>
-                <p className="eyebrow">Property detail</p>
-                <h3>Select a home</h3>
-              </>
-            ) : (
-              <>
-                <p className="eyebrow">Property detail</p>
-                <div className="propertyDetailHeader">
-                  <div className="homeBadge">{selectedProperty.shortName}</div>
-                  <div>
-                    <h3>{selectedProperty.name}</h3>
-                    <p>{selectedProperty.address || selectedProperty.city}</p>
-                  </div>
-                </div>
-
-                <div className="detailStack">
-                  <div>
-                    <span>Status</span>
-                    <select
-                      value={selectedProperty.status}
-                      onChange={(event) =>
-                        updateProperty(selectedProperty.id, { status: event.target.value as Home["status"] })
-                      }
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Setup Needed">Setup Needed</option>
-                      <option value="Paused">Paused</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <span>Default cleaner</span>
-                    <select
-                      value={selectedProperty.defaultCleanerId ?? ""}
-                      onChange={(event) =>
-                        updateProperty(selectedProperty.id, { defaultCleanerId: event.target.value || undefined })
-                      }
-                    >
-                      <option value="">No default cleaner</option>
-                      {cleaners.map((cleaner) => (
-                        <option key={cleaner.id} value={cleaner.id}>
-                          {cleaner.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="propertyDataGrid">
-                  <div>
-                    <span>VRBO ID</span>
-                    <strong>{selectedProperty.vrboId || "Not connected"}</strong>
-                  </div>
-                  <div>
-                    <span>Airbnb</span>
-                    <strong>{selectedProperty.airbnbUrl ? "URL added" : "Not connected"}</strong>
-                  </div>
-                  <div>
-                    <span>iCal</span>
-                    <strong>{selectedProperty.iCalUrl ? "Connected" : "Missing"}</strong>
-                  </div>
-                  <div>
-                    <span>Capacity</span>
-                    <strong>{selectedProperty.maxGuests} guests</strong>
-                  </div>
-                </div>
-
-                <div className="aiAssistantBox">
-                  <p className="eyebrow">Property intelligence groundwork</p>
-                  <h4>Future automation path</h4>
-                  <p>
-                    VRBO ID, Airbnb URL, and iCal data will eventually feed occupancy comparisons, automated profile creation,
-                    cleaner forecasting, and guest readiness scoring.
-                  </p>
-                </div>
-
-                <div className="propertyLinkedOps">
-                  <h4>Linked operations</h4>
-                  <div>
-                    <span>Upcoming reservations</span>
-                    <strong>{selectedReservations.length}</strong>
-                  </div>
-                  <div>
-                    <span>Open work orders</span>
-                    <strong>{selectedWorkOrders.filter((order) => order.status !== "Completed").length}</strong>
-                  </div>
-                </div>
-
-
-                {selectedProperty.notes && <p className="notesBox">{selectedProperty.notes}</p>}
-              </>
-            )}
-          </aside>
-        </section>
-      </>
-    );
+  if (!user) {
+    setCleaners((current) => [...current, cleaner]);
+    setSelectedCleanerId(cleaner.id);
+    return;
   }
 
-  function renderMaintenance() {
-    const filteredWorkOrders = workOrders.filter((order) => {
-      if (workOrderFilter === "all") return true;
-      if (workOrderFilter === "after-hours") return order.urgency === "After Hours";
-      if (workOrderFilter === "review") return order.status === "Owner Review";
-      return order.status === workOrderFilter;
-    });
+  const { data, error } = await supabase
+    .from("cleaners")
+    .insert({
+      owner_id: user.id,
+      name: cleaner.name,
+      phone: cleaner.phone ?? "",
+      
 
-    const openCount = workOrders.filter((order) => order.status !== "Completed").length;
-    const urgentCount = workOrders.filter((order) => order.urgency === "High" || order.urgency === "After Hours").length;
-    const reviewCount = workOrders.filter((order) => order.status === "Owner Review").length;
-    const scheduledCount = workOrders.filter((order) => order.status === "Scheduled").length;
+      status: cleaner.status ?? "Available",
+      
+    })
+    .select()
+    .single();
 
-    return (
-      <>
-        <header className="pageHeader">
-          <div>
-            <p className="eyebrow">Phase 3</p>
-            <h2>Maintenance + Vendor Ops</h2>
-            <p className="headerSubtext">
-              Route issues, track urgency, assign vendors, capture owner review, and prepare the AI maintenance assistant layer.
-            </p>
-          </div>
-
-          <div className="calendarHeaderActions">
-            <button className="primaryButton" onClick={() => setShowWorkOrderForm(true)}>
-              + Create Work Order
-            </button>
-            <button className="ghostButton" onClick={() => setWorkOrderFilter("after-hours")}>
-              After-Hours Risks
-            </button>
-          </div>
-        </header>
-
-        <section className="statsGrid">
-          <div className="statCard">
-            <span>Open work orders</span>
-            <strong>{openCount}</strong>
-          </div>
-          <div className="statCard warning">
-            <span>Urgent / after-hours</span>
-            <strong>{urgentCount}</strong>
-          </div>
-          <div className="statCard">
-            <span>Owner review</span>
-            <strong>{reviewCount}</strong>
-          </div>
-          <div className="statCard">
-            <span>Scheduled</span>
-            <strong>{scheduledCount}</strong>
-          </div>
-        </section>
-
-        {showWorkOrderForm && (
-          <section className="manualPanel">
-            <div className="panelHeader">
-              <div>
-                <p className="eyebrow">Owner-created work order</p>
-                <h3>Create Maintenance Work Order</h3>
-                <p className="mutedText">
-                  Create issues directly from the owner side when a cleaner, guest, owner, or vendor reports something outside the cleaner portal.
-                </p>
-              </div>
-              <button className="ghostButton" onClick={() => setShowWorkOrderForm(false)} type="button">
-                Close
-              </button>
-            </div>
-
-            <form className="manualForm" onSubmit={createOwnerWorkOrder}>
-              <label>
-                Property
-                <select
-                  value={ownerWorkOrderForm.homeId || selectedPropertyId || homes[0]?.id || ""}
-                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, homeId: event.target.value })}
-                >
-                  {homes.map((home) => (
-                    <option key={home.id} value={home.id}>
-                      {home.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Issue title
-                <input
-                  value={ownerWorkOrderForm.title}
-                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, title: event.target.value })}
-                  placeholder="Example: Replace broken blinds"
-                />
-              </label>
-
-              <label>
-                Category
-                <select
-                  value={ownerWorkOrderForm.category}
-                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, category: event.target.value })}
-                >
-                  <option value="General">General</option>
-                  <option value="Plumbing">Plumbing</option>
-                  <option value="HVAC">HVAC</option>
-                  <option value="Electrical">Electrical</option>
-                  <option value="Appliance">Appliance</option>
-                  <option value="Supplies">Supplies</option>
-                </select>
-              </label>
-
-              <label>
-                Urgency
-                <select
-                  value={ownerWorkOrderForm.urgency}
-                  onChange={(event) =>
-                    setOwnerWorkOrderForm({
-                      ...ownerWorkOrderForm,
-                      urgency: event.target.value as WorkOrderUrgency,
-                    })
-                  }
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="After Hours">After Hours</option>
-                </select>
-              </label>
-
-              <label>
-                Vendor
-                <select
-                  value={ownerWorkOrderForm.vendorId}
-                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, vendorId: event.target.value })}
-                >
-                  <option value="">No vendor assigned yet</option>
-                  {vendors.map((vendor) => (
-                    <option key={vendor.id} value={vendor.id}>
-                      {vendor.name} · {vendor.category}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Scheduled date
-                <input
-                  type="date"
-                  value={ownerWorkOrderForm.scheduledDate}
-                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, scheduledDate: event.target.value })}
-                />
-              </label>
-
-              <label className="fullWidth">
-                Notes
-                <textarea
-                  value={ownerWorkOrderForm.notes}
-                  onChange={(event) => setOwnerWorkOrderForm({ ...ownerWorkOrderForm, notes: event.target.value })}
-                  placeholder="Describe the issue, guest impact, location, owner approval notes, or vendor instructions"
-                />
-              </label>
-
-              <button className="primaryButton" type="submit" disabled={!homes.length}>
-                Save Work Order
-              </button>
-            </form>
-          </section>
-        )}
-
-        <section className="maintenanceLayout">
-          <div>
-            <section className="filtersPanel maintenanceFilters">
-              <select value={workOrderFilter} onChange={(event) => setWorkOrderFilter(event.target.value)}>
-                <option value="all">All work orders</option>
-                <option value="New">New</option>
-                <option value="Assigned">Assigned</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="In Progress">In Progress</option>
-                <option value="review">Owner Review</option>
-                <option value="after-hours">After-Hours Risks</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </section>
-
-            <section className="workOrderList">
-              {filteredWorkOrders.map((order) => {
-                const home = homes.find((item) => item.id === order.homeId);
-                const vendor = vendors.find((item) => item.id === order.vendorId);
-
-                return (
-                  <article
-                    key={order.id}
-                    className={`workOrderCard ${selectedWorkOrder?.id === order.id ? "selected" : ""}`}
-                    onClick={() => setSelectedWorkOrder(order)}
-                  >
-                    <div className="workOrderTop">
-                      <div>
-                        <h3>{order.title}</h3>
-                        <p>{home?.name ?? "Unknown home"} · {order.category}</p>
-                      </div>
-                      <span className={`urgencyPill urgency${order.urgency.replace(/\s/g, "")}`}>{order.urgency}</span>
-                    </div>
-
-                    <div className="workOrderMeta">
-                      <span>{order.status}</span>
-                      <span>{vendor?.name ?? "No vendor assigned"}</span>
-                      <span>{order.scheduledDate ? `Scheduled ${formatDate(order.scheduledDate)}` : `Created ${formatDate(order.createdDate)}`}</span>
-                    </div>
-
-                    <p className="workOrderNotes">{order.notes}</p>
-                  </article>
-                );
-              })}
-            </section>
-          </div>
-
-          <aside className="maintenanceDetailPanel">
-            {!selectedWorkOrder ? (
-              <>
-                <p className="eyebrow">Work order</p>
-                <h3>Select a work order</h3>
-                <p className="mutedText">Vendor routing and AI suggestions will show here.</p>
-              </>
-            ) : (
-              <>
-                <p className="eyebrow">Work order detail</p>
-                <h3>{selectedWorkOrder.title}</h3>
-                <p className="mutedText">
-                  {homes.find((home) => home.id === selectedWorkOrder.homeId)?.name ?? "Unknown home"}
-                </p>
-
-                <div className="detailStack">
-                  <div>
-                    <span>Status</span>
-                    <select
-                      value={selectedWorkOrder.status}
-                      onChange={(event) =>
-                        updateWorkOrder(selectedWorkOrder.id, { status: event.target.value as WorkOrderStatus })
-                      }
-                    >
-                      <option value="New">New</option>
-                      <option value="Assigned">Assigned</option>
-                      <option value="Scheduled">Scheduled</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Owner Review">Owner Review</option>
-                      <option value="Completed">Completed</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <span>Vendor</span>
-                    <select
-                      value={selectedWorkOrder.vendorId ?? ""}
-                      onChange={(event) =>
-                        updateWorkOrder(selectedWorkOrder.id, {
-                          vendorId: event.target.value || undefined,
-                          status: event.target.value ? "Assigned" : selectedWorkOrder.status,
-                        })
-                      }
-                    >
-                      <option value="">No vendor assigned</option>
-                      {vendors.map((vendor) => (
-                        <option key={vendor.id} value={vendor.id}>
-                          {vendor.name} · {vendor.category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="aiAssistantBox">
-                  <p className="eyebrow">AI vendor assistant groundwork</p>
-                  <h4>Recommended routing</h4>
-                  <p>
-                    {selectedWorkOrder.urgency === "After Hours"
-                      ? "This is flagged as after-hours. Prioritize vendors with emergency coverage and guest-impact response."
-                      : selectedWorkOrder.urgency === "High"
-                        ? "High urgency. Schedule before next arrival or escalate if currently guest-impacting."
-                        : "Standard routing. Assign the best matching vendor and track owner approval if needed."}
-                  </p>
-                </div>
-
-                <div className="vendorSuggestions">
-                  <h4>Recommended vendors</h4>
-                  {getRecommendedVendors(selectedWorkOrder.category, selectedWorkOrder.urgency).map((vendor) => (
-                    <button
-                      key={vendor.id}
-                      onClick={() =>
-                        updateWorkOrder(selectedWorkOrder.id, {
-                          vendorId: vendor.id,
-                          status: "Assigned",
-                        })
-                      }
-                    >
-                      <strong>{vendor.name}</strong>
-                      <span>{vendor.category} · ★ {vendor.rating} · {vendor.afterHours ? "After-hours" : "Standard hours"}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="timeline maintenanceTimeline">
-                  <h4>Timeline</h4>
-                  {selectedWorkOrder.timeline.map((item, index) => (
-                    <div key={`${selectedWorkOrder.id}-${item}-${index}`} className="timelineItem">
-                      <span />
-                      <p>{item}</p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </aside>
-        </section>
-      </>
-    );
+  if (error) {
+    console.error("Cleaner save failed", error);
+    window.alert(error.message);
+    return;
   }
 
-
-  function updateCleaner(id: string, updates: Partial<Cleaner>) {
-    setCleaners((current) => current.map((cleaner) => (cleaner.id === id ? { ...cleaner, ...updates } : cleaner)));
-  }
-
-  function deleteCleaner(id: string) {
-    const cleaner = cleaners.find((item) => item.id === id);
-
-    const confirmation = window.prompt(
-      `Type DELETE to permanently remove ${cleaner?.name ?? "this cleaner"}.`
-    );
-
-    if (confirmation !== "DELETE") return;
-
-    setCleaners((current) => current.filter((cleaner) => cleaner.id !== id));
-
-    setReservations((current) =>
-      current.map((reservation) =>
-        reservation.cleanerId === id
-          ? {
-              ...reservation,
-              cleanerId: undefined,
-              status: reservation.status === "Assigned" ? "Unassigned" : reservation.status,
-              timeline: [...reservation.timeline, "Cleaner removed from reservation"],
-            }
-          : reservation
-      )
-    );
-
-    setHomes((current) =>
-      current.map((home) =>
-        home.defaultCleanerId === id
-          ? { ...home, defaultCleanerId: undefined }
-          : home
-      )
-    );
-
-  const remaining = cleaners.filter((cleaner) => cleaner.id !== id);
-setSelectedCleanerId(remaining[0]?.id ?? "");
-  }
-
-  function markNotificationRead(id: string) {
-    setNotifications((current) =>
-      current.map((notification) => (notification.id === id ? { ...notification, read: true } : notification))
-    );
-  }
-
-  function renderDashboard() {
-  const upcomingReservations = reservations
-    .filter((reservation) => isImportedReservation(reservation) && reservation.status !== "Completed")
-    .sort((a, b) => a.arrival.localeCompare(b.arrival))
-    .slice(0, 3);
-
-  const reservationItems = reservations.filter((item) => isImportedReservation(item));
-  const propertyTasks = reservations.filter((item) => isTaskSource(item.source));
-  const openPropertyTasks = propertyTasks.filter((item) => item.status !== "Completed");
-  const reservationsNeedingCleanerAssigned = reservationItems.filter((item) => needsCleanerAssignment(item)).length;
-  const openWorkOrders = workOrders.filter((order) => order.status !== "Completed");
-  const urgentWorkOrders = workOrders.filter(
-    (order) => order.urgency === "High" || order.urgency === "After Hours"
-  );
-  
-
-  function openReservationFromDashboard(reservation: Reservation) {
-    setSelectedCalendarItem(reservation);
-    setActivePage("Reservation Detail");
-  }
-
-  function openNeedsCleanerAssigned(event?: React.MouseEvent) {
-    event?.stopPropagation();
-    setSelectedItemType("needs-cleaner");
-    setSelectedStatus("all");
-    setSelectedHome("all");
-    setSearch("");
-    setActivePage("Reservations");
-  }
-
-  return (
-    <>
-      <header className="pageHeader dashboardHeader">
-        <div>
-          <p className="eyebrow">Ask My Rentals</p>
-          <h2>Owner Dashboard</h2>
-          <p className="headerSubtext">What needs your attention right now?</p>
-        </div>
-      </header>
-
-      <section className="dashboardHeroGrid">
-        <button className="dashboardLaunchCard housekeeping" type="button" onClick={() => setActivePage("Cleaners")}>
-          <span className="launchIcon">🧹</span>
-          <div>
-            <h3>Housekeeping</h3>
-            <strong>{reservationItems.length} Upcoming Reservations</strong>
-            <p>
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={openNeedsCleanerAssigned}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") openNeedsCleanerAssigned(event as any);
-                }}
-              >
-                {reservationsNeedingCleanerAssigned} Need Cleaner Assigned
-              </span>
-            </p>
-          </div>
-        </button>
-
-        <button className="dashboardLaunchCard maintenance" type="button" onClick={() => setActivePage("Maintenance")}>
-          <span className="launchIcon">🔧</span>
-          <div>
-            <h3>Maintenance</h3>
-            <strong>{openWorkOrders.length} Open Issues</strong>
-            <p>{urgentWorkOrders.length} Urgent</p>
-          </div>
-        </button>
-
-        <button className="dashboardLaunchCard properties" type="button" onClick={() => setActivePage("Properties")}>
-          <span className="launchIcon">🏡</span>
-          <div>
-            <h3>Properties</h3>
-            <strong>{homes.length} Active Properties</strong>
-            <p>Manage homes and setup</p>
-          </div>
-        </button>
-
-        <button
-          className="dashboardLaunchCard tasks"
-          type="button"
-          onClick={() => {
-            setSelectedItemType("tasks");
-            setSelectedStatus("all");
-            setSearch("");
-            setActivePage("Reservations");
-          }}
-        >
-          <span className="launchIcon">📋</span>
-          <div>
-            <h3>Operations</h3>
-            <strong>{openPropertyTasks.length} Open Tasks</strong>
-            <p>
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={openNeedsCleanerAssigned}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") openNeedsCleanerAssigned(event as any);
-                }}
-              >
-                {reservationsNeedingCleanerAssigned} Need Cleaner Assigned
-              </span>
-            </p>
-          </div>
-        </button>
-      </section>
-
-      <section className="dashboardReservationsSection">
-        <div className="panelHeader compact">
-          <div>
-            <p className="eyebrow">Next 3</p>
-            <h3>Upcoming Reservations</h3>
-          </div>
-        </div>
-
-        <div className="dashboardReservationCards">
-          {upcomingReservations.map((reservation) => {
-            const home = homes.find((item) => item.id === reservation.homeId);
-            const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
-
-            return (
-              <button
-                key={reservation.id}
-                type="button"
-                className="dashboardReservationCard"
-                onClick={() => openReservationFromDashboard(reservation)}
-              >
-                <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-                  {reservation.source.toUpperCase()}
-                </span>
-
-                <h3>{home?.name ?? "Imported reservation"}</h3>
-                <p>{home?.name ?? "Unknown property"}</p>
-
-                <div className="reservationPreviewMeta">
-                  <div>
-                    <span>{isTaskSource(reservation.source) ? "Task Date" : "Arrival"}</span>
-                    <strong>{formatDate(reservation.arrival)}</strong>
-                  </div>
-
-                  <div>
-                    <span>{isTaskSource(reservation.source) ? "Type" : "Departure"}</span>
-                    <strong>{isTaskSource(reservation.source) ? reservation.source : formatDate(reservation.departure)}</strong>
-                  </div>
-                </div>
-
-                <div className="assignedCleanerLine">
-                  <span>Assigned Cleaner</span>
-                  <strong>{cleaner?.name ?? "Unassigned"}</strong>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          className="primaryButton fullWidthButton"
-          type="button"
-          onClick={() => {
-            setSelectedItemType("reservations");
-            setSelectedStatus("all");
-            setSearch("");
-            setActivePage("Reservations");
-          }}
-        >
-          View Imported Reservations →
-        </button>
-      </section>
-    </>
-  );
-}
-function renderReservationDetail() {
-  const reservation =
-    selectedCalendarItem && "guestName" in selectedCalendarItem
-      ? selectedCalendarItem
-      : null;
-
-  if (!reservation) {
-    return (
-      <section className="placeholderPage">
-        <p className="eyebrow">Reservation Detail</p>
-        <h2>No reservation selected</h2>
-        <p>Select a reservation from the Dashboard, Calendar, or Reservations page.</p>
-        <button className="primaryButton" type="button" onClick={() => setActivePage("Dashboard")}>
-          Back to Dashboard
-        </button>
-      </section>
-    );
-  }
-
-  const home = homes.find((item) => item.id === reservation.homeId);
-  const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
-  const imported = isImportedReservation(reservation);
-  const isOwnerBlock = reservation.source === "Owner Block";
-  const isTask = isTaskSource(reservation.source);
-
-  const detailEyebrow = imported
-    ? "Source controlled reservation"
-    : isOwnerBlock
-      ? "Owner block"
-      : `${reservation.source} task`;
-
-  const detailSubtext = imported
-    ? "VRBO/Airbnb controls guest name and dates. AMR controls cleaner assignment, task status, and internal notes."
-    : isOwnerBlock
-      ? "Use this to track owner, family, or personal use that blocks the property calendar."
-      : "Use this as an operational task for the property team. It appears on the calendar but does not count as a guest reservation.";
-
-  const updateNotesWithLabel = (label: string, value: string) => {
-    const existingNotes = reservation.notes ?? "";
-    const lines = existingNotes
-      .split("\n")
-      .filter((line) => !line.startsWith(`${label}:`));
-
-    updateReservation(reservation.id, {
-      notes: [`${label}: ${value}`, ...lines].filter(Boolean).join("\n"),
-    });
+  const savedCleaner: Cleaner = {
+    id: data.id,
+    name: data.name ?? "",
+    phone: data.phone ?? "",
+    
+    status: data.status ?? "Available",
+    serviceArea: data.service_area ?? "",
+    rating: 5,
+    activeJobs: 0,
+    specialties: [],
+    notes: "",
   };
 
-  const statusOptions: ReservationStatus[] = [
-    "Unassigned",
-    "Assigned",
-    "Accepted",
-    "In Process",
-    "Completed",
-    "Blocked",
-  ];
+  setCleaners((current) => [...current, savedCleaner]);
+  setSelectedCleanerId(savedCleaner.id);
+}
+  
+ async function updateCleaner(id: string, updates: Partial<Cleaner>) {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
 
-  return (
-    <>
-      <header className="pageHeader reservationDetailHeader">
-        <div>
-          <span className={`platformBadge platform${reservation.source.replace(/\s/g, "")}`}>
-            {reservation.source.toUpperCase()}
-          </span>
-          <h2>{imported ? home?.name ?? "Unknown property" : reservation.guestName}</h2>
-          <p className="headerSubtext">{detailSubtext}</p>
-        </div>
+  if (user) {
+    const supabaseUpdates: Record<string, any> = {};
 
-        <button className="ghostButton" type="button" onClick={() => setActivePage(reservationDetailReturnPage)}>
-          ← Back
-        </button>
-      </header>
+    if (updates.name !== undefined) supabaseUpdates.name = updates.name;
+    if (updates.phone !== undefined) supabaseUpdates.phone = updates.phone;
+   
+    if (updates.status !== undefined) supabaseUpdates.status = updates.status;
 
-      <section className="reservationWorkspace">
-        {imported && (
-          <article className="reservationWorkspaceCard">
-            <p className="eyebrow">{detailEyebrow}</p>
-            <h3>Reservation Information</h3>
-            <div className="detailStack">
-              <div>
-                <span>Property</span>
-                <strong>{home?.name ?? "Unknown property"}</strong>
-              </div>
-              <div>
-                <span>Source</span>
-                <strong>{reservation.source}</strong>
-              </div>
-              <div>
-                <span>Guest / Calendar Title</span>
-                <strong>{reservation.guestName || "Not provided"}</strong>
-              </div>
-              <div>
-                <span>Arrival</span>
-                <strong>{formatDate(reservation.arrival)}</strong>
-              </div>
-              <div>
-                <span>Departure</span>
-                <strong>{formatDate(reservation.departure)}</strong>
-              </div>
-              <div>
-                <span>Status</span>
-                <strong>{reservation.status}</strong>
-              </div>
-              <div>
-                <span>Assigned Cleaner</span>
-                <strong>{cleaner?.name ?? "Unassigned"}</strong>
-              </div>
-            </div>
-            <p className="sourceControlledNotice">
-              {getSourceControlledMessage(reservation.source)}
-            </p>
-          </article>
-        )}
+    const { error } = await supabase
+      .from("cleaners")
+      .update(supabaseUpdates)
+      .eq("id", id)
+      .eq("owner_id", user.id);
 
-        {!imported && (
-          <article className="reservationWorkspaceCard">
-            <p className="eyebrow">{detailEyebrow}</p>
-            <h3>{isOwnerBlock ? "Owner Block Details" : `${reservation.source} Details`}</h3>
+    if (error) {
+      console.error("Cleaner update failed", error);
+      window.alert(error.message);
+      return;
+    }
+  }
 
-            <label>
-              {isOwnerBlock ? "Block Name" : "Task Name"}
-              <input
-                value={reservation.guestName}
-                onChange={(event) =>
-                  updateReservation(reservation.id, {
-                    guestName: event.target.value,
-                  })
-                }
-                placeholder={isOwnerBlock ? "Owner stay, family use, personal block" : `${reservation.source} task name`}
-              />
-            </label>
-
-            <label>
-              Property
-              <select
-                value={reservation.homeId}
-                onChange={(event) =>
-                  updateReservation(reservation.id, {
-                    homeId: event.target.value,
-                  })
-                }
-              >
-                {homes.map((homeOption) => (
-                  <option key={homeOption.id} value={homeOption.id}>
-                    {homeOption.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Type
-              <select
-                value={reservation.source}
-                onChange={(event) =>
-                  updateReservation(reservation.id, {
-                    source: event.target.value as ReservationSource,
-                  })
-                }
-              >
-                  <option value="Cleaning">Cleaning</option>
-               
-                <option value="Vendor Visit">Vendor Visit</option>
-                <option value="Inspection">Inspection</option>
-              </select>
-            </label>
-
-            <label>
-              {isTask ? "Task Date" : "Start Date"}
-              <input
-                type="date"
-                value={reservation.arrival}
-                onChange={(event) =>
-                  updateReservation(reservation.id, {
-                    arrival: event.target.value,
-                    departure: isTask
-                      ? event.target.value
-                      : reservation.departure && event.target.value > reservation.departure
-                        ? event.target.value
-                        : reservation.departure,
-                  })
-                }
-              />
-            </label>
-
-            {isTask ? (
-              <label>
-                Task Type
-                <input value={reservation.source} readOnly />
-              </label>
-            ) : (
-              <label>
-                End Date
-                <input
-                  type="date"
-                  value={reservation.departure}
-                  min={reservation.arrival || undefined}
-                  onChange={(event) =>
-                    updateReservation(reservation.id, {
-                      departure: event.target.value,
-                    })
-                  }
-                />
-              </label>
-            )}
-          </article>
-        )}
-
-        {reservation.source === "Cleaning" && (
-          <article className="reservationWorkspaceCard">
-            <p className="eyebrow">Cleaning task</p>
-            <h3>Cleaning Details</h3>
-            <label>
-              Cleaning Type
-              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Cleaning Type", event.target.value)}>
-                <option value="" disabled>Select cleaning type</option>
-                <option value="Standard Cleaning">Standard Cleaning</option>
-                <option value="Mid-Stay Cleaning">Mid-Stay Cleaning</option>
-                <option value="Deep Clean">Deep Clean</option>
-                <option value="Touch-Up Clean">Touch-Up Clean</option>
-                <option value="Other">Other</option>
-              </select>
-            </label>
-            <p className="mutedText">Use this for added cleanings, mid-stay service, deep cleans, or quick touch-ups.</p>
-          </article>
-        )}
-
-        {reservation.source === "Maintenance" && (
-          <article className="reservationWorkspaceCard">
-            <p className="eyebrow">Maintenance task</p>
-            <h3>Maintenance Details</h3>
-            <label>
-              Priority
-              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Maintenance Priority", event.target.value)}>
-                <option value="" disabled>Select priority</option>
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Urgent">Urgent</option>
-              </select>
-            </label>
-            <label>
-              Issue Category
-              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Maintenance Category", event.target.value)}>
-                <option value="" disabled>Select category</option>
-                <option value="General">General</option>
-                <option value="Plumbing">Plumbing</option>
-                <option value="HVAC">HVAC</option>
-                <option value="Electrical">Electrical</option>
-                <option value="Appliance">Appliance</option>
-                <option value="Other">Other</option>
-              </select>
-            </label>
-          </article>
-        )}
-
-        {reservation.source === "Vendor Visit" && (
-          <article className="reservationWorkspaceCard">
-            <p className="eyebrow">Vendor task</p>
-            <h3>Vendor Visit Details</h3>
-            <label>
-              Vendor Type
-              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Vendor Type", event.target.value)}>
-                <option value="" disabled>Select vendor type</option>
-                <option value="HVAC">HVAC</option>
-                <option value="Plumbing">Plumbing</option>
-                <option value="Electrical">Electrical</option>
-                <option value="Pest Control">Pest Control</option>
-                <option value="Landscaping">Landscaping</option>
-                <option value="Pool / Hot Tub">Pool / Hot Tub</option>
-                <option value="Other">Other</option>
-              </select>
-            </label>
-            <label>
-              Vendor Name / Company
-              <input
-                placeholder="Example: Summit HVAC"
-                onBlur={(event) => {
-                  if (event.target.value.trim()) updateNotesWithLabel("Vendor", event.target.value.trim());
-                }}
-              />
-            </label>
-          </article>
-        )}
-
-        {reservation.source === "Inspection" && (
-          <article className="reservationWorkspaceCard">
-            <p className="eyebrow">Inspection task</p>
-            <h3>Inspection Details</h3>
-            <label>
-              Inspection Type
-              <select defaultValue="" onChange={(event) => updateNotesWithLabel("Inspection Type", event.target.value)}>
-                <option value="" disabled>Select inspection type</option>
-                <option value="Arrival Inspection">Arrival Inspection</option>
-                <option value="Departure Inspection">Departure Inspection</option>
-                <option value="Seasonal Inspection">Seasonal Inspection</option>
-                <option value="Damage Inspection">Damage Inspection</option>
-                <option value="Other">Other</option>
-              </select>
-            </label>
-            <p className="mutedText">Use this for walkthroughs, damage checks, seasonal reviews, or guest-ready verification.</p>
-          </article>
-        )}
-
-        <article className="reservationWorkspaceCard">
-          <p className="eyebrow">Assignment</p>
-          <h3>{reservation.source === "Cleaning" || isImportedReservation(reservation) ? "Cleaner Assignment" : "Task Status"}</h3>
-
-          {(reservation.source === "Cleaning" || isImportedReservation(reservation)) && (
-            <label>
-              Assigned cleaner
-              <select
-                value={reservation.cleanerId ?? ""}
-                onChange={(event) =>
-                  updateReservation(reservation.id, {
-                    cleanerId: event.target.value || undefined,
-                    status: event.target.value ? "Assigned" : "Unassigned",
-                  })
-                }
-              >
-                <option value="">Unassigned</option>
-                {cleaners.map((cleanerOption) => (
-                  <option key={cleanerOption.id} value={cleanerOption.id}>
-                    {cleanerOption.name} — {cleanerOption.status}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <label>
-            Status
-            <select
-              value={reservation.status}
-              onChange={(event) =>
-                updateReservation(reservation.id, {
-                  status: event.target.value as ReservationStatus,
-                })
-              }
-            >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {(reservation.source === "Cleaning" || isImportedReservation(reservation)) && (
-            <div className="cardActions">
-              <button
-                type="button"
-                onClick={() =>
-                  updateReservation(reservation.id, {
-                    cleanerId: undefined,
-                    status: "Unassigned",
-                  })
-                }
-              >
-                Unassign
-              </button>
-            </div>
-          )}
-        </article>
-
-        <article className="reservationWorkspaceCard">
-          <p className="eyebrow">Internal Notes</p>
-          <h3>{isTask ? "Task Notes" : "Owner Notes"}</h3>
-
-          <textarea
-            value={reservation.notes ?? ""}
-            onChange={(event) =>
-              updateReservation(reservation.id, {
-                notes: event.target.value,
-              })
-            }
-            placeholder="Add cleaner instructions, owner notes, vendor notes, access details, supplies, or reminders."
-          />
-        </article>
-
-        {imported && (
-          <article className="reservationWorkspaceCard doorCodePreview">
-            <p className="eyebrow">Future Integration</p>
-            <h3>Door Code</h3>
-            <p>Smart lock and guest access codes will live here later.</p>
-            <button type="button" className="disabledButton" disabled>
-              Door Code Coming Soon
-            </button>
-          </article>
-        )}
-      </section>
-    </>
+  setCleaners((current) =>
+    current.map((cleaner) => (cleaner.id === id ? { ...cleaner, ...updates } : cleaner))
   );
 }
+async function deleteCleaner(id: string) {
+  const cleaner = cleaners.find((item) => item.id === id);
 
-  function renderCleaners() {
-    const selectedCleaner = cleaners.find((cleaner) => cleaner.id === selectedCleanerId) ?? cleaners[0];
-    const cleanerReservations = selectedCleaner
-      ? reservations.filter((reservation) => reservation.cleanerId === selectedCleaner.id)
-      : [];
-    const defaultHomes = selectedCleaner
-      ? homes.filter((home) => home.defaultCleanerId === selectedCleaner.id)
-      : [];
+  const confirmation = window.prompt(
+    `Type DELETE to permanently remove ${cleaner?.name ?? "this cleaner"}.`
+  );
 
-    return (
-      <>
-        <header className="pageHeader">
-          <div>
-            <p className="eyebrow">Cleaner operations</p>
-            <h2>Cleaners</h2>
-            <p className="headerSubtext">
-              Manage cleaner availability, default property assignments, specialties, active turnovers, and mobile portal groundwork.
-            </p>
-          </div>
+  if (confirmation !== "DELETE") return;
 
-          <button className="primaryButton" onClick={() => setActivePage("Reservations")}>
-            Assign Turnovers
-          </button>
-        </header>
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
 
-        <section className="statsGrid">
-          <div className="statCard">
-            <span>Total cleaners</span>
-            <strong>{cleaners.length}</strong>
-          </div>
-          <div className="statCard">
-            <span>Available</span>
-            <strong>{cleaners.filter((cleaner) => cleaner.status === "Available").length}</strong>
-          </div>
-          <div className="statCard">
-            <span>Busy</span>
-            <strong>{cleaners.filter((cleaner) => cleaner.status === "Busy").length}</strong>
-          </div>
-          <div className="statCard warning">
-            <span>Unassigned stays</span>
-            <strong>{reservations.filter((reservation) => !reservation.cleanerId).length}</strong>
-          </div>
-        </section>
+  if (user) {
+    const { error } = await supabase
+      .from("cleaners")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", user.id);
 
-        <section className="cleanersLayout">
-          <div className="cleanerCardGrid">
-            {cleaners.map((cleaner) => (
-              <button
-                key={cleaner.id}
-                className={`cleanerCard ${selectedCleaner?.id === cleaner.id ? "selected" : ""}`}
-                onClick={() => setSelectedCleanerId(cleaner.id)}
-              >
-                <div className="cleanerAvatar">{cleaner.name.slice(0, 2).toUpperCase()}</div>
-                <div>
-                  <h3>{cleaner.name}</h3>
-                  <p>{cleaner.serviceArea}</p>
-                  <div className="propertyMiniStats">
-                    <span>{cleaner.status}</span>
-                    <span>★ {cleaner.rating}</span>
-                    <span>{cleaner.activeJobs} active</span>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <aside className="cleanerDetailPanel">
-            {!selectedCleaner ? (
-              <>
-                <p className="eyebrow">Cleaner detail</p>
-                <h3>Select a cleaner</h3>
-              </>
-            ) : (
-              <>
-                <p className="eyebrow">Cleaner detail</p>
-                <div className="cleanerDetailHeader">
-                  <div className="cleanerAvatar large">{selectedCleaner.name.slice(0, 2).toUpperCase()}</div>
-                  <div>
-                    <h3>{selectedCleaner.name}</h3>
-                    <p>{selectedCleaner.phone} · {selectedCleaner.serviceArea}</p>
-                  </div>
-                </div>
-
-                <div className="detailStack">
-                  <div>
-                    <span>Status</span>
-                    <select
-                      value={selectedCleaner.status}
-                      onChange={(event) =>
-                        updateCleaner(selectedCleaner.id, { status: event.target.value as Cleaner["status"] })
-                      }
-                    >
-                      <option value="Available">Available</option>
-                      <option value="Busy">Busy</option>
-                      <option value="Offline">Offline</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="propertyDataGrid">
-                  <div>
-                    <span>Rating</span>
-                    <strong>★ {selectedCleaner.rating}</strong>
-                  </div>
-                  <div>
-                    <span>Active jobs</span>
-                    <strong>{selectedCleaner.activeJobs}</strong>
-                  </div>
-                  <div>
-                    <span>Default homes</span>
-                    <strong>{defaultHomes.length}</strong>
-                  </div>
-                  <div>
-                    <span>Assigned stays</span>
-                    <strong>{cleanerReservations.length}</strong>
-                  </div>
-                </div>
-
-                <div className="specialtyList">
-                  <h4>Specialties</h4>
-                  <div>
-                    {selectedCleaner.specialties.map((specialty) => (
-                      <span key={specialty}>{specialty}</span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="aiAssistantBox">
-                  <p className="eyebrow">Cleaner portal groundwork</p>
-                  <h4>Future mobile flow</h4>
-                  <p>
-                    This profile will support assignment acceptance, ETA tracking, messaging, inspection photos,
-                    supply reporting, and completion confirmations.
-                  </p>
-                </div>
-
-                {selectedCleaner.notes && <p className="notesBox">{selectedCleaner.notes}</p>}
-
-                <div className="cardActions">
-                  <button
-                    className="dangerButton"
-                    onClick={() => deleteCleaner(selectedCleaner.id)}
-                  >
-                    Delete Cleaner
-                  </button>
-                </div>
-              </>
-            )}
-          </aside>
-        </section>
-      </>
-    );
-  }
-
-  function renderNotificationCenter() {
-    const reservationsNeedingCleanerAssigned = reservations
-      .filter((reservation) => needsCleanerAssignment(reservation) && isImportedReservation(reservation))
-      .sort((a, b) => a.arrival.localeCompare(b.arrival));
-
-    const criticalWorkOrders = workOrders
-      .filter(
-        (order) =>
-          order.status !== "Completed" &&
-          (order.urgency === "High" || order.urgency === "After Hours" || order.status === "Owner Review")
-      )
-      .sort((a, b) => a.createdDate.localeCompare(b.createdDate));
-
-    const upcomingOperations = reservations
-      .filter(
-        (reservation) =>
-          isTaskSource(reservation.source) &&
-         
-          reservation.status !== "Completed" &&
-          daysUntil(reservation.arrival) >= 0 &&
-          daysUntil(reservation.arrival) <= 3
-      )
-      .sort((a, b) => a.arrival.localeCompare(b.arrival));
-
-    type NotificationAction = "reservations-needs-cleaner" | "maintenance" | "operations" | "properties" | "cleaners" | "none";
-    type NotificationListItem = OwnerNotification & {
-      action: NotificationAction;
-      relatedWorkOrderId?: string;
-    };
-
-    const generatedNotifications: NotificationListItem[] = [
-      ...(reservationsNeedingCleanerAssigned.length > 0
-        ? [
-            {
-              id: "generated-needs-cleaner-assigned",
-              type: "Reservation" as NotificationType,
-              priority: "High" as NotificationPriority,
-              title: `${reservationsNeedingCleanerAssigned.length} Reservations Need Cleaner Assigned`,
-              message: "Imported reservations are waiting for a cleaner assignment.",
-              createdAt: "Live alert",
-              read: false,
-              action: "reservations-needs-cleaner" as NotificationAction,
-            },
-          ]
-        : []),
-      ...criticalWorkOrders.map((order) => {
-        const home = homes.find((item) => item.id === order.homeId);
-
-        return {
-          id: `generated-work-order-${order.id}`,
-          type: "Maintenance" as NotificationType,
-          priority:
-            order.urgency === "After Hours" || order.urgency === "High"
-              ? ("Critical" as NotificationPriority)
-              : ("High" as NotificationPriority),
-          title: `${order.urgency === "After Hours" ? "After-Hours" : order.urgency} Work Order`,
-          message: `${order.title} · ${home?.name ?? "Unknown property"}`,
-          relatedHomeId: order.homeId,
-          relatedWorkOrderId: order.id,
-          createdAt: order.scheduledDate ? `Scheduled ${formatDate(order.scheduledDate)}` : `Created ${formatDate(order.createdDate)}`,
-          read: false,
-          action: "maintenance" as NotificationAction,
-        };
-      }),
-      ...(upcomingOperations.length > 0
-        ? [
-            {
-              id: "generated-upcoming-operations",
-              type: "System" as NotificationType,
-              priority: "Normal" as NotificationPriority,
-              title: `${upcomingOperations.length} Upcoming Operations`,
-              message: "Cleaning, vendor visit, or inspection tasks are scheduled in the next 3 days.",
-              createdAt: "Live alert",
-              read: false,
-              action: "operations" as NotificationAction,
-            },
-          ]
-        : []),
-    ];
-
-    const savedNotifications: NotificationListItem[] = notifications.map((notification) => ({
-      ...notification,
-      action:
-        notification.type === "Reservation"
-          ? "reservations-needs-cleaner"
-          : notification.type === "Maintenance"
-            ? "maintenance"
-            : notification.type === "Property"
-              ? "properties"
-              : notification.type === "Cleaner"
-                ? "cleaners"
-                : "none",
-    }));
-
-    const allNotificationItems = [...generatedNotifications, ...savedNotifications];
-
-    const visibleNotifications = allNotificationItems.filter((notification) => {
-      if (notificationFilter === "all") return true;
-      if (notificationFilter === "unread") return !notification.read;
-      return notification.type === notificationFilter;
-    });
-
-    function openNotification(notification: NotificationListItem) {
-      if (notification.action === "reservations-needs-cleaner") {
-        setSelectedItemType("needs-cleaner");
-        setSelectedStatus("all");
-        setSelectedHome("all");
-        setSearch("");
-        setActivePage("Reservations");
-        return;
-      }
-
-      if (notification.action === "maintenance") {
-        const matchingWorkOrder = workOrders.find((order) => order.id === notification.relatedWorkOrderId);
-        if (matchingWorkOrder) setSelectedWorkOrder(matchingWorkOrder);
-        setWorkOrderFilter("all");
-        setActivePage("Maintenance");
-        return;
-      }
-
-      if (notification.action === "operations") {
-        setSelectedItemType("tasks");
-        setSelectedStatus("all");
-        setSearch("");
-        setActivePage("Reservations");
-        return;
-      }
-
-      if (notification.action === "properties") setActivePage("Properties");
-      if (notification.action === "cleaners") setActivePage("Cleaners");
-    }
-
-    return (
-      <>
-        <header className="pageHeader">
-          <div>
-            <p className="eyebrow">Owner alert inbox</p>
-            <h2>Notification Center</h2>
-            <p className="headerSubtext">
-              Live alerts for cleaner assignment, critical maintenance, upcoming operations, property setup, and system messages.
-            </p>
-          </div>
-
-          <button
-            className="primaryButton"
-            onClick={() => setNotifications((current) => current.map((notification) => ({ ...notification, read: true })))}
-          >
-            Mark Saved Alerts Read
-          </button>
-        </header>
-
-        <section className="statsGrid">
-          <div className="statCard warning">
-            <span>Need Cleaner Assigned</span>
-            <strong>{reservationsNeedingCleanerAssigned.length}</strong>
-          </div>
-          <div className="statCard warning">
-            <span>Critical Maintenance</span>
-            <strong>{criticalWorkOrders.length}</strong>
-          </div>
-          <div className="statCard">
-            <span>Upcoming Operations</span>
-            <strong>{upcomingOperations.length}</strong>
-          </div>
-          <div className="statCard">
-            <span>Saved Alerts</span>
-            <strong>{notifications.length}</strong>
-          </div>
-        </section>
-
-        <section className="filtersPanel maintenanceFilters">
-          <select value={notificationFilter} onChange={(event) => setNotificationFilter(event.target.value)}>
-            <option value="all">All alerts</option>
-            <option value="unread">Unread only</option>
-            <option value="Reservation">Reservations</option>
-            <option value="Cleaner">Cleaners</option>
-            <option value="Maintenance">Maintenance</option>
-            <option value="Property">Properties</option>
-            <option value="System">System / Operations</option>
-          </select>
-        </section>
-
-        <section className="notificationList">
-          {visibleNotifications.map((notification) => {
-            const home = homes.find((item) => item.id === notification.relatedHomeId);
-            const cleaner = cleaners.find((item) => item.id === notification.relatedCleanerId);
-
-            return (
-              <article key={notification.id} className={`notificationCard ${notification.read ? "read" : "unread"}`}>
-                <div className="notificationTop">
-                  <div>
-                    <span className={`priorityPill priority${notification.priority}`}>{notification.priority}</span>
-                    <span className="typePill">{notification.type}</span>
-                  </div>
-                  <small>{notification.createdAt}</small>
-                </div>
-
-                <h3>{notification.title}</h3>
-                <p>{notification.message}</p>
-
-                <div className="notificationMeta">
-                  {home && <span>{home.name}</span>}
-                  {cleaner && <span>{cleaner.name}</span>}
-                  <span>{notification.read ? "Read" : "Needs attention"}</span>
-                </div>
-
-                <div className="cardActions">
-                  {!notification.id.startsWith("generated-") && !notification.read && (
-                    <button onClick={() => markNotificationRead(notification.id)}>Mark Read</button>
-                  )}
-                  <button className="primaryButton" type="button" onClick={() => openNotification(notification)}>
-                    Open
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-
-          {visibleNotifications.length === 0 && (
-            <div className="emptyState">
-              No alerts match your current filter.
-            </div>
-          )}
-        </section>
-      </>
-    );
-  }
-
-
-  function updateReservationFromCleaner(id: string, status: ReservationStatus, note: string) {
-    setReservations((current) =>
-      current.map((reservation) =>
-        reservation.id === id
-          ? {
-              ...reservation,
-              status,
-              timeline: [...reservation.timeline, note],
-            }
-          : reservation
-      )
-    );
-
-    const reservation = reservations.find((item) => item.id === id);
-    if (reservation) {
-      setNotifications((current) => [
-        {
-          id: `note-${Date.now()}`,
-          type: "Cleaner",
-          priority: status === "In Process" ? "High" : "Normal",
-          title: `Cleaner update: ${status}`,
-          message: `${reservation.guestName} was updated by the cleaner. ${note}`,
-          relatedHomeId: reservation.homeId,
-          relatedCleanerId: reservation.cleanerId,
-          createdAt: new Date().toLocaleString(),
-          read: false,
-        },
-        ...current,
-      ]);
+    if (error) {
+      console.error("Cleaner delete failed", error);
+      window.alert(error.message);
+      return;
     }
   }
+
+  setCleaners((current) => current.filter((cleaner) => cleaner.id !== id));
+
+  setReservations((current) =>
+    current.map((reservation) =>
+      reservation.cleanerId === id
+        ? {
+            ...reservation,
+            cleanerId: undefined,
+            status: reservation.status === "Assigned" ? "Unassigned" : reservation.status,
+            timeline: [...reservation.timeline, "Cleaner removed from reservation"],
+          }
+        : reservation
+    )
+  );
+
+  setHomes((current) =>
+    current.map((home) =>
+      home.defaultCleanerId === id ? { ...home, defaultCleanerId: undefined } : home
+    )
+  );
+
+  const remaining = cleaners.filter((cleaner) => cleaner.id !== id);
+  setSelectedCleanerId(remaining[0]?.id ?? "");
+}
+async function deleteWorkOrder(id: string) {
+  const workOrder = workOrders.find((item) => item.id === id);
+
+  const confirmation = window.prompt(
+    `Type DELETE to permanently remove ${workOrder?.title ?? "this work order"}.`
+  );
+
+  if (confirmation !== "DELETE") return;
+
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (user) {
+    const { error } = await supabase
+      .from("work_orders")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", user.id);
+
+    if (error) {
+      console.error("Work order delete failed", error);
+      window.alert(error.message);
+      return;
+    }
+  }
+
+  setWorkOrders((current) => current.filter((order) => order.id !== id));
+
+  if (selectedWorkOrder?.id === id) {
+    setSelectedWorkOrder(null);
+  }
+}
+async function updateReservationFromCleaner(
+  id: string,
+  status: ReservationStatus,
+  note: string
+) {
+  setReservations((current) =>
+    current.map((reservation) =>
+      reservation.id === id
+        ? {
+            ...reservation,
+            status,
+            timeline: [...reservation.timeline, note],
+          }
+        : reservation
+    )
+  );
+
+  const reservation = reservations.find((item) => item.id === id);
+  const nextTimeline = reservation ? [...reservation.timeline, note] : [note];
+
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (user) {
+    const { error } = await supabase
+      .from("reservations")
+      .update({
+        status,
+        timeline: nextTimeline,
+      })
+      .eq("id", id)
+      .eq("owner_id", user.id);
+
+    if (error) {
+      console.error("Cleaner reservation update failed", error);
+      window.alert(error.message);
+      return;
+    }
+  }
+
+  if (reservation) {
+    setNotifications((current) => [
+      {
+        id: `note-${Date.now()}`,
+        type: "Cleaner",
+        priority: status === "In Process" ? "High" : "Normal",
+        title: `Cleaner update: ${status}`,
+        message: `${reservation.guestName} was updated by the cleaner. ${note}`,
+        relatedHomeId: reservation.homeId,
+        relatedCleanerId: reservation.cleanerId,
+        createdAt: new Date().toLocaleString(),
+        read: false,
+      },
+      ...current,
+    ]);
+  }
+}
 
 async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
@@ -4542,7 +2377,7 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
   };
 
   const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
+ const user = userData.user;
 
   if (user) {
     const { error } = await supabase.from("work_orders").insert({
@@ -4602,610 +2437,8 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
     notes: "",
   });
 }
-  function renderCleanerPortal() {
-    const activeCleaner = cleaners.find((cleaner) => cleaner.id === cleanerPortalId) ?? cleaners[0];
-    const cleanerTasks = reservations
-      .filter(
-        (reservation) =>
-          reservation.cleanerId === activeCleaner?.id &&
-          (isImportedReservation(reservation) || reservation.source === "Cleaning")
-      )
-      .sort((a, b) => a.arrival.localeCompare(b.arrival));
-    const urgentTasks = cleanerTasks.filter((reservation) => {
-      const urgency = getUrgency(reservation.arrival);
-      return urgency.label === "Today" || urgency.label === "Tomorrow" || urgency.className === "watch";
-    });
-
-    return (
-      <>
-        <header className="pageHeader cleanerPortalHero">
-          <div>
-            <p className="eyebrow">Mobile cleaner experience</p>
-            <h2>Cleaner Portal</h2>
-            <p className="headerSubtext">
-              Cleaner-friendly workflow for assignments, acceptance, ETA updates, completion, and maintenance reporting.
-            </p>
-          </div>
-
-          <button className="primaryButton" onClick={() => setActivePage("Reservations")}>
-            Reservation
-          </button>
-        </header>
-
-        <section className="cleanerPortalShell">
-          <div className="cleanerPhonePanel">
-            <div className="cleanerPortalTop">
-              <div className="cleanerAvatar large">{activeCleaner?.name.slice(0, 2).toUpperCase()}</div>
-              <div>
-                <p className="eyebrow">Signed in as</p>
-                <h3>{activeCleaner?.name}</h3>
-                <span>{activeCleaner?.serviceArea} · {activeCleaner?.status}</span>
-              </div>
-            </div>
-
-            <label className="cleanerSwitcher">
-              Test cleaner view
-              <select value={cleanerPortalId} onChange={(event) => setCleanerPortalId(event.target.value)}>
-                {cleaners.map((cleaner) => (
-                  <option key={cleaner.id} value={cleaner.id}>
-                    {cleaner.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="cleanerQuickStats">
-              <div>
-                <span>Assigned</span>
-                <strong>{cleanerTasks.length}</strong>
-              </div>
-              <div>
-                <span>Urgent</span>
-                <strong>{urgentTasks.length}</strong>
-              </div>
-              <div>
-               <span>In Process
-               </span>
-                <strong>{cleanerTasks.filter((task) => task.status === "In Process").length}</strong>
-              </div>
-            </div>
-
-            <div className="cleanerTaskStack">
-              <h4>My assigned cleanings</h4>
-
-              {cleanerTasks.length === 0 ? (
-                <p className="mutedText">No assigned cleanings yet.</p>
-              ) : (
-                cleanerTasks.map((reservation) => {
-                  const home = homes.find((item) => item.id === reservation.homeId);
-                  const urgency = getUrgency(reservation.arrival);
-
-                  return (
-                    <article key={reservation.id} className="cleanerTaskCard">
-                      <div className="cleanerTaskHeader">
-                        <div>
-                          <h3>{home?.name ?? "Unknown home"}</h3>
-                          <p>{reservation.guestName}</p>
-                        </div>
-                        <span className={`urgencyBadge ${urgency.className}`}>{urgency.label}</span>
-                      </div>
-
-                      <div className="cleanerTaskDetails">
-                        <div>
-                          <span>Arrival</span>
-                          <strong>{formatDate(reservation.arrival)}</strong>
-                        </div>
-                        <div>
-                          <span>Departure</span>
-                          <strong>{formatDate(reservation.departure)}</strong>
-                        </div>
-                        <div>
-                          <span>Status</span>
-                          <strong>{reservation.status}</strong>
-                        </div>
-                      </div>
-
-                      {reservation.notes && <p className="notesBox">{reservation.notes}</p>}
-{home && (
-  <section className="cleanerPropertyInfo">
-    <p className="eyebrow">Property info</p>
-
-    {home.operations?.access && (
-      <div className="cleanerInfoCard">
-        <strong>Access</strong>
-        <p>{home.operations.access}</p>
-      </div>
-    )}
-
-    {home.operations?.wifiName && (
-      <div className="cleanerInfoCard">
-        <strong>WiFi</strong>
-        <p>{home.operations.wifiName}</p>
-        {home.operations?.wifiPassword && <small>Password: {home.operations.wifiPassword}</small>}
-      </div>
-    )}
-
-    {home.operations?.trashInstructions && (
-      <div className="cleanerInfoCard">
-        <strong>Trash</strong>
-        <p>{home.operations.trashInstructions}</p>
-      </div>
-    )}
-
-    {home.operations?.cleanerNotes && (
-      <div className="cleanerInfoCard">
-        <strong>Notes to Cleaner</strong>
-        <p>{home.operations.cleanerNotes}</p>
-      </div>
-    )}
-  </section>
-)}
-                      <div className="cleanerActionGrid">
-                        {reservation.status === "Accepted" ? (
-  <button
-    type="button"
-    className="warningAction"
-    onClick={() =>
-      updateReservation(reservation.id, {
-        cleanerId: undefined,
-        status: "Unassigned",
-      })
-    }
-  >
-    Release Assignment
-  </button>
-) : (
-  <button
-    type="button"
-    onClick={() =>
-      updateReservationFromCleaner(
-        reservation.id,
-        "Accepted",
-        "Cleaner accepted the assignment"
-      )
-    }
-  >
-    Accept
-  </button>
-)}
-                        <button
-  disabled={toInputDate(new Date()) < reservation.departure}
-  onClick={() =>
-    updateReservationFromCleaner(
-      reservation.id,
-      "In Process",
-      "Cleaner started cleaning"
-    )
-  }
->
-  Start
-</button>
-                       <button
-  disabled={
-    reservation.status !== "In Process" ||
-    toInputDate(new Date()) < reservation.departure
-  }
-  onClick={() =>
-    updateReservationFromCleaner(
-      reservation.id,
-      "Completed",
-      "Cleaner completed the reservation"
-    )
-  }
->
-  Complete
-</button>
-                        <button
-                          className="warningAction"
-                          onClick={() => {
-                            setCleanerIssueForm((current) => ({ ...current, reservationId: reservation.id }));
-                            document.getElementById("cleanerIssueForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          }}
-                        >
-                          Report Issue
-                        </button>
-                      </div>
-
-                      <div className="etaRow">
-                        <button onClick={() => updateReservationFromCleaner(reservation.id, "Accepted", "Cleaner ETA: on time")}>
-                          ETA On Time
-                        </button>
-                        <button onClick={() => updateReservationFromCleaner(reservation.id, "In Process", "Cleaner running late; owner review recommended")}>
-                          Running Late
-                        </button>
-                        <button onClick={() => updateReservationFromCleaner(reservation.id, "In Process", "Cleaner requested owner message")}>
-                          Message Owner
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          <aside className="cleanerOpsPanel">
-
-            <section className="cleanerIssueBox" id="cleanerIssueForm">
-              <p className="eyebrow">Maintenance reporting</p>
-              <h3>Report an Issue</h3>
-              <p className="mutedText">
-                This creates an owner notification and a maintenance work order automatically.
-              </p>
-
-              <form className="cleanerIssueForm" onSubmit={submitCleanerMaintenanceIssue}>
-                <label>
-                  <label>
-  Property
-  <select
-    value={cleanerIssueForm.homeId}
-    onChange={(event) =>
-      setCleanerIssueForm({
-        ...cleanerIssueForm,
-        homeId: event.target.value,
-      })
-    }
-  >
-    <option value="">Select property</option>
-    {homes.map((home) => (
-      <option key={home.id} value={home.id}>
-        {home.name}
-      </option>
-    ))}
-  </select>
-</label>
-             
-                </label>
-
-                <label>
-                  Issue title
-                  <input
-                    value={cleanerIssueForm.title}
-                    onChange={(event) => setCleanerIssueForm({ ...cleanerIssueForm, title: event.target.value })}
-                    placeholder="Example: Loose railing, leak under sink"
-                  />
-                </label>
-
-                <label>
-                  Category
-                  <select
-                    value={cleanerIssueForm.category}
-                    onChange={(event) => setCleanerIssueForm({ ...cleanerIssueForm, category: event.target.value })}
-                  >
-                    <option value="General">General</option>
-                    <option value="Plumbing">Plumbing</option>
-                    <option value="HVAC">HVAC</option>
-                    <option value="Electrical">Electrical</option>
-                    <option value="Appliance">Appliance</option>
-                    <option value="Supplies">Supplies</option>
-                  </select>
-                </label>
-
-                <label>
-                  Urgency
-                  <select
-                    value={cleanerIssueForm.urgency}
-                    onChange={(event) =>
-                      setCleanerIssueForm({ ...cleanerIssueForm, urgency: event.target.value as WorkOrderUrgency })
-                    }
-                  >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                    <option value="After Hours">After Hours</option>
-                  </select>
-                </label>
-
-                <label>
-                  Photo upload placeholder
-                  <input type="file" accept="image/*" />
-                </label>
-
-                <label>
-                  Notes
-                  <textarea
-                    value={cleanerIssueForm.notes}
-                    onChange={(event) => setCleanerIssueForm({ ...cleanerIssueForm, notes: event.target.value })}
-                    placeholder="What happened? Where is it? Does it impact the next guest?"
-                  />
-                </label>
-
-                <button className="primaryButton" type="submit">
-                  Send to Owner + Create Work Order
-                </button>
-              </form>
-            </section>
-          </aside>
-        </section>
-
-        <nav className="cleanerMobileNav" aria-label="Cleaner mobile navigation">
-          <button
-            type="button"
-            onClick={() => document.querySelector(".cleanerTaskStack")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            <span>✓</span>
-            Tasks
-          </button>
-          <button
-            type="button"
-            onClick={() => document.querySelector(".cleanerQuickStats")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            <span>◷</span>
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={() => document.getElementById("cleanerIssueForm")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            <span>⚠</span>
-            Issues
-          </button>
-          <button
-            type="button"
-            onClick={() => window.alert("Cleaner messaging is the next build step.")}
-          >
-            <span>✉</span>
-            Messages
-          </button>
-          <button
-            type="button"
-            onClick={() => document.querySelector(".cleanerPortalTop")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          >
-            <span>●</span>
-            Profile
-          </button>
-        </nav>
-      </>
-    );
-  }
-
-
-  function renderOccupancy() {
-    const totalDays = 365;
-
-const guestNights = reservations
-  .filter(
-    (reservation) =>
-      isImportedReservation(reservation) &&
-      reservation.status !== "Blocked"
-  )
-  .reduce((total, reservation) => {
-    const start = toDate(reservation.arrival);
-    const end = toDate(reservation.departure);
-    return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
-  }, 0);
-
-const taskDays = getTaskDayCount(reservations);
-
-const blockedNights =
-  reservations
-    .filter((reservation) => reservation.status === "Blocked")
-    .reduce((total, reservation) => {
-      const start = toDate(reservation.arrival);
-      const end = toDate(reservation.departure);
-      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
-    }, 0) +
-  calendarBlocks
-    .filter((block) => block.type === "Maintenance")
-    .reduce((total, block) => {
-      const start = toDate(block.start);
-      const end = toDate(block.end);
-      return total + Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
-    }, 0);
-    const openNights = Math.max(0, totalDays - guestNights - blockedNights);
-    const occupancyPercent = Math.round((guestNights / totalDays) * 100);
-    const projectedOccupancy = Math.min(100, occupancyPercent + 7);
-
-    const occupancyDiscrepancies = getCalendarSyncIssues(reservations, homes, dismissedDiscrepancies);
-    const visibleDiscrepancies = occupancyDiscrepancies.filter((item) => item.status === "Open");
-
-    return (
-      <>
-        <header className="pageHeader">
-          <div>
-            <p className="eyebrow">Owner intelligence</p>
-            <h2>Occupancy</h2>
-            <p className="headerSubtext">
-              Track guest nights, blocked nights, open inventory, AMR task days, projections, and calendar discrepancies.
-            </p>
-          </div>
-
-          <button className="primaryButton" onClick={() => setActivePage("Calendar")}>
-            Open Calendar
-          </button>
-        </header>
-
-        <section className="occupancyStatsGrid">
-          <article className="occupancyCard">
-            <span>Occupancy</span>
-            <strong>{occupancyPercent}%</strong>
-            <p>Guest nights divided by annual inventory</p>
-          </article>
-
-          <article className="occupancyCard">
-            <span>Guest Nights</span>
-            <strong>{guestNights}</strong>
-            <p>Booked rental nights</p>
-          </article>
-
-
-          <article className="occupancyCard">
-            <span>Blocked Nights</span>
-            <strong>{blockedNights}</strong>
-            <p>Imported blocked or unavailable nights</p>
-          </article>
-
-          <article className="occupancyCard">
-  <span>AMR Task Days</span>
-  <strong>{taskDays}</strong>
-  <p>Operational task days scheduled in Ask My Rentals.</p>
-  <small className="mutedText">
-    These do not affect guest occupancy.
-  </small>
-</article>
-
-          <article className="occupancyCard">
-            <span>Projected Occupancy</span>
-            <strong>{projectedOccupancy}%</strong>
-            <p>Mock projection until historical data is connected</p>
-          </article>
-        </section>
-
-        <section className="occupancyLayout">
-          <div className="occupancyPanel">
-            <div className="panelHeader compact">
-              <div>
-                <p className="eyebrow">Calendar QA</p>
-                <h3>Calendar Sync Intelligence</h3>
-              </div>
-              <span className="occupancyAlertPill">{visibleDiscrepancies.length} open</span>
-            </div>
-
-            <div className="occupancyDiscrepancyStack">
-              {visibleDiscrepancies.length === 0 ? (
-                <div className="emptyStateBox">
-                  <h4>No open sync issues</h4>
-                  <p>VRBO and Airbnb imported items do not currently show obvious missing-counterpart or date-mismatch issues.</p>
-                </div>
-              ) : (
-                visibleDiscrepancies.map((item) => (
-                  <article key={item.id} className="occupancyDiscrepancyCard">
-                    <div className="occupancyDiscrepancyTop">
-                      <div>
-                        <h4>{item.property}</h4>
-                        <p>{item.message}</p>
-                        <span>{item.dateRange}</span>
-                      </div>
-
-                      <span className={`urgencyBadge ${item.severity === "High" ? "urgent" : "watch"}`}>
-                        {item.severity}
-                      </span>
-                    </div>
-
-                    <label className="occupancyNoteField">
-                      Owner note
-                      <input placeholder="Add note about why this is okay or what needs fixing" />
-                    </label>
-
-                    <div className="cardActions">
-                      <button onClick={() => setDismissedDiscrepancies((current) => [...current, item.id])}>
-                        Dismiss
-                      </button>
-                      <button className="primaryButton" onClick={() => setDismissedDiscrepancies((current) => [...current, item.id])}>
-                        Mark Fixed
-                      </button>
-                    </div>
-                  </article>
-                ))
-              )}
-            </div>
-          </div>
-
-          <aside className="occupancyPanel">
-            <div className="panelHeader compact">
-              <div>
-                <p className="eyebrow">Reports</p>
-                <h3>Occupancy Report</h3>
-              </div>
-            </div>
-
-            <div className="occupancyReportFilters">
-              <label>
-                Property
-                <select defaultValue="all">
-                  <option value="all">All properties</option>
-                  {homes.map((home) => (
-                    <option key={home.id} value={home.id}>{home.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Period
-                <select defaultValue="year">
-                  <option value="month">This month</option>
-                  <option value="quarter">This quarter</option>
-                  <option value="year">This year</option>
-                  <option value="prior-year">Prior year comparison</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="occupancyReportBox">
-              <div className="occupancyReportRow">
-                <span>Guest nights</span>
-                <strong>{guestNights}</strong>
-              </div>
-              <div className="occupancyReportRow">
-                <span>AMR task days</span>
-                <strong>{taskDays}</strong>
-              </div>
-              <div className="occupancyReportRow">
-                <span>Blocked nights</span>
-                <strong>{blockedNights}</strong>
-              </div>
-              <div className="occupancyReportRow">
-                <span>Open nights</span>
-                <strong>{openNights}</strong>
-              </div>
-              <div className="occupancyReportRow total">
-                <span>Occupancy</span>
-                <strong>{occupancyPercent}%</strong>
-              </div>
-            </div>
-
-            <button className="primaryButton fullWidthButton">Generate Report</button>
-            <p className="mutedText">For now this gives owners the core numbers they can manually enter into county or tax reporting portals.</p>
-          </aside>
-        </section>
-      </>
-    );
-  }
-
-  function renderRecords() {
-    const recentReservationEvents = reservations.flatMap((reservation) =>
-      reservation.timeline.slice(-2).map((item) => ({
-        id: `${reservation.id}-${item}`,
-        label: item,
-        detail: `${reservation.guestName} · ${homes.find((home) => home.id === reservation.homeId)?.name ?? "Unknown home"}`,
-        type: "Reservation",
-      }))
-    );
-    const recentWorkOrderEvents = workOrders.slice(0, 4).map((order) => ({
-      id: order.id,
-      label: order.title,
-      detail: `${order.status} · ${order.urgency}`,
-      type: "Maintenance",
-    }));
-    const recordItems = [...recentReservationEvents, ...recentWorkOrderEvents].slice(0, 12);
-
-    return (
-      <>
-        <header className="pageHeader">
-          <div>
-            <p className="eyebrow">Audit trail</p>
-            <h2>Records</h2>
-            <p className="headerSubtext">
-              A lightweight history of cleaner updates, reservation changes, maintenance items, and owner decisions.
-            </p>
-          </div>
-        </header>
-
-        <section className="recordsPanel">
-          {recordItems.map((item) => (
-            <article key={item.id} className="recordItem">
-              <span>{item.type}</span>
-              <div>
-                <h3>{item.label}</h3>
-                <p>{item.detail}</p>
-              </div>
-            </article>
-          ))}
-        </section>
-      </>
-    );
-  }
-
+   
+  
   function renderPlaceholder() {
     return (
       <section className="placeholderPage">
@@ -5215,16 +2448,16 @@ const blockedNights =
           This module is parked for a later phase so the Task Board and Calendar can stay stable.
         </p>
         <button className="primaryButton" onClick={() => setActivePage("Reservations")}>
-          Go to Reservations
+          
         </button>
       </section>
     );
   }
 
   return (
-    <div className={`appShell ${activePage === "Cleaner Portal" ? "cleanerAppMode" : ""}`}>
-      <aside className="sidebar">
-        <div className="brand">
+   <div className={`appShell ${activePage === "Cleaner Portal" ? "cleanerAppMode" : ""}`}>
+  <aside className="sidebar">
+    <div className="brand">
           <div className="brandIcon">AMR</div>
           <div>
             <h1>Ask My Rentals</h1>
@@ -5232,61 +2465,48 @@ const blockedNights =
             <small className="saveStatus">{saveStatus}</small>
           </div>
         </div>
-<button
-  className="ghostButton"
-  type="button"
-  onClick={handleLogout}
->
-  Log Out
-</button>
+
+
+<div className="propertySelector compactPropertySelector">
+  <label>Active Property</label>
+
+  <select
+    value={selectedPropertyId}
+    onChange={(event) => setSelectedPropertyId(event.target.value)}
+  >
+    {homes.map((home) => (
+      <option key={home.id} value={home.id}>
+        {home.name}
+      </option>
+    ))}
+  </select>
+</div>
+<nav className="nav desktopNav"></nav>
         <nav className="nav desktopNav">
-          {["Dashboard", "Reservations", "Calendar", "Properties", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].map(
+          {["Dashboard", "Reservations", "Calendar", "Property Setup", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records", ].map(
             (item) => (
-              <button
-                key={item}
-                className={activePage === item ? "active" : ""}
-                onClick={() => {
-                  setActivePage(item);
-                  setShowOwnerMobileMenu(false);
-                }}
-                
-              >
-                {item}
-              </button>
+             <button
+  key={item}
+  className={activePage === item ? "active" : ""}
+  onClick={() => {
+    setActivePage(item);
+    setShowOwnerMobileMenu(false);
+  }}
+>
+  {item}
+
+  {item === "Notification Center" &&
+    urgentNotificationCount > 0 && (
+      <span className="notificationBadge">
+        {urgentNotificationCount}
+      </span>
+    )}
+</button>
             )
           )}
         </nav>
 
-        <nav className="ownerMobileNav" aria-label="Owner mobile navigation">
-          {[
-            { label: "Home", page: "Dashboard", icon: "⌂" },
-            { label: "Reservations", page: "Reservations", icon: "▦" },
-            { label: "Calendar", page: "Calendar", icon: "◷" },
-          ].map((item) => (
-            <button
-              key={item.page}
-              type="button"
-              className={activePage === item.page ? "active" : ""}
-              onClick={() => {
-                setActivePage(item.page);
-                setShowOwnerMobileMenu(false);
-              }}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-
-          <button
-            type="button"
-            className={showOwnerMobileMenu ? "active" : ""}
-            onClick={() => setShowOwnerMobileMenu((current) => !current)}
-          >
-            <span>☰</span>
-            Menu
-          </button>
-        </nav>
-
+        
       </aside>
 
       {/* MOBILE HAMBURGER MENU: keep this overlay permanently paired with the More button below. */}
@@ -5305,8 +2525,7 @@ const blockedNights =
 
             <div className="ownerMobileMenuGrid">
               {[
-                "Notification Center",
-                "Properties",
+                "Property Setup",
                 "Occupancy",
                 "Maintenance",
                 "Cleaners",
@@ -5328,43 +2547,308 @@ const blockedNights =
                 </button>
               ))}
             </div>
+            <div className="ownerMobileMenuFooter">
+  <button
+    className="logoutButton"
+    type="button"
+    onClick={handleLogout}
+  >
+    Log Out
+  </button>
+</div>
           </section>
         </div>
       )}
 
       <main className="mainContent">
         {activePage === "Calendar" && renderCalendar()}
-        {activePage === "Dashboard" && renderDashboard()}
-       {activePage === "Reservation Detail" && renderReservationDetail()}
-        {activePage === "Reservations" && renderReservationBoard()}
-        {activePage === "Properties" && renderProperties()}
-        {activePage === "Occupancy" && renderOccupancy()}
-        {activePage === "Cleaners" && renderCleaners()}
-        {activePage === "Cleaner Portal" && renderCleanerPortal()}
-        {activePage === "Maintenance" && renderMaintenance()}
-        {activePage === "Notification Center" && renderNotificationCenter()}
-        {activePage === "Records" && renderRecords()}
-        {!["Dashboard", "Reservations", "Calendar", "Properties", "Occupancy", "Reservation Detail", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records"].includes(activePage) && renderPlaceholder()}
+       {activePage === "Dashboard" && (
+<DashboardPage
+  reservations={reservations.filter((reservation) => reservation.homeId === selectedPropertyId)}
+  homes={homes.filter((home) => home.id === selectedPropertyId)}
+  cleaners={cleaners}
+  workOrders={workOrders.filter((workOrder) => workOrder.homeId === selectedPropertyId)}
+  selectedPropertyId={selectedPropertyId}
+  setActivePage={setActivePage}
+  setSelectedCalendarItem={setSelectedCalendarItem}
+  setSelectedItemType={setSelectedItemType}
+  setSelectedStatus={setSelectedStatus}
+  setSelectedHome={setSelectedHome}
+  setSearch={setSearch}
+  isImportedReservation={isImportedReservation}
+  isTaskSource={isTaskSource}
+  needsCleanerAssignment={needsCleanerAssignment}
+  formatDate={formatDate}
+/>
+)}
+{activePage === "Guest Ready" && (
+  <GuestReadyPage
+    reservations={reservations.filter(
+      (reservation) => getReservationHomeId(reservation) === selectedPropertyId
+    )}
+    homes={homes}
+    cleaners={cleaners}
+    workOrders={workOrders.filter(
+      (workOrder) => workOrder.homeId === selectedPropertyId
+    )}
+    selectedPropertyId={selectedPropertyId}
+    formatDate={formatDate}
+    needsCleanerAssignment={needsCleanerAssignment}
+  />
+)}
+       {activePage === "Reservation Detail" && (
+  <ReservationDetailPage
+    reservationDetailReturnPage={reservationDetailReturnPage}
+    selectedCalendarItem={selectedCalendarItem}
+    homes={homes}
+    selectedCalendarDateKey={selectedCalendarDateKey}
+setSelectedCalendarItem={setSelectedCalendarItem}
+setSelectedCalendarDateKey={setSelectedCalendarDateKey}
+formatDate={formatDate}
+getSourceControlledMessage={getSourceControlledMessage}
+    cleaners={cleaners}
+    setActivePage={setActivePage}
+    isImportedReservation={isImportedReservation}
+    isTaskSource={isTaskSource}
+    updateReservation={updateReservation}
+    deleteReservation={deleteReservation}
+  />
+)}
+      {activePage === "Reservations" && (
+  <ReservationsPage
+    reservations={reservations.filter((reservation) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const departureDate = new Date(reservation.departure);
+
+return (
+  getReservationHomeId(reservation) === selectedPropertyId &&
+  departureDate >= today &&
+  reservation.source !== "Maintenance"
+);
+})}
+    homes={homes}
+    search={search}
+setSearch={setSearch}
+    cleaners={cleaners}
+    createManualReservation={createManualReservation}
+    selectedHome={selectedHome} 
+    selectedPropertyId={selectedPropertyId}
+    selectedItemType={selectedItemType}
+    propertyTaskStats={propertyTaskStats}
+    needsCleanerAssignment={needsCleanerAssignment}
+    isImportedReservation={isImportedReservation}
+    isTaskSource={isTaskSource}
+    updateReservation={updateReservation}
+    deleteReservation={deleteReservation}
+    getSourceControlledMessage={getSourceControlledMessage}
+    formatDate={formatDate}
+    setActivePage={setActivePage}
+    setSelectedCalendarItem={setSelectedCalendarItem}
+    setReservationDetailReturnPage={setReservationDetailReturnPage}
+     setSelectedItemType={setSelectedItemType}
+  />
+)}
+        {activePage === "Property Setup" && (
+ <PropertiesPage
+ homes={homes.filter((home) => home.id === selectedPropertyId)}
+  cleaners={cleaners}
+  reservations={reservations}
+  workOrders={workOrders}
+  selectedPropertyId={selectedPropertyId}
+  setSelectedPropertyId={setSelectedPropertyId}
+  showPropertyForm={showPropertyForm}
+  setShowPropertyForm={setShowPropertyForm}
+  editingPropertyId={editingPropertyId}
+  setEditingPropertyId={setEditingPropertyId}
+  propertyForm={propertyForm}
+  setPropertyForm={setPropertyForm}
+  createProperty={createProperty}
+  updateProperty={updateProperty}
+  archiveProperty={archiveProperty}
+  deleteProperty={deleteProperty}
+  startEditingProperty={startEditingProperty}
+  autoFillListing={autoFillListing}
+  syncReservations={syncReservations}
+  renderDataIntegrationPanel={renderDataIntegrationPanel}
+  PropertyOperationsHub={PropertyOperationsHub}
+/>
+)}
+        {activePage === "Occupancy" && (
+<OccupancyPage
+  reservations={reservations.filter((reservation) => reservation.homeId === selectedPropertyId)}
+  calendarBlocks={calendarBlocks}
+  homes={homes.filter((home) => home.id === selectedPropertyId)}
+  dismissedDiscrepancies={dismissedDiscrepancies}
+  setDismissedDiscrepancies={setDismissedDiscrepancies}
+  setActivePage={setActivePage}
+  isImportedReservation={isImportedReservation}
+  toDate={toDate}
+  getTaskDayCount={getTaskDayCount}
+  getCalendarSyncIssues={getCalendarSyncIssues}
+/>
+)}
+        {activePage === "Cleaners" && (
+  <CleanersPage
+    cleaners={cleaners}
+    addCleaner={addCleaner}
+   reservations={reservations.filter(
+  (reservation) => reservation.homeId === selectedPropertyId
+)}
+
+    homes={homes}
+    selectedCleanerId={selectedCleanerId}
+    setSelectedCleanerId={setSelectedCleanerId}
+    setActivePage={setActivePage}
+    updateCleaner={updateCleaner}
+    deleteCleaner={deleteCleaner}
+  />
+)}
+
+{activePage === "Housekeeping" && (
+  <HousekeepingPage
+    reservations={reservations.filter(
+      (reservation) =>
+        getReservationHomeId(reservation) === selectedPropertyId
+    )}
+    homes={homes}
+    cleaners={cleaners}
+    selectedPropertyId={selectedPropertyId}
+    updateReservation={updateReservation}
+    needsCleanerAssignment={needsCleanerAssignment}
+    formatDate={formatDate}
+  />
+)}
+       {activePage === "Cleaner Portal" && (
+ <CleanerPortalPage
+  cleaners={cleaners}
+  homes={homes}
+  reservations={reservations}
+  cleanerPortalId={cleanerPortalId}
+  setCleanerPortalId={setCleanerPortalId}
+  cleanerIssueForm={cleanerIssueForm}
+  setCleanerIssueForm={setCleanerIssueForm}
+  
+  updateReservation={updateReservation}
+  updateReservationFromCleaner={updateReservationFromCleaner}
+  submitCleanerMaintenanceIssue={submitCleanerMaintenanceIssue}
+  isImportedReservation={isImportedReservation}
+  getUrgency={getUrgency}
+  formatDate={formatDate}
+  toInputDate={toInputDate}
+/>
+)}
+        {activePage === "Maintenance" && (
+  <MaintenancePage
+  workOrderFilter={workOrderFilter}
+    homes={homes}
+    vendors={vendors}
+    selectedWorkOrder={selectedWorkOrder}
+    setSelectedWorkOrder={setSelectedWorkOrder}
+    workOrders={workOrders.filter((workOrder) => workOrder.homeId === selectedPropertyId)}
+    setWorkOrderFilter={setWorkOrderFilter}
+    showWorkOrderForm={showWorkOrderForm}
+    setShowWorkOrderForm={setShowWorkOrderForm}
+    ownerWorkOrderForm={ownerWorkOrderForm}
+    setOwnerWorkOrderForm={setOwnerWorkOrderForm}
+    selectedPropertyId={selectedPropertyId}
+    createOwnerWorkOrder={createOwnerWorkOrder}
+    updateWorkOrder={updateWorkOrder}
+    deleteWorkOrder={deleteWorkOrder}
+    getRecommendedVendors={getRecommendedVendors}
+    formatDate={formatDate}
+    
+  />
+)}
+        {activePage === "Notification Center" && (
+  <NotificationCenterPage
+  reservations={reservations.filter((reservation) => reservation.homeId === selectedPropertyId)}
+  workOrders={workOrders.filter((workOrder) => workOrder.homeId === selectedPropertyId)}
+  homes={homes.filter((home) => home.id === selectedPropertyId)}
+  dismissedDiscrepancies={dismissedDiscrepancies}
+getCalendarSyncIssues={getCalendarSyncIssues}
+    cleaners={cleaners}
+    notifications={notifications}
+    notificationFilter={notificationFilter}
+    setNotificationFilter={setNotificationFilter}
+    setNotifications={setNotifications}
+    setActivePage={setActivePage}
+    setSelectedItemType={setSelectedItemType}
+    setSelectedStatus={setSelectedStatus}
+    setSelectedHome={setSelectedHome}
+    setSearch={setSearch}
+    setSelectedWorkOrder={setSelectedWorkOrder}
+    setWorkOrderFilter={setWorkOrderFilter}
+    needsCleanerAssignment={needsCleanerAssignment}
+    isImportedReservation={isImportedReservation}
+    isTaskSource={isTaskSource}
+    daysUntil={daysUntil}
+    formatDate={formatDate}
+  
+  />
+)}
+       {activePage === "Records" && (
+  <RecordsPage
+    reservations={reservations}
+    workOrders={workOrders}
+    homes={homes}
+  />
+)}
+        {![
+  "Dashboard",
+  "Reservations",
+  "Calendar",
+  "Property Setup",
+  "Occupancy",
+  "Reservation Detail",
+  "Cleaners",
+  "Housekeeping",
+  "Cleaner Portal",
+  "Maintenance",
+  "Notification Center",
+  "Records",
+  "Guest Ready",
+].includes(activePage) && renderPlaceholder()}
       </main>
       {/* MOBILE BOTTOM NAV MUST ALWAYS BE: Home / Tasks / Calendar / More (hamburger). */}
       <nav className="mobileBottomNav" aria-label="Owner mobile bottom navigation">
   {[
-    { label: "Home", page: "Dashboard", icon: "⌂" },
-    { label: "Reservations", page: "Reservations", icon: "▦" },
-    { label: "Calendar", page: "Calendar", icon: "◷" },
-    { label: "Notifications", page: "Notification Center", icon: "!" },
+    { label: "Home", page: "Dashboard", icon: "🏠" },
+{ label: "Reservations", page: "Reservations", icon: "🧾" },
+{ label: "Calendar", page: "Calendar", icon: "📅" },
+{ label: "Notifications", page: "Notification Center", icon: "🔔" },
   ].map((item) => (
     <button
             key={item.label}
             className={activePage === item.page ? "active" : ""}
             onClick={() => {
-              setActivePage(item.page);
-              setShowOwnerMobileMenu(false);
-            }}
+  if (item.page === "Maintenance") {
+    setShowWorkOrderForm(false);
+  }
+
+  if (item.page === "Calendar") {
+  setSelectedCalendarDateKey(null);
+  setSelectedCalendarItem(null);
+}
+
+setActivePage(item.page);
+setShowOwnerMobileMenu(false);
+}}
             type="button"
           >
-            <span>{item.icon}</span>
-            <small>{item.label}</small>
+<span className="navIconWrapper">
+  <span>{item.icon}</span>
+
+  {item.page === "Notification Center" &&
+    urgentNotificationCount > 0 && (
+      <span className="notificationMiniCount">
+        {urgentNotificationCount}
+      </span>
+    )}
+</span>
+
+<small>{item.label}</small>
           </button>
         ))}
 

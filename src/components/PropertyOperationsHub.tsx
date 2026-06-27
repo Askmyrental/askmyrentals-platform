@@ -8,6 +8,7 @@ type Operations = {
 
 type Props = {
   property: any;
+  cleaners?: any[];
   onChange: any;
 };
 
@@ -19,7 +20,11 @@ const blankOperations: Operations = {
   cleanerNotes: "",
 };
 
-export default function PropertyOperationsHub({ property, onChange }: Props) {
+export default function PropertyOperationsHub({
+  property,
+  cleaners = [],
+  onChange,
+}: Props) {
   const operations = property.operations ?? blankOperations;
 
   function updateOperation(field: keyof Operations, value: string) {
@@ -43,6 +48,30 @@ export default function PropertyOperationsHub({ property, onChange }: Props) {
           </p>
         </div>
       </div>
+
+      <label className="fullWidth">
+        Default Cleaner
+        <div className="mutedText" style={{ marginBottom: 6 }}>
+          New synced reservations for this property will automatically assign to this cleaner.
+        </div>
+
+        <select
+          value={property.defaultCleanerId ?? ""}
+          onChange={(event) =>
+            onChange({
+              ...property,
+              defaultCleanerId: event.target.value,
+            })
+          }
+        >
+          <option value="">No default cleaner selected</option>
+          {cleaners.map((cleaner) => (
+            <option key={cleaner.id} value={cleaner.id}>
+              {cleaner.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="fullWidth">
         Access Instructions

@@ -1100,7 +1100,7 @@ textarea:focus {
 
 .cleanersLayout {
   display: grid;
-  grid-template-columns: minmax(520px, 1fr) 380px;
+  grid-template-columns: 1fr;
   gap: 18px;
   align-items: start;
 }
@@ -1111,11 +1111,12 @@ textarea:focus {
 }
 
 .cleanerCard {
-  padding: 18px;
+  padding: 22px 24px;
   text-align: left;
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1.2fr 1.3fr 0.9fr;
+  gap: 24px;
+  align-items: center;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
@@ -1149,7 +1150,32 @@ textarea:focus {
   border-radius: 22px;
   font-size: 20px;
 }
+.cleanerAvatar.large {
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  font-size: 20px;
+}
 
+/* PASTE THE NEW CODE HERE */
+
+.cleanerIdentity {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.cleanerStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(74px, 1fr));
+  gap: 12px;
+}
+
+/* ...rest of the code... */
+
+.specialtyList {
+  margin: 16px 0;
+}
 .cleanerDetailPanel {
   position: sticky;
   top: 24px;
@@ -1849,28 +1875,32 @@ button:disabled {
   width: 10px;
   height: 10px;
   border-radius: 999px;
+  flex-shrink: 0;
 }
 
-.legendReservation,
-.legendDot.legendReservation {
-  background: #2563eb;
+.legendDot.sourceVRBO {
+  background: #1d4ed8;
 }
 
-.legendOwner,
-.legendDot.legendOwner {
-  background: #6b7280;
+.legendDot.sourceAirbnb {
+  background: #b91c1c;
 }
 
-.legendMaintenance,
-.legendDot.legendMaintenance {
+.legendDot.sourceGuestReservation {
+  background: #7c3aed;
+}
+
+.legendDot.sourceOwnerBlock {
+  background: #374151;
+}
+
+.legendDot.needsCleaner {
   background: #f97316;
 }
 
-.legendConflict,
-.legendDot.legendConflict {
+.legendDot.conflict {
   background: #dc2626;
 }
-
 .availabilityMonthScroller {
   max-height: 620px;
   overflow-y: auto;
@@ -1888,6 +1918,8 @@ button:disabled {
   margin: 10px 0;
   font-size: 16px;
 }
+
+
 
 .availabilityWeekdays {
   display: grid;
@@ -2149,11 +2181,6 @@ button:disabled {
   outline: 2px solid #2563eb;
 }
 
-.largeAvailabilityCalendar .legendReservation { background: #0b75df; }
-.largeAvailabilityCalendar .legendOwner { background: #22c55e; }
-.largeAvailabilityCalendar .legendMaintenance { background: #f97316; }
-.largeAvailabilityCalendar .legendConflict { background: #ef233c; }
-.largeAvailabilityCalendar .legendSelected { background: #93c5fd; }
 
 @media (max-width: 1250px) {
   .largeAvailabilityCalendar .availabilityMonthScroller {
@@ -2183,7 +2210,7 @@ button:disabled {
    This is CSS-only and safe to test without changing App.tsx.
    ========================================================= */
 
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 900px) {
   body {
     background: #f8fafc !important;
   }
@@ -3350,6 +3377,10 @@ button:disabled {
 .calendarEvent.sourceAirbnb {
   background: #fee2e2;
   color: #b91c1c;
+}
+.calendarEvent.sourceGuestReservation {
+  background: #f3e8ff;
+  color: #7c3aed;
 }
 
 .calendarEvent.sourceManual {
@@ -4553,11 +4584,8 @@ button:disabled {
     font-size: 22px !important;
   }
 
-  .dashboardReservationCards {
-    display: grid !important;
-    gap: 10px !important;
-  }
-
+ 
+}
   .dashboardReservationCard {
     border-radius: 18px !important;
     padding: 14px !important;
@@ -4568,7 +4596,7 @@ button:disabled {
     grid-template-columns: 1fr !important;
     gap: 8px !important;
   }
-}
+
 
 @media screen and (max-width: 390px) {
   .stackedCalendarDay {
@@ -5063,3 +5091,1231 @@ button:disabled {
 .legendMaintenance { background: #22c55e !important; }
 .legendConflict { background: #dc2626 !important; }
 .legendOwner { background: #94a3b8 !important; }
+/* FINAL CLEAN MOBILE SHELL */
+@media screen and (max-width: 768px) {
+  .appShell {
+    display: block !important;
+    grid-template-columns: none !important;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .desktopNav,
+  .ownerMobileNav {
+    display: none !important;
+  }
+
+  .mainContent {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 16px 12px 96px !important;
+  }
+
+  .mobileBottomNav {
+    display: grid !important;
+  }
+}
+@media screen and (max-width: 900px) {
+  .desktopNav,
+  .sidebar .nav {
+    display: none !important;
+  }
+
+  .brand {
+    padding-bottom: 8px !important;
+  }
+}
+@media screen and (max-width: 900px) {
+  .ownerMobileNav {
+    display: none !important;
+  }
+
+  .mobileBottomNav {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    height: 78px !important;
+  }
+
+  .mobileBottomNav button {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
+@media screen and (max-width: 900px) {
+  .operationsCalendarPanel {
+    display: none !important;
+  }
+
+  .taskBoardCalendarBox:not(.calendarPageCalendarBox) {
+    display: none !important;
+  }
+}
+@media screen and (max-width: 900px) {
+  .operationsCalendarPanel {
+    display: none !important;
+  }
+}
+@media screen and (max-width: 900px) {
+  .reservationGrid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .reservationCard {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+/* FIX MOBILE MORE MENU OVERLAY */
+@media screen and (max-width: 900px) {
+  .ownerMobileMenuOverlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1000000 !important;
+    display: grid !important;
+    align-items: end !important;
+    background: rgba(15, 23, 42, 0.35) !important;
+    padding: 16px !important;
+  }
+
+  .ownerMobileMenuSheet {
+    width: min(100%, 430px) !important;
+    margin: 0 auto 84px !important;
+    background: #ffffff !important;
+    border-radius: 26px !important;
+    padding: 18px !important;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25) !important;
+  }
+
+  .ownerMobileMenuGrid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+/* Calendar mobile layout cleanup */
+@media screen and (max-width: 768px) {
+  .emptyCalendarDetailPanel {
+    padding: 10px 12px !important;
+    margin-bottom: 10px !important;
+    min-height: 0 !important;
+  }
+
+  .emptyCalendarDetailPanel .eyebrow,
+  .emptyCalendarDetailPanel h3 {
+    display: none !important;
+  }
+
+  .emptyCalendarDetailPanel .mutedText {
+    margin: 0 !important;
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+  }
+}
+/* Reservations mobile compact header + stats */
+@media screen and (max-width: 768px) {
+  .pageHeader {
+    margin-bottom: 10px !important;
+  }
+
+  .pageHeader h2 {
+    font-size: 24px !important;
+  }
+
+  .pageHeader > div .mutedText {
+    display: none !important;
+  }
+
+  .pageHeader .primaryButton {
+    width: 100% !important;
+    min-height: 40px !important;
+    padding: 9px 12px !important;
+    font-size: 13px !important;
+  }
+
+  .statsGrid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .statsGrid.compactStatsGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    margin-bottom: 12px !important;
+  }
+
+  .statCard {
+    min-height: 58px !important;
+    border-radius: 14px !important;
+    padding: 8px 6px !important;
+    text-align: center !important;
+  }
+
+  .statCard span {
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+  }
+
+  .statCard strong {
+    margin-top: 4px !important;
+    font-size: 20px !important;
+  }
+}
+.taskSummaryStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 0 14px;
+}
+
+.taskSummaryStrip span {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  color: #475569;
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+@media screen and (max-width: 768px) {
+  .taskSummaryStrip {
+    margin: 0 0 12px;
+  }
+
+  .taskSummaryStrip span {
+    font-size: 11px;
+    padding: 7px 9px;
+  }
+}/* Reservation card gray block cleanup */
+.dashboardReservationCard,
+.dashboardReservationCard * {
+  box-shadow: none !important;
+}
+
+.dashboardReservationCard {
+  background: #ffffff !important;
+  border: 1px solid #e8edf5 !important;
+  border-radius: 22px !important;
+  padding: 16px !important;
+}
+
+.dashboardReservationCard button,
+.dashboardReservationCard .unstyledCardButton {
+  background: transparent !important;
+}
+
+.dashboardReservationCard div {
+  background-color: transparent;
+}
+
+.dashboardReservationCard .reservationPreviewMeta div,
+.dashboardReservationCard .assignedCleanerLine {
+  background: #f8fafc !important;
+  border-radius: 14px !important;
+  padding: 10px !important;
+}/* Reservation board compact summary + card meta */
+.taskSummaryStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.taskSummaryStrip span {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.reservationQuickMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.reservationQuickMeta span {
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.reservationQuickMeta strong {
+  color: #172033;
+}.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 2rem;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.modalCard {
+  width: 100%;
+  max-width: 760px;
+}
+
+.maintenanceModal {
+  background: white;
+  border-radius: 24px;
+  padding: 24px;
+  padding-bottom: 120px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+}
+/* Reservation board desktop layout fix */
+.dashboardReservationCards {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
+  gap: 18px !important;
+  align-items: stretch !important;
+}
+
+.dashboardReservationCard {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+/* Force Reservations page to use full desktop width */
+.mainContent:has(.dashboardReservationCards),
+.pageContent:has(.dashboardReservationCards),
+.dashboardContent:has(.dashboardReservationCards) {
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.dashboardReservationCards {
+  width: 100% !important;
+  max-width: none !important;
+}
+/* Reservation card sizing polish */
+.dashboardReservationCards {
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)) !important;
+}
+
+.dashboardReservationCard {
+  min-height: 260px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+.unstyledCardButton {
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.reservationPreviewMeta {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+}
+
+@media (max-width: 768px) {
+  .dashboardReservationCards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboardReservationCard {
+    min-height: auto !important;
+  }
+}
+.cleanerCalendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.cleanerCalendarDayName {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px;
+}
+
+.cleanerCalendarDay {
+  min-height: 80px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 4px;
+  background: white;
+}
+
+.mutedCalendarDay {
+  opacity: 0.35;
+}
+
+.cleanerCalendarDateNumber {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.cleanerCalendarEvent {
+  font-size: 10px;
+  padding: 2px 4px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  background: #dbeafe;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cleanerMonthHeader {
+  margin-bottom: 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.cleanerCalendarPanel {
+  margin-top: 16px;
+}
+.cleanerMonthHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.cleanerMonthHeader button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #dbe3ef;
+  background: white;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.cleanerMonthHeader button:hover {
+  transform: scale(1.05);
+}
+
+.cleanerMonthHeader strong {
+  min-width: 140px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+}.modalOverlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  background: rgba(15, 23, 42, 0.82) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+}
+
+.modalCard {
+  background: #ffffff !important;
+  opacity: 1 !important;
+  width: min(720px, 94vw) !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  border-radius: 20px !important;
+  padding: 24px !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.bulkAssignModal,
+.bulkUnassignModal,
+.cleanerIssueModal {
+  background: #ffffff !important;
+  opacity: 1 !important;
+}.bulkScopeOptions {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 18px;
+}
+
+.bulkScopeOption {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #dbe3ef;
+  border-radius: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.bulkScopeOption input[type="radio"] {
+  flex: 0 0 auto;
+  order: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: #2563eb;
+}
+
+.bulkScopeOption span {
+  order: 1;
+  flex: 1;
+}
+
+.bulkScopeOption:has(input:checked) {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.navIconWrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.notificationMiniCount {
+  color: #dc2626;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 1px;
+  vertical-align: super;
+}
+.ownerMobileMenuSheet {
+  border-radius: 24px;
+  padding: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+.ownerMobileMenuGrid {
+  gap: 10px;
+}
+
+.ownerMobileMenuGrid button {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  padding: 12px 10px;
+  font-weight: 700;
+  color: #334155;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.ownerMobileMenuGrid button.active {
+  border-color: #0f766e;
+  background: #ecfdf5;
+  color: #0f766e;
+}
+
+.ownerMobileMenuGrid button:hover {
+  transform: translateY(-1px);
+}
+.logoutButton {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+
+  background: linear-gradient(
+    135deg,
+    #2563eb,
+    #1d4ed8
+  );
+
+  color: white;
+  font-weight: 700;
+  font-size: 15px;
+
+  padding: 14px;
+
+  box-shadow:
+    0 8px 20px rgba(37, 99, 235, 0.25);
+
+  transition: all 0.2s ease;
+}
+
+.logoutButton:hover {
+  transform: translateY(-1px);
+}
+
+.logoutButton:active {
+  transform: translateY(1px);
+}
+.filterSelect {
+  min-width: 220px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: white;
+  font-weight: 600;
+}
+.propertySelector {
+  margin-top: 18px;
+}
+
+.propertySelector label {
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.propertySelector select {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 14px 16px;
+  font-weight: 700;
+  color: #334155;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+.housekeepingCard,
+.cleaningCard,
+.cleanCard {
+  overflow: hidden;
+}
+
+.housekeepingCard select,
+.cleaningCard select,
+.cleanCard select {
+  width: 100%;
+  min-width: 0;
+}
+
+.housekeepingCard .formRow,
+.cleaningCard .formRow,
+.cleanCard .formRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.housekeepingCard .assignmentRow,
+.cleaningCard .assignmentRow,
+.cleanCard .assignmentRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.housekeepingList,
+.cleaningList,
+.cleanCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 420px));
+  gap: 16px;
+}
+
+.housekeepingList > *,
+.cleaningList > *,
+.cleanCardsGrid > * {
+  max-width: 420px;
+  width: 100%;
+}
+.dashboardReservationCards {
+  align-items: start;
+}
+
+.dashboardReservationCards .dashboardReservationCard {
+  align-self: start;
+  height: auto;
+}
+
+.dashboardReservationCards .cardActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboardReservationCards .cardActions select {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  .dashboardReservationCards .cardActions {
+    grid-template-columns: 1fr;
+  }
+}
+.compactPropertySelector {
+  margin-top: 14px;
+}
+
+.compactPropertySelector label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.compactPropertySelector select {
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+.ownerMobileMenuFooter {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.ownerMobileMenuFooter .logoutButton {
+  width: 100%;
+}
+.ownerMobileMenuFooter .logoutButton {
+  width: 100%;
+  background: transparent;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  box-shadow: none;
+}
+.notificationBadge {
+  margin-left: auto;
+  background: #dc2626;
+  color: white;
+  border-radius: 999px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+.desktopNav button {
+  display: flex;
+  align-items: center;
+}
+/* FINAL STACKED CALENDAR GRID FIX */
+
+.stackedWeekdayGrid,
+.stackedCalendarGrid {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+.stackedWeekdayGrid span {
+  display: block !important;
+  text-align: center !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  color: #64748b !important;
+}
+
+.stackedCalendarDay {
+  min-width: 0 !important;
+}
+.blankCalendarDay {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.reservationActionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.dangerButton {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.dangerButton:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+.cleanerCard {
+  display: grid !important;
+  grid-template-columns: 1.1fr 1.5fr 0.7fr !important;
+  gap: 28px !important;
+  align-items: center !important;
+  padding: 24px !important;
+}
+
+.cleanerIdentity {
+  display: flex !important;
+  gap: 16px !important;
+  align-items: flex-start !important;
+}
+
+.cleanerIdentity > div:last-child {
+  min-width: 0;
+}
+
+.cleanerStats {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(82px, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.cleanerStatCard {
+  background: #f8fafc !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 16px !important;
+  padding: 12px 10px !important;
+  text-align: center !important;
+}
+
+.statNumber {
+  display: block !important;
+  font-size: 24px !important;
+  font-weight: 900 !important;
+  color: #0f172a !important;
+}
+
+.statLabel {
+  display: block !important;
+  margin-top: 4px !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  color: #2563eb !important;
+}
+
+.nextCleanPanel {
+  border-left: 1px solid #e5e7eb !important;
+  padding-left: 24px !important;
+}
+
+.nextCleanPanel strong {
+  display: block !important;
+  margin-bottom: 8px !important;
+  font-size: 14px !important;
+}
+
+.nextCleanPanel p {
+  margin: 0 !important;
+  line-height: 1.35 !important;
+}
+.inviteCleanerButton {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-top: 14px !important;
+  padding: 10px 14px !important;
+  border: 1px solid #2563eb !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  color: #2563eb !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 900px) {
+  .cleanerCard {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cleanerStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .nextCleanPanel {
+    border-left: 0 !important;
+    border-top: 1px solid #e5e7eb !important;
+    padding-left: 0 !important;
+    padding-top: 16px !important;
+  }
+}
+.cleanerDetailStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.cleanerDetailStats div {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 12px;
+  text-align: center;
+}
+
+.cleanerDetailStats span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cleanerDetailStats strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.upcomingCleanList {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.upcomingCleanItem {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.upcomingCleanItem strong {
+  display: block;
+  color: #0f172a;
+}
+
+.upcomingCleanItem span {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.defaultPropertyList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.defaultPropertyList span {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+/* Cleaner Detail modal polish — paste at the bottom of App.css */
+
+.cleanerDetailStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.cleanerDetailStats div {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 12px;
+  text-align: center;
+}
+
+.cleanerDetailStats span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cleanerDetailStats strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.cleanerAssignedList {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.cleanerAssignedCard {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.cleanerAssignedProperty {
+  display: block;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.cleanerAssignedCard strong {
+  display: block;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.cleanerAssignedCard p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.defaultPropertyList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.defaultPropertyList span {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .cleanerDetailStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cleanerAssignedCard {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+/* Dashboard Morning Briefing Polish */
+.dashboardBriefingHero {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 18px;
+  align-items: stretch;
+  margin-bottom: 18px;
+}
+
+.dashboardBriefingHero > div:first-child,
+.operationsScoreCard {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 28px;
+  padding: 24px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+}
+
+.dashboardBriefingHero h2 {
+  margin: 0;
+  font-size: 38px;
+  letter-spacing: -0.05em;
+  color: #0f172a;
+}
+
+.dashboardBriefingHero p {
+  margin: 8px 0 0;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.operationsScoreCard {
+  display: grid;
+  align-content: center;
+  text-align: center;
+}
+
+.operationsScoreCard span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.operationsScoreCard strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 42px;
+  color: #2563eb;
+  letter-spacing: -0.06em;
+}
+
+.operationsScoreCard p {
+  margin: 4px 0 0;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.morningBriefingGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.briefingMetricCard {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 18px;
+  text-align: left;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.briefingMetricCard:hover {
+  transform: translateY(-1px);
+  border-color: #2563eb;
+}
+
+.briefingMetricCard span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.briefingMetricCard strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 34px;
+  color: #0f172a;
+}
+
+.briefingMetricCard p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.briefingMetricCard.warning strong {
+  color: #dc2626;
+}
+
+@media (max-width: 1050px) {
+  .dashboardBriefingHero,
+  .morningBriefingGrid {
+    grid-template-columns: 1fr;
+  }
+}
+.guestReadyHero,
+.guestReadyPanel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  border-radius: 26px;
+  padding: 22px;
+  margin-bottom: 18px;
+}
+
+.guestReadyHero {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 22px;
+  align-items: center;
+}
+
+.guestReadyHero strong {
+  display: block;
+  font-size: 54px;
+  color: #2563eb;
+  line-height: 1;
+}
+
+.guestReadyHero span {
+  display: block;
+  margin-top: 8px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.guestReadyHero h3 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.guestReadyHero p {
+  color: #64748b;
+}
+
+.guestReadyInfoGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.guestReadyInfoGrid div {
+  background: #f8fafc;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.guestReadyInfoGrid span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.guestReadyInfoGrid strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+}
+
+.guestReadyChecklist {
+  display: grid;
+  gap: 12px;
+}
+
+.readyCheck {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 18px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.readyCheck span {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+}
+
+.readyCheck.passed span {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.readyCheck.failed span {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.readyCheck strong {
+  color: #0f172a;
+}
+
+@media (max-width: 900px) {
+  .guestReadyHero,
+  .guestReadyInfoGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1669,6 +1669,33 @@ button {
   font-size: 12px;
   font-weight: 800;
 }
+.platformVRBO {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.platformAirbnb {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.platformBlocked {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.platformTask {
+  background: #dcfce7;
+  color: #166534;
+}
+.platformOwnerBlock {
+  background: #fef3c7;
+  color: #b45309;
+}
+.platformGuestReservation {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
 
 .reservationPreviewMeta {
   display: grid;
