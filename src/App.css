@@ -7686,3 +7686,31 @@ button:disabled {
     ) !important;
   }
 }
+/* AMR Create Reservation form height fix */
+@media screen and (max-width: 900px) {
+  .reservationCreatePage,
+  .manualReservationCreatePage,
+  .reservationCreateShell {
+    min-height: calc(100vh - 154px) !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .reservationCreateForm,
+  .manualReservationForm,
+  .createReservationForm {
+    padding-bottom: 150px !important;
+    overflow: visible !important;
+  }
+
+  .reservationCreateActions,
+  .manualReservationActions,
+  .createReservationActions {
+    position: sticky !important;
+    bottom: 86px !important;
+    z-index: 20 !important;
+    background: white !important;
+    padding: 12px 0 !important;
+    border-top: 1px solid #e5e7eb !important;
+  }
+}
