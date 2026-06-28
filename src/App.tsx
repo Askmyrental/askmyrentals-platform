@@ -2864,55 +2864,47 @@ getCalendarSyncIssues={getCalendarSyncIssues}
 ].includes(activePage) && renderPlaceholder()}
       </main>
       {/* MOBILE BOTTOM NAV MUST ALWAYS BE: Home / Tasks / Calendar / More (hamburger). */}
-      <nav className="mobileBottomNav" aria-label="Owner mobile bottom navigation">
+    <nav className="mobileBottomNav" aria-label="Owner mobile bottom navigation">
   {[
     { label: "Home", page: "Dashboard", icon: "🏠" },
-{ label: "Reservations", page: "Reservations", icon: "🧾" },
-{ label: "Calendar", page: "Calendar", icon: "📅" },
-{ label: "Notifications", page: "Notification Center", icon: "🔔" },
+    { label: "Reservations", page: "Reservations", icon: "🧾" },
+    { label: "Calendar", page: "Calendar", icon: "📅" },
+    { label: "Notifications", page: "Notification Center", icon: "🔔" },
+    { label: "Maintenance", page: "Maintenance", icon: "🔧" },
   ].map((item) => (
     <button
-            key={item.label}
-            className={activePage === item.page ? "active" : ""}
-            onClick={() => {
-  if (item.page === "Maintenance") {
-    setShowWorkOrderForm(false);
-  }
+      key={item.label}
+      className={activePage === item.page ? "active" : ""}
+      onClick={() => {
+        if (item.page === "Maintenance") {
+          setShowWorkOrderForm(false);
+        }
 
-  if (item.page === "Calendar") {
-  setSelectedCalendarDateKey(null);
-  setSelectedCalendarItem(null);
-}
+        if (item.page === "Calendar") {
+          setSelectedCalendarDateKey(null);
+          setSelectedCalendarItem(null);
+        }
 
-setActivePage(item.page);
-setShowOwnerMobileMenu(false);
-}}
-            type="button"
-          >
-<span className="navIconWrapper">
-  <span>{item.icon}</span>
+        setActivePage(item.page);
+        setShowOwnerMobileMenu(false);
+      }}
+      type="button"
+    >
+      <span className="navIconWrapper">
+        <span>{item.icon}</span>
 
-  {item.page === "Notification Center" &&
-    urgentNotificationCount > 0 && (
-      <span className="notificationMiniCount">
-        {urgentNotificationCount}
+        {item.page === "Notification Center" &&
+          urgentNotificationCount > 0 && (
+            <span className="notificationMiniCount">
+              {urgentNotificationCount}
+            </span>
+          )}
       </span>
-    )}
-</span>
 
-<small>{item.label}</small>
-          </button>
-        ))}
-
-        <button
-          type="button"
-          className={showOwnerMobileMenu ? "active" : ""}
-          onClick={() => setShowOwnerMobileMenu((current) => !current)}
-        >
-          <span>☰</span>
-          <small>More</small>
-        </button>
-      </nav>
+      <small>{item.label}</small>
+    </button>
+  ))}
+</nav>
     </div>
   );
 }

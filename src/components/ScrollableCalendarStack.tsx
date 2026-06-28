@@ -47,17 +47,24 @@ export function ScrollableCalendarStack({
   setSelectedCalendarItem,
 }: ScrollableCalendarStackProps) {
   const months = getStackedCalendarMonths(anchorDate, monthCount);
+  const todayKey = toInputDate(new Date());
 
   return (
     <div className={`stackedCalendarScroller ${compact ? "compactStackedCalendar" : ""}`}>
       {months.map((monthDate) => {
         const monthDays = getMonthDays(monthDate.getFullYear(), monthDate.getMonth());
+        const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+        const isPastMonth = toInputDate(monthEnd) < todayKey;
 
         return (
-          <section className="stackedMonthCard" key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}>
+          <section
+            className={`stackedMonthCard ${isPastMonth ? "pastCalendarMonth" : ""}`}
+            key={`${monthDate.getFullYear()}-${monthDate.getMonth()}`}
+          >
             <div className="stackedMonthHeader">
               <h3>
                 {monthNames[monthDate.getMonth()]} {monthDate.getFullYear()}
+                {isPastMonth && <span className="pastMonthLabel">Past</span>}
               </h3>
             </div>
 
@@ -79,6 +86,8 @@ export function ScrollableCalendarStack({
                 }
 
                 const dateKey = toInputDate(day.date);
+                const isPastDay = dateKey < todayKey;
+
                 const { dayReservations, dayBlocks, isB2B, hasTasks, hasConflict } = getCalendarDayData(
                   day.date,
                   homeFilter
@@ -128,7 +137,9 @@ export function ScrollableCalendarStack({
 
                 return (
                   <div
-                    className={`stackedCalendarDay ${day.inMonth ? "" : "mutedDay"}`}
+                    className={`stackedCalendarDay ${day.inMonth ? "" : "mutedDay"} ${
+                      isPastDay ? "pastCalendarDay" : ""
+                    }`}
                     key={`stacked-${dateKey}`}
                     onClick={() => {
                       setSelectedCalendarDateKey(dateKey);
@@ -146,8 +157,7 @@ export function ScrollableCalendarStack({
 
                     <div className="dayEvents">
                       {visibleReservationEvents.map((reservation: any) => {
-                       console.log(reservation.source, reservation);
-                       const home = homes.find((item: any) => item.id === reservation.homeId);
+                        const home = homes.find((item: any) => item.id === reservation.homeId);
                         const cleaner = cleaners.find((item: any) => item.id === reservation.cleanerId);
 
                         return (

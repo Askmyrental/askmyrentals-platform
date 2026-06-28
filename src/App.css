@@ -7459,3 +7459,110 @@ button:disabled {
     padding-top: 76px !important;
   }
 }
+/* =========================================================
+   AMR Calendar Sprint V2 — Empty Day Action Sheet
+   Paste at VERY BOTTOM of src/App.css
+   ========================================================= */
+
+.calendarActionSheetOverlay {
+  display: none;
+}
+
+@media screen and (max-width: 900px) {
+  .desktopCalendarEmptyActions {
+    display: none !important;
+  }
+
+  .calendarActionSheetOverlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1000001 !important;
+    display: grid !important;
+    align-items: end !important;
+    background: rgba(15, 23, 42, 0.28) !important;
+    padding: 12px !important;
+  }
+
+  .calendarActionSheet {
+    width: min(100%, 430px) !important;
+    margin: 0 auto 82px !important;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 28px !important;
+    padding: 12px 14px 14px !important;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28) !important;
+  }
+
+  .calendarActionSheetHandle {
+    width: 44px !important;
+    height: 5px !important;
+    border-radius: 999px !important;
+    background: #cbd5e1 !important;
+    margin: 0 auto 14px !important;
+  }
+
+  .calendarActionSheetHeader {
+    padding: 0 4px 12px !important;
+  }
+
+  .calendarActionSheetHeader h3 {
+    margin: 0 !important;
+    font-size: 22px !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .calendarActionSheetHeader .mutedText {
+    margin-top: 6px !important;
+    font-size: 13px !important;
+  }
+
+  .calendarActionSheetGrid {
+    display: grid !important;
+    gap: 10px !important;
+  }
+
+  .calendarActionSheetGrid button {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 18px !important;
+    background: #f8fafc !important;
+    padding: 13px !important;
+    text-align: left !important;
+    display: grid !important;
+    grid-template-columns: 34px 1fr !important;
+    gap: 2px 10px !important;
+    align-items: center !important;
+  }
+
+  .calendarActionSheetGrid button span {
+    grid-row: span 2 !important;
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 14px !important;
+    background: #eff6ff !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 17px !important;
+  }
+
+  .calendarActionSheetGrid button strong {
+    color: #0f172a !important;
+    font-size: 14px !important;
+  }
+
+  .calendarActionSheetGrid button small {
+    color: #64748b !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+  }
+
+  .calendarActionSheetCancel {
+    width: 100% !important;
+    min-height: 46px !important;
+    margin-top: 12px !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    background: #eef2ff !important;
+    color: #1e3a8a !important;
+    font-weight: 900 !important;
+  }
+}

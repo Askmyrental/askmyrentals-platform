@@ -70,25 +70,51 @@ export function CalendarPage({
       )
     : [];
 
+  const selectedItemCount = selectedDateReservations.length + selectedDateBlocks.length;
+  const shouldShowEmptyDaySheet = Boolean(selectedCalendarDateKey) && selectedItemCount === 0;
+
+  function openCreateReservation() {
+    setSelectedCalendarItem(null);
+    setReservationDetailReturnPage("Calendar");
+    setActivePage("Reservations");
+  }
+
+  function openCreateOwnerBlock() {
+    setSelectedCalendarItem(null);
+    setReservationDetailReturnPage("Calendar");
+    setActivePage("Reservations");
+  }
+
+  function openCreateMaintenance() {
+    setSelectedCalendarItem(null);
+    setReservationDetailReturnPage("Calendar");
+    setActivePage("Maintenance");
+  }
+
   return (
     <>
-      <section className="calendarMobileControls">
-        <h2>Calendar</h2>
+      <section className="calendarMobileControls calendarStickyControls">
+        <div className="calendarControlTop">
+          <div>
+            <p className="eyebrow">Operations Calendar</p>
+            <h2>Calendar</h2>
+          </div>
+
+          <button className="ghostButton compactMonthButton" onClick={() => setCalendarDate(new Date())}>
+            Today
+          </button>
+        </div>
 
         <label>
           Property
           <div className="readOnlyPropertyField">{activePropertyName}</div>
         </label>
 
-        <button className="ghostButton" onClick={() => setCalendarDate(new Date())}>
-          Jump to Current Month
-        </button>
-
-        <div className="calendarLegend">
+        <div className="calendarLegend calendarLegendSticky">
           <span><i className="legendDot sourceVRBO" /> VRBO</span>
           <span><i className="legendDot sourceAirbnb" /> Airbnb</span>
-          <span><i className="legendDot sourceGuestReservation" /> Guest Reservation</span>
-          <span><i className="legendDot sourceOwnerBlock" /> Owner Block</span>
+          <span><i className="legendDot sourceGuestReservation" /> Guest</span>
+          <span><i className="legendDot sourceOwnerBlock" /> Block</span>
           <span><i className="legendDot needsCleaner" /> Needs Cleaner</span>
           <span><i className="legendDot conflict" /> Conflict</span>
         </div>
@@ -118,9 +144,24 @@ export function CalendarPage({
             <>
               <h3>{formatDate(selectedCalendarDateKey)}</h3>
               <p className="mutedText">
-                {selectedDateReservations.length + selectedDateBlocks.length} calendar item
-                {selectedDateReservations.length + selectedDateBlocks.length === 1 ? "" : "s"} on this date.
+                {selectedItemCount} calendar item{selectedItemCount === 1 ? "" : "s"} on this date.
               </p>
+
+              {selectedItemCount === 0 && (
+                <div className="calendarEmptyDayActions desktopCalendarEmptyActions">
+                  <p className="mutedText">No reservations or tasks on this date.</p>
+
+                  <div className="cardActions">
+                    <button className="primaryButton" type="button" onClick={openCreateReservation}>
+                      Create Guest Reservation
+                    </button>
+
+                    <button className="ghostButton" type="button" onClick={openCreateOwnerBlock}>
+                      Create Owner Block
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="dashboardReservationCards">
                 {selectedDateReservations.map((reservation) => {
@@ -188,10 +229,6 @@ export function CalendarPage({
                   </button>
                 ))}
               </div>
-
-              {selectedDateReservations.length + selectedDateBlocks.length === 0 && (
-                <p className="mutedText">No reservations or tasks on this date.</p>
-              )}
             </>
           ) : selectedCalendarItem ? (
             <>
@@ -209,12 +246,60 @@ export function CalendarPage({
             </>
           ) : (
             <>
-              <h3>Click a calendar date</h3>
+              <h3>Tap a calendar date</h3>
               <p className="mutedText">Reservations and operations for that day will show here together.</p>
             </>
           )}
         </aside>
       </section>
+
+      {shouldShowEmptyDaySheet && (
+        <div className="calendarActionSheetOverlay" onClick={() => setSelectedCalendarItem(null)}>
+          <section className="calendarActionSheet" onClick={(event) => event.stopPropagation()}>
+            <div className="calendarActionSheetHandle" />
+
+            <div className="calendarActionSheetHeader">
+              <p className="eyebrow">Create from calendar</p>
+              <h3>{formatDate(selectedCalendarDateKey as string)}</h3>
+              <p className="mutedText">Choose what you want to add for {activePropertyName}.</p>
+            </div>
+
+            <div className="calendarActionSheetGrid">
+              <button type="button" onClick={openCreateReservation}>
+                <span>➕</span>
+                <strong>Guest Reservation</strong>
+                <small>Create a manual guest booking.</small>
+              </button>
+
+              <button type="button" onClick={openCreateOwnerBlock}>
+                <span>🚫</span>
+                <strong>Owner Block</strong>
+                <small>Block dates for owner use or downtime.</small>
+              </button>
+
+              <button type="button" onClick={openCreateMaintenance}>
+                <span>🔧</span>
+                <strong>Maintenance</strong>
+                <small>Create a work order for this date.</small>
+              </button>
+
+              <button type="button" onClick={openCreateMaintenance}>
+                <span>📝</span>
+                <strong>Inspection</strong>
+                <small>Add an inspection task.</small>
+              </button>
+            </div>
+
+            <button
+              className="calendarActionSheetCancel"
+              type="button"
+              onClick={() => setSelectedCalendarItem(null)}
+            >
+              Cancel
+            </button>
+          </section>
+        </div>
+      )}
     </>
   );
 }
