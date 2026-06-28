@@ -2,13 +2,17 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./utils/supabase";
 import App from "./App";
+import { useLocation } from "react-router-dom";
 
 type AuthMode = "login" | "signup";
 
 export default function AuthGate() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<AuthMode>("login");
+  const location = useLocation();
+
+const initialMode: AuthMode = location.pathname === "/signup" ? "signup" : "login";
+const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -117,15 +121,29 @@ export default function AuthGate() {
                 : "Create Account"}
           </button>
 
-          {mode === "login" ? (
-            <button className="ghostButton" type="button" onClick={() => setMode("signup")}>
-              Need an account? Create one
-            </button>
-          ) : (
-            <button className="ghostButton" type="button" onClick={() => setMode("login")}>
-              Already have an account? Log in
-            </button>
-          )}
+       <div className="authModeSwitch">
+  <button
+    type="button"
+    className={mode === "login" ? "active" : ""}
+    onClick={() => {
+  setMode("login");
+  window.history.pushState(null, "", "/login");
+}}
+  >
+    Log In
+  </button>
+
+  <button
+    type="button"
+    className={mode === "signup" ? "active" : ""}
+   onClick={() => {
+  setMode("signup");
+  window.history.pushState(null, "", "/signup");
+}}
+  >
+    Create Account
+  </button>
+</div>
         </form>
       </div>
     );

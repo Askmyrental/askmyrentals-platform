@@ -22,6 +22,7 @@
     "react": "latest",
     "react-big-calendar": "^1.19.4",
     "react-dom": "latest",
+    "react-router-dom": "^7.18.0",
     "typescript": "latest",
     "vite": "latest"
   },
