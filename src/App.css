@@ -7324,4 +7324,138 @@ button:disabled {
   .finalBlueCta {
     display: grid;
   }
+}/* =========================================================
+   AMR UX 2.0 — MOBILE APP SHELL RESET
+   Keep this at the VERY BOTTOM of App.css
+   ========================================================= */
+
+.ownerMobileTopHeader {
+  display: none;
+}
+
+@media screen and (max-width: 900px) {
+  .sidebar,
+  .desktopNav,
+  .sidebar .nav,
+  .ownerMobileNav,
+  .trueMobileBottomNav {
+    display: none !important;
+  }
+
+  .appShell {
+    display: block !important;
+    min-height: 100vh !important;
+    background: #f5f7fb !important;
+  }
+
+  .mainContent {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 76px 12px 96px !important;
+  }
+
+  .ownerMobileTopHeader {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 999999 !important;
+    height: 64px !important;
+    display: grid !important;
+    grid-template-columns: 48px 1fr 48px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+    backdrop-filter: blur(14px) !important;
+  }
+
+  .ownerMobileLogo {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 14px !important;
+    background: #2563eb !important;
+    color: white !important;
+    display: grid !important;
+    place-items: center !important;
+    font-weight: 900 !important;
+    font-size: 12px !important;
+  }
+
+  .ownerMobilePropertySelect {
+    min-height: 42px !important;
+    border-radius: 16px !important;
+    border: 1px solid #dbe3ef !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    font-weight: 900 !important;
+    padding: 0 12px !important;
+    text-align: center !important;
+  }
+
+  .ownerMobileMenuButton {
+    width: 42px !important;
+    height: 42px !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    font-size: 20px !important;
+    font-weight: 900 !important;
+  }
+
+  .mobileBottomNav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 999999 !important;
+    height: 78px !important;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-top: 1px solid #e5e7eb !important;
+    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12) !important;
+    backdrop-filter: blur(14px) !important;
+    padding: 8px 6px 12px !important;
+  }
+
+  .mobileBottomNav button {
+    border: 0 !important;
+    background: transparent !important;
+    color: #64748b !important;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    display: grid !important;
+    place-items: center !important;
+    gap: 2px !important;
+    border-radius: 16px !important;
+    min-width: 0 !important;
+  }
+
+  .mobileBottomNav button.active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+  }
+
+  .mobileBottomNav span {
+    font-size: 20px !important;
+    line-height: 1 !important;
+  }
+}/* FORCE AMR MOBILE HEADER TO SHOW ON REAL IPHONE WIDTHS */
+@media screen and (max-width: 430px) {
+  .ownerMobileTopHeader {
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: 64px !important;
+    min-height: 64px !important;
+  }
+
+  .mainContent {
+    padding-top: 76px !important;
+  }
 }
