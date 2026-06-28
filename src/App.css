@@ -7566,3 +7566,123 @@ button:disabled {
     font-weight: 900 !important;
   }
 }
+/* =========================================================
+   AMR Reservations Form Polish V4
+   Paste at VERY BOTTOM of src/App.css
+   ========================================================= */
+
+.manualReservationModalV2 {
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: min(92vh, 820px) !important;
+  overflow: hidden !important;
+}
+
+.manualReservationModalHeader {
+  flex: 0 0 auto !important;
+}
+
+.manualReservationScrollableBody {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  padding-right: 4px !important;
+  padding-bottom: 18px !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.manualReservationStickyActions {
+  flex: 0 0 auto !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 5 !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1.4fr !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 14px 0 0 !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.72),
+    #ffffff 28%
+  ) !important;
+  border-top: 1px solid #eef2f7 !important;
+}
+
+.manualReservationStickyActions button {
+  min-height: 50px !important;
+}
+
+.manualReservationAddressGrid {
+  display: grid !important;
+  grid-template-columns: 1fr 88px 112px !important;
+  gap: 10px !important;
+  align-items: end !important;
+}
+
+.manualReservationAddressGrid label,
+.manualReservationDateGrid label {
+  color: #475569 !important;
+  font-weight: 800 !important;
+}
+
+.operationsNotesTextarea {
+  min-height: 132px !important;
+  resize: vertical !important;
+  line-height: 1.45 !important;
+}
+
+@media screen and (max-width: 900px) {
+  .manualReservationModalV2 {
+    width: min(100%, 430px) !important;
+    height: calc(100dvh - 152px) !important;
+    max-height: calc(100dvh - 152px) !important;
+    margin: 76px auto 76px !important;
+    border-radius: 26px !important;
+    padding: 18px 16px 0 !important;
+  }
+
+  .manualReservationScrollableBody {
+    padding: 0 2px 92px !important;
+  }
+
+  .manualReservationSection {
+    margin-bottom: 18px !important;
+  }
+
+  .manualReservationSection input,
+  .manualReservationSection select,
+  .manualReservationSection textarea {
+    width: 100% !important;
+    min-height: 48px !important;
+    font-size: 16px !important;
+  }
+
+  .manualReservationDateGrid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .manualReservationAddressGrid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .operationsNotesTextarea {
+    min-height: 150px !important;
+  }
+
+  .manualReservationStickyActions {
+    position: absolute !important;
+    left: 16px !important;
+    right: 16px !important;
+    bottom: 0 !important;
+    padding: 12px 0 16px !important;
+    grid-template-columns: 0.85fr 1.35fr !important;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0),
+      #ffffff 22%,
+      #ffffff 100%
+    ) !important;
+  }
+}

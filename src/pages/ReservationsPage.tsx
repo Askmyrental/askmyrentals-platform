@@ -128,7 +128,10 @@ const [manualReservationForm, setManualReservationForm] = useState({
   guestName: "",
   guestPhone: "",
   guestEmail: "",
-  guestAddress: "",
+  guestStreet: "",
+  guestCity: "",
+  guestState: "",
+  guestZip: "",
   guestCount: "",
   arrival: todayIsoDate(),
   departure: todayIsoDate(),
@@ -154,7 +157,10 @@ useEffect(() => {
     guestName: source === "Owner Block" ? "Owner Block" : "",
     guestPhone: "",
     guestEmail: "",
-    guestAddress: "",
+    guestStreet: "",
+    guestCity: "",
+    guestState: "",
+    guestZip: "",
     guestCount: "",
     arrival: selectedDate,
     departure: getNextDate(selectedDate),
@@ -272,7 +278,10 @@ function closeManualReservationModal() {
     guestName: "",
     guestPhone: "",
     guestEmail: "",
-    guestAddress: "",
+    guestStreet: "",
+    guestCity: "",
+    guestState: "",
+    guestZip: "",
     guestCount: "",
     arrival: todayIsoDate(),
     departure: todayIsoDate(),
@@ -300,10 +309,17 @@ if (!activeReservationHomeId) {
     selectedProperty?.default_cleaner_id ||
     "";
 
+  const guestAddressParts = [
+    manualReservationForm.guestStreet,
+    manualReservationForm.guestCity,
+    manualReservationForm.guestState,
+    manualReservationForm.guestZip,
+  ].filter(Boolean);
+
   const guestInfoNotes = [
     manualReservationForm.guestPhone ? `Guest Phone: ${manualReservationForm.guestPhone}` : "",
     manualReservationForm.guestEmail ? `Guest Email: ${manualReservationForm.guestEmail}` : "",
-    manualReservationForm.guestAddress ? `Guest Address: ${manualReservationForm.guestAddress}` : "",
+    guestAddressParts.length ? `Guest Address: ${guestAddressParts.join(", ")}` : "",
     manualReservationForm.guestCount ? `Guest Count: ${manualReservationForm.guestCount}` : "",
     manualReservationForm.notes ? `Operations Notes: ${manualReservationForm.notes}` : "",
   ]
@@ -476,205 +492,261 @@ if (!activeReservationHomeId) {
       </section>
 {showManualReservationModal && (
   <div className="modalOverlay">
-    <div className="modalCard bulkCleanModal">
-      <div className="panelHeader compact">
+    <div className="modalCard bulkCleanModal manualReservationModalV2">
+      <div className="panelHeader compact manualReservationModalHeader">
         <div>
           <p className="eyebrow">Create</p>
-          <h2>New Reservation</h2>
+          <h2>
+            {manualReservationForm.source === "Owner Block"
+              ? "New Owner Block"
+              : "New Reservation"}
+          </h2>
           <p className="mutedText">
-            Add a guest reservation or owner block for the selected property.
+            Add the dates, guest details, cleaner assignment, and operations notes.
           </p>
         </div>
       </div>
 
-      <section className="manualReservationSection">
-        <p className="eyebrow">Reservation</p>
-
-        <label className="formLabel">Property</label>
-        <div className="readOnlyPropertyField">
-          {homes.find((home) => home.id === selectedPropertyId)?.name ?? "Selected property"}
-        </div>
-
-        <label className="formLabel">Reservation Type</label>
-        <select
-          value={manualReservationForm.source}
-          onChange={(event) =>
-            setManualReservationForm({
-              ...manualReservationForm,
-              source: event.target.value,
-            })
-          }
-        >
-          <option value="Guest Reservation">Guest Reservation</option>
-          <option value="Owner Block">Owner Block</option>
-        </select>
-
-        <div className="manualReservationDateGrid">
-          <label>
-            Arrival
-            <input
-              type="date"
-              value={manualReservationForm.arrival}
-              onChange={(event) => {
-                const nextArrival = event.target.value;
-                setManualReservationForm({
-                  ...manualReservationForm,
-                  arrival: nextArrival,
-                  departure:
-                    manualReservationForm.departure && nextArrival > manualReservationForm.departure
-                      ? nextArrival
-                      : manualReservationForm.departure,
-                });
-              }}
-            />
-          </label>
-
-          <label>
-            Departure
-            <input
-              type="date"
-              value={manualReservationForm.departure}
-              min={manualReservationForm.arrival || undefined}
-              onChange={(event) =>
-                setManualReservationForm({
-                  ...manualReservationForm,
-                  departure: event.target.value,
-                })
-              }
-            />
-          </label>
-        </div>
-      </section>
-
-      {manualReservationForm.source === "Guest Reservation" && (
+      <div className="manualReservationScrollableBody">
         <section className="manualReservationSection">
-          <p className="eyebrow">Guest Information</p>
+          <p className="eyebrow">Reservation</p>
 
-          <label className="formLabel">Guest Name</label>
-          <input
-            value={manualReservationForm.guestName}
+          <label className="formLabel">Property</label>
+          <div className="readOnlyPropertyField">
+            {homes.find((home) => home.id === selectedPropertyId)?.name ?? "Selected property"}
+          </div>
+
+          <label className="formLabel">Reservation Type</label>
+          <select
+            value={manualReservationForm.source}
             onChange={(event) =>
               setManualReservationForm({
                 ...manualReservationForm,
-                guestName: event.target.value,
+                source: event.target.value,
+                guestName:
+                  event.target.value === "Owner Block" && !manualReservationForm.guestName
+                    ? "Owner Block"
+                    : manualReservationForm.guestName,
               })
             }
-            placeholder="Guest name"
-          />
+          >
+            <option value="Guest Reservation">Guest Reservation</option>
+            <option value="Owner Block">Owner Block</option>
+          </select>
 
           <div className="manualReservationDateGrid">
             <label>
-              Phone
+              Arrival
               <input
-                value={manualReservationForm.guestPhone}
-                onChange={(event) =>
+                type="date"
+                value={manualReservationForm.arrival}
+                onChange={(event) => {
+                  const nextArrival = event.target.value;
                   setManualReservationForm({
                     ...manualReservationForm,
-                    guestPhone: event.target.value,
-                  })
-                }
-                placeholder="(555) 555-5555"
+                    arrival: nextArrival,
+                    departure:
+                      manualReservationForm.departure && nextArrival >= manualReservationForm.departure
+                        ? getNextDate(nextArrival)
+                        : manualReservationForm.departure,
+                  });
+                }}
               />
             </label>
 
             <label>
-              Email
+              Departure
               <input
-                type="email"
-                value={manualReservationForm.guestEmail}
+                type="date"
+                value={manualReservationForm.departure}
+                min={manualReservationForm.arrival || undefined}
                 onChange={(event) =>
                   setManualReservationForm({
                     ...manualReservationForm,
-                    guestEmail: event.target.value,
+                    departure: event.target.value,
                   })
                 }
-                placeholder="guest@email.com"
               />
             </label>
           </div>
-
-          <label className="formLabel">Guest Address</label>
-          <input
-            value={manualReservationForm.guestAddress}
-            onChange={(event) =>
-              setManualReservationForm({
-                ...manualReservationForm,
-                guestAddress: event.target.value,
-              })
-            }
-            placeholder="Mailing address"
-          />
-
-          <label className="formLabel">Number of Guests</label>
-          <input
-            type="number"
-            min="1"
-            value={manualReservationForm.guestCount}
-            onChange={(event) =>
-              setManualReservationForm({
-                ...manualReservationForm,
-                guestCount: event.target.value,
-              })
-            }
-            placeholder="Example: 4"
-          />
         </section>
-      )}
 
-      {manualReservationForm.source === "Owner Block" && (
+        {manualReservationForm.source === "Guest Reservation" && (
+          <section className="manualReservationSection">
+            <p className="eyebrow">Guest Information</p>
+
+            <label className="formLabel">Guest Name</label>
+            <input
+              value={manualReservationForm.guestName}
+              onChange={(event) =>
+                setManualReservationForm({
+                  ...manualReservationForm,
+                  guestName: event.target.value,
+                })
+              }
+              placeholder="Guest name"
+            />
+
+            <div className="manualReservationDateGrid">
+              <label>
+                Phone
+                <input
+                  value={manualReservationForm.guestPhone}
+                  onChange={(event) =>
+                    setManualReservationForm({
+                      ...manualReservationForm,
+                      guestPhone: event.target.value,
+                    })
+                  }
+                  placeholder="(555) 555-5555"
+                />
+              </label>
+
+              <label>
+                Email
+                <input
+                  type="email"
+                  value={manualReservationForm.guestEmail}
+                  onChange={(event) =>
+                    setManualReservationForm({
+                      ...manualReservationForm,
+                      guestEmail: event.target.value,
+                    })
+                  }
+                  placeholder="guest@email.com"
+                />
+              </label>
+            </div>
+
+            <label className="formLabel">Street Address</label>
+            <input
+              value={manualReservationForm.guestStreet}
+              onChange={(event) =>
+                setManualReservationForm({
+                  ...manualReservationForm,
+                  guestStreet: event.target.value,
+                })
+              }
+              placeholder="Street address"
+            />
+
+            <div className="manualReservationAddressGrid">
+              <label>
+                City
+                <input
+                  value={manualReservationForm.guestCity}
+                  onChange={(event) =>
+                    setManualReservationForm({
+                      ...manualReservationForm,
+                      guestCity: event.target.value,
+                    })
+                  }
+                  placeholder="City"
+                />
+              </label>
+
+              <label>
+                State
+                <input
+                  value={manualReservationForm.guestState}
+                  onChange={(event) =>
+                    setManualReservationForm({
+                      ...manualReservationForm,
+                      guestState: event.target.value,
+                    })
+                  }
+                  placeholder="State"
+                  maxLength={2}
+                />
+              </label>
+
+              <label>
+                ZIP
+                <input
+                  value={manualReservationForm.guestZip}
+                  onChange={(event) =>
+                    setManualReservationForm({
+                      ...manualReservationForm,
+                      guestZip: event.target.value,
+                    })
+                  }
+                  placeholder="ZIP"
+                />
+              </label>
+            </div>
+
+            <label className="formLabel">Number of Guests</label>
+            <input
+              type="number"
+              min="1"
+              value={manualReservationForm.guestCount}
+              onChange={(event) =>
+                setManualReservationForm({
+                  ...manualReservationForm,
+                  guestCount: event.target.value,
+                })
+              }
+              placeholder="Example: 4"
+            />
+          </section>
+        )}
+
+        {manualReservationForm.source === "Owner Block" && (
+          <section className="manualReservationSection">
+            <p className="eyebrow">Block Information</p>
+
+            <label className="formLabel">Block Name</label>
+            <input
+              value={manualReservationForm.guestName}
+              onChange={(event) =>
+                setManualReservationForm({
+                  ...manualReservationForm,
+                  guestName: event.target.value,
+                })
+              }
+              placeholder="Owner stay, repairs, personal use, etc."
+            />
+          </section>
+        )}
+
         <section className="manualReservationSection">
-          <p className="eyebrow">Block Information</p>
+          <p className="eyebrow">Operations</p>
 
-          <label className="formLabel">Block Name</label>
-          <input
-            value={manualReservationForm.guestName}
+          <label className="formLabel">Assign Cleaner</label>
+          <select
+            value={manualReservationForm.cleanerId}
             onChange={(event) =>
               setManualReservationForm({
                 ...manualReservationForm,
-                guestName: event.target.value,
+                cleanerId: event.target.value,
               })
             }
-            placeholder="Owner stay, repairs, personal use, etc."
+          >
+            <option value="">Use Property Default Cleaner</option>
+
+            {cleaners.map((cleaner) => (
+              <option key={cleaner.id} value={cleaner.id}>
+                {cleaner.name}
+              </option>
+            ))}
+          </select>
+
+          <label className="formLabel">Operations Notes</label>
+          <textarea
+            className="operationsNotesTextarea"
+            value={manualReservationForm.notes}
+            onChange={(event) =>
+              setManualReservationForm({
+                ...manualReservationForm,
+                notes: event.target.value,
+              })
+            }
+            placeholder="Cleaner instructions, gate codes, late arrival notes, supplies, maintenance reminders, or anything the operations team should know."
           />
         </section>
-      )}
+      </div>
 
-      <section className="manualReservationSection">
-        <p className="eyebrow">Operations</p>
-
-        <label className="formLabel">Assign Cleaner</label>
-        <select
-          value={manualReservationForm.cleanerId}
-          onChange={(event) =>
-            setManualReservationForm({
-              ...manualReservationForm,
-              cleanerId: event.target.value,
-            })
-          }
-        >
-          <option value="">Use Property Default Cleaner</option>
-
-          {cleaners.map((cleaner) => (
-            <option key={cleaner.id} value={cleaner.id}>
-              {cleaner.name}
-            </option>
-          ))}
-        </select>
-
-        <label className="formLabel">Operations Notes</label>
-        <textarea
-          value={manualReservationForm.notes}
-          onChange={(event) =>
-            setManualReservationForm({
-              ...manualReservationForm,
-              notes: event.target.value,
-            })
-          }
-          placeholder="Cleaner instructions, gate codes, late arrival notes, supplies, or anything the operations team should know."
-        />
-      </section>
-
-      <div className="modalActions">
+      <div className="modalActions manualReservationStickyActions">
         <button
           className="ghostButton"
           type="button"
@@ -688,7 +760,9 @@ if (!activeReservationHomeId) {
           type="button"
           onClick={handleCreateManualReservation}
         >
-          Create Reservation
+          {manualReservationForm.source === "Owner Block"
+            ? "Create Owner Block"
+            : "Create Reservation"}
         </button>
       </div>
     </div>
