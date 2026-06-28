@@ -7714,3 +7714,130 @@ button:disabled {
     border-top: 1px solid #e5e7eb !important;
   }
 }
+/* =========================================================
+   AMR Create Reservation V5 — Full-height mobile form fix
+   Paste at VERY BOTTOM of src/App.css
+   ========================================================= */
+
+@media screen and (max-width: 900px) {
+  .manualReservationOverlayV5 {
+    position: fixed !important;
+    top: 64px !important;
+    right: 0 !important;
+    bottom: 78px !important;
+    left: 0 !important;
+    z-index: 1000000 !important;
+    display: block !important;
+    align-items: unset !important;
+    justify-content: unset !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #f5f7fb !important;
+  }
+
+  .manualReservationModalV5 {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 18px 16px 0 !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  .manualReservationModalV5 .manualReservationModalHeader {
+    flex: 0 0 auto !important;
+    padding: 0 0 12px !important;
+    margin: 0 !important;
+  }
+
+  .manualReservationModalV5 .manualReservationModalHeader h2 {
+    font-size: 28px !important;
+    line-height: 1.05 !important;
+    margin: 4px 0 8px !important;
+  }
+
+  .manualReservationBodyV5 {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 0 0 24px !important;
+    display: grid !important;
+    gap: 14px !important;
+  }
+
+  .manualReservationSection {
+    padding: 0 !important;
+    margin: 0 !important;
+    display: grid !important;
+    gap: 10px !important;
+  }
+
+  .manualReservationDateGrid,
+  .manualReservationAddressGrid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .manualReservationModalV5 label,
+  .manualReservationModalV5 .formLabel {
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    color: #334155 !important;
+  }
+
+  .manualReservationModalV5 input,
+  .manualReservationModalV5 select,
+  .manualReservationModalV5 textarea {
+    width: 100% !important;
+    min-height: 48px !important;
+    border-radius: 16px !important;
+    border: 1px solid #dbe3ef !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    padding: 12px 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  .manualReservationModalV5 .operationsNotesTextarea {
+    min-height: 132px !important;
+    resize: vertical !important;
+  }
+
+  .manualReservationActionsV5 {
+    flex: 0 0 auto !important;
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    z-index: 2 !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    padding: 12px 0 calc(12px + env(safe-area-inset-bottom)) !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e5e7eb !important;
+    box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .manualReservationActionsV5 button {
+    width: 100% !important;
+    min-height: 50px !important;
+    border-radius: 18px !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+  }
+}

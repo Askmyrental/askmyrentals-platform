@@ -491,8 +491,8 @@ if (!activeReservationHomeId) {
         )}
       </section>
 {showManualReservationModal && (
-  <div className="modalOverlay">
-    <div className="modalCard bulkCleanModal manualReservationModalV2">
+  <div className="modalOverlay manualReservationOverlayV5">
+    <div className="modalCard manualReservationModalV5">
       <div className="panelHeader compact manualReservationModalHeader">
         <div>
           <p className="eyebrow">Create</p>
@@ -507,7 +507,7 @@ if (!activeReservationHomeId) {
         </div>
       </div>
 
-      <div className="manualReservationScrollableBody">
+      <div className="manualReservationScrollableBody manualReservationBodyV5">
         <section className="manualReservationSection">
           <p className="eyebrow">Reservation</p>
 
@@ -746,7 +746,7 @@ if (!activeReservationHomeId) {
         </section>
       </div>
 
-      <div className="modalActions manualReservationStickyActions">
+      <div className="modalActions manualReservationStickyActions manualReservationActionsV5">
         <button
           className="ghostButton"
           type="button"
