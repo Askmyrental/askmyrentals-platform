@@ -770,6 +770,7 @@ const [calendarDate, setCalendarDate] = useState(
 );
   const [selectedCalendarItem, setSelectedCalendarItem] = useState<Reservation | CalendarBlock | null>(null);
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
+  const [calendarCreateDraft, setCalendarCreateDraft] = useState<{ source: string; date: string; homeId: string } | null>(null);
   const [reservationDetailReturnPage, setReservationDetailReturnPage] = useState("Dashboard");
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [workOrderFilter, setWorkOrderFilter] = useState("all");
@@ -1160,6 +1161,7 @@ function getCalendarDayData(date: Date, homeFilter: string) {
         formatDate={formatDate}
         isTaskSource={isTaskSource}
         getReservationDisplayTitle={getReservationDisplayTitle}
+        onCalendarCreate={(payload) => setCalendarCreateDraft(payload)}
       />
     );
   }
@@ -2700,6 +2702,8 @@ setSearch={setSearch}
     setSelectedCalendarItem={setSelectedCalendarItem}
     setReservationDetailReturnPage={setReservationDetailReturnPage}
      setSelectedItemType={setSelectedItemType}
+     calendarCreateDraft={calendarCreateDraft}
+     clearCalendarCreateDraft={() => setCalendarCreateDraft(null)}
   />
 )}
         {activePage === "Property Setup" && (

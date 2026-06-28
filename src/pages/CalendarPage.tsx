@@ -20,6 +20,7 @@ type CalendarPageProps = {
   formatDate: (value: string) => string;
   isTaskSource: (source: any) => boolean;
   getReservationDisplayTitle: (reservation: any) => string;
+  onCalendarCreate?: (payload: { source: string; date: string; homeId: string }) => void;
 };
 
 export function CalendarPage({
@@ -39,6 +40,7 @@ export function CalendarPage({
   formatDate,
   isTaskSource,
   getReservationDisplayTitle,
+  onCalendarCreate,
 }: CalendarPageProps) {
   const activePropertyId = selectedPropertyId || homes[0]?.id || "";
   const activePropertyName =
@@ -74,14 +76,28 @@ export function CalendarPage({
   const shouldShowEmptyDaySheet = Boolean(selectedCalendarDateKey) && selectedItemCount === 0;
 
   function openCreateReservation() {
+    if (!selectedCalendarDateKey) return;
+
     setSelectedCalendarItem(null);
     setReservationDetailReturnPage("Calendar");
+    onCalendarCreate?.({
+      source: "Guest Reservation",
+      date: selectedCalendarDateKey,
+      homeId: activePropertyId,
+    });
     setActivePage("Reservations");
   }
 
   function openCreateOwnerBlock() {
+    if (!selectedCalendarDateKey) return;
+
     setSelectedCalendarItem(null);
     setReservationDetailReturnPage("Calendar");
+    onCalendarCreate?.({
+      source: "Owner Block",
+      date: selectedCalendarDateKey,
+      homeId: activePropertyId,
+    });
     setActivePage("Reservations");
   }
 

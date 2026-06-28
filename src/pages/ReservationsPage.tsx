@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type BulkAction = "assign" | "unassign";
 type BulkModalStep = "setup" | "confirm";
@@ -28,6 +28,8 @@ type ReservationsPageProps = {
   setActivePage?: (page: string) => void;
   setSelectedCalendarItem?: (item: any) => void;
   setReservationDetailReturnPage?: (page: string) => void;
+  calendarCreateDraft?: { source: string; date: string; homeId: string } | null;
+  clearCalendarCreateDraft?: () => void;
 };
 
 function fallbackFormatDate(dateString: string) {
@@ -115,6 +117,8 @@ export default function ReservationsPage({
   setActivePage,
   setSelectedCalendarItem,
   setReservationDetailReturnPage,
+  calendarCreateDraft,
+  clearCalendarCreateDraft,
 }: ReservationsPageProps) {
   const [showBulkCleanerModal, setShowBulkCleanerModal] = useState(false);
  const [showManualReservationModal, setShowManualReservationModal] = useState(false);
@@ -131,6 +135,36 @@ const [manualReservationForm, setManualReservationForm] = useState({
   cleanerId: "",
   notes: "",
 });
+
+function getNextDate(dateString: string) {
+  const date = new Date(`${dateString}T12:00:00`);
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+useEffect(() => {
+  if (!calendarCreateDraft?.date) return;
+
+  const source = calendarCreateDraft.source || "Guest Reservation";
+  const selectedDate = calendarCreateDraft.date;
+
+  setManualReservationForm({
+    homeId: calendarCreateDraft.homeId || selectedPropertyId,
+    source,
+    guestName: source === "Owner Block" ? "Owner Block" : "",
+    guestPhone: "",
+    guestEmail: "",
+    guestAddress: "",
+    guestCount: "",
+    arrival: selectedDate,
+    departure: getNextDate(selectedDate),
+    cleanerId: "",
+    notes: source === "Owner Block" ? "Owner-created block from calendar." : "",
+  });
+
+  setShowManualReservationModal(true);
+  clearCalendarCreateDraft?.();
+}, [calendarCreateDraft, clearCalendarCreateDraft, selectedPropertyId]);
   const [bulkAction, setBulkAction] = useState<BulkAction>("assign");
   const [bulkModalStep, setBulkModalStep] = useState<BulkModalStep>("setup");
   const [bulkCleanerId, setBulkCleanerId] = useState("");
