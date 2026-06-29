@@ -7994,4 +7994,182 @@ body,
     border-radius: 5px !important;
     padding: 0 3px !important;
   }
+}/* =========================================================
+   AMR Calendar 2.0 Pass 1 — Mobile Visual Upgrade
+   ========================================================= */
+
+@media screen and (max-width: 900px) {
+  .pageHeader {
+    margin: 0 0 8px !important;
+  }
+
+  .pageHeader .eyebrow,
+  .pageHeader .headerSubtext {
+    display: none !important;
+  }
+
+  .pageHeader h2 {
+    font-size: 28px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+  }
+
+  .calendarToolbar {
+    display: none !important;
+  }
+
+  .reservationLegend,
+  .calendarLegendMini {
+    display: none !important;
+  }
+
+  .calendarPanel {
+    padding: 8px !important;
+    border-radius: 24px !important;
+    overflow: hidden !important;
+  }
+
+  .calendarPageCalendarBox {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .stackedMonthCard {
+    margin-bottom: 28px !important;
+    padding: 12px 10px 16px !important;
+    border-radius: 24px !important;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .stackedMonthHeader h3 {
+    font-size: 26px !important;
+    line-height: 1 !important;
+    margin: 0 0 16px !important;
+    padding: 0 !important;
+    color: #0f172a !important;
+    letter-spacing: -0.05em !important;
+    position: static !important;
+    background: transparent !important;
+  }
+
+  .stackedWeekdayGrid {
+    gap: 4px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .stackedWeekdayGrid span {
+    font-size: 13px !important;
+    color: #64748b !important;
+    font-weight: 900 !important;
+    padding: 0 0 4px !important;
+  }
+
+  .stackedCalendarGrid {
+    gap: 6px !important;
+  }
+
+  .stackedCalendarDay {
+    height: 86px !important;
+    min-height: 86px !important;
+    border-radius: 15px !important;
+    padding: 6px !important;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.035) !important;
+  }
+
+  .stackedCalendarDay.mutedDay,
+  .blankCalendarDay {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .dayTop span {
+    font-size: 15px !important;
+    font-weight: 950 !important;
+    color: #0f172a !important;
+  }
+
+  .dayBadges {
+    position: absolute !important;
+    top: 4px !important;
+    right: 4px !important;
+    z-index: 2 !important;
+  }
+
+  .stackedCalendarDay {
+    position: relative !important;
+  }
+
+  .b2bBadge,
+  .conflictBadge {
+    font-size: 7px !important;
+    padding: 2px 4px !important;
+    border-radius: 999px !important;
+  }
+
+  .dayEvents {
+    margin-top: 12px !important;
+    gap: 5px !important;
+  }
+
+  .calendarEvent,
+  .stackedCalendarEvent {
+    height: 20px !important;
+    min-height: 20px !important;
+    border-radius: 8px !important;
+    padding: 0 6px !important;
+    box-shadow:
+      0 3px 8px rgba(15, 23, 42, 0.10),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.32) !important;
+  }
+
+  .calendarEvent span,
+  .calendarEvent small,
+  .stackedCalendarEvent span,
+  .stackedCalendarEvent small {
+    display: none !important;
+  }
+
+  .sourceVRBO,
+  .calendarEvent.sourceVRBO,
+  .stackedCalendarEvent.sourceVRBO {
+    background: #2563eb !important;
+  }
+
+  .sourceAirbnb,
+  .calendarEvent.sourceAirbnb,
+  .stackedCalendarEvent.sourceAirbnb {
+    background: #ef4444 !important;
+  }
+
+  .calendarEvent.sourceGuestReservation,
+  .stackedCalendarEvent.sourceGuestReservation {
+    background: #7c3aed !important;
+  }
+
+  .calendarEvent.sourceOwnerBlock,
+  .stackedCalendarEvent.sourceOwnerBlock,
+  .blockOwnerBlock {
+    background: #475569 !important;
+  }
+
+  .needsCleanerEvent {
+    border: 2px solid #f97316 !important;
+    box-shadow:
+      0 0 0 2px rgba(249, 115, 22, 0.20),
+      0 3px 8px rgba(15, 23, 42, 0.10) !important;
+  }
+
+  .pastCalendarMonth {
+    opacity: 0.45 !important;
+  }
+
+  .pastMonthLabel {
+    font-size: 9px !important;
+    vertical-align: middle !important;
+  }
 }
