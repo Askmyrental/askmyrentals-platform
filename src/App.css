@@ -7881,3 +7881,33 @@ body,
     max-width: 100% !important;
   }
 }
+/* FINAL MOBILE NAV CONFLICT FIX */
+@media screen and (max-width: 900px) {
+  .nav,
+  .desktopNav,
+  .ownerMobileNav,
+  .trueMobileBottomNav {
+    display: none !important;
+  }
+
+  .mobileBottomNav {
+    display: grid !important;
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    z-index: 999999 !important;
+  }
+
+  html,
+  body,
+  #root,
+  .appShell,
+  .mainContent {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+  }
+}
