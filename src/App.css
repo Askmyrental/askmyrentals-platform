@@ -8172,4 +8172,35 @@ body,
     font-size: 9px !important;
     vertical-align: middle !important;
   }
+}/* Calendar 2.0 — connected stay bars */
+@media screen and (max-width: 900px) {
+  .dayEvents {
+    overflow: visible !important;
+  }
+
+  .stackedCalendarEvent {
+    width: calc(100% + 12px) !important;
+    height: 18px !important;
+    min-height: 18px !important;
+    margin-top: 2px !important;
+    margin-left: -6px !important;
+    margin-right: -6px !important;
+    border-radius: 0 !important;
+  }
+
+  .stackedCalendarEvent.eventStart {
+    border-radius: 999px 0 0 999px !important;
+  }
+
+  .stackedCalendarEvent.eventMiddle {
+    border-radius: 0 !important;
+  }
+
+  .stackedCalendarEvent.eventEnd {
+    border-radius: 0 999px 999px 0 !important;
+  }
+
+  .stackedCalendarEvent.eventSingle {
+    border-radius: 999px !important;
+  }
 }

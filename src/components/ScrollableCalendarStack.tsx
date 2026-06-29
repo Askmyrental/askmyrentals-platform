@@ -159,7 +159,14 @@ export function ScrollableCalendarStack({
                       {visibleReservationEvents.map((reservation: any) => {
                         const home = homes.find((item: any) => item.id === reservation.homeId);
                         const cleaner = cleaners.find((item: any) => item.id === reservation.cleanerId);
-
+const reservationSegmentClass =
+  dateKey === reservation.arrival && dateKey === reservation.departure
+    ? "eventSingle"
+    : dateKey === reservation.arrival
+    ? "eventStart"
+    : dateKey === reservation.departure
+    ? "eventEnd"
+    : "eventMiddle";
                         return (
                           <button
                             type="button"
@@ -167,7 +174,9 @@ export function ScrollableCalendarStack({
                             className={`calendarEvent stackedCalendarEvent source${reservation.source.replace(
                               /\s/g,
                               ""
-                            )} ${needsCleanerAssignment(reservation) ? "needsCleanerEvent" : ""}`}
+                           )} ${reservationSegmentClass} ${
+  needsCleanerAssignment(reservation) ? "needsCleanerEvent" : ""
+}`}
                             onClick={(event) => {
                               event.stopPropagation();
                               setSelectedCalendarDateKey(dateKey);
