@@ -7841,3 +7841,43 @@ button:disabled {
     font-weight: 900 !important;
   }
 }
+/* AMR mobile horizontal wobble fix */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media screen and (max-width: 900px) {
+  .appShell,
+  .mainContent {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  .pageHeader,
+  .statsGrid,
+  .dashboardGrid,
+  .reservationGrid,
+  .calendarLayout,
+  .calendarPanel,
+  .calendarDetailPanel,
+  .propertiesLayout,
+  .maintenanceLayout,
+  .cleanersLayout,
+  .occupancyLayout,
+  .recordsPanel {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  img,
+  video,
+  canvas,
+  table {
+    max-width: 100% !important;
+  }
+}

@@ -2563,31 +2563,7 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
       )}
 
       <main className="mainContent">
-        {activePage !== "Cleaner Portal" && (
-  <header className="ownerMobileTopHeader">
-    <div className="ownerMobileLogo">AMR</div>
-
-    <select
-      className="ownerMobilePropertySelect"
-      value={selectedPropertyId}
-      onChange={(event) => setSelectedPropertyId(event.target.value)}
-    >
-      {homes.map((home) => (
-        <option key={home.id} value={home.id}>
-          {home.name}
-        </option>
-      ))}
-    </select>
-
-    <button
-      className="ownerMobileMenuButton"
-      type="button"
-      onClick={() => setShowOwnerMobileMenu((current) => !current)}
-    >
-      ☰
-    </button>
-  </header>
-)}
+ 
   {activePage !== "Cleaner Portal" && (
     <header className="ownerMobileTopHeader">
       <div className="ownerMobileBrand">

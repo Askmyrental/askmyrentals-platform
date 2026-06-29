@@ -101,11 +101,6 @@ export function CalendarPage({
     setActivePage("Reservations");
   }
 
-  function openCreateMaintenance() {
-    setSelectedCalendarItem(null);
-    setReservationDetailReturnPage("Calendar");
-    setActivePage("Maintenance");
-  }
 
   return (
     <>
@@ -293,17 +288,6 @@ export function CalendarPage({
                 <small>Block dates for owner use or downtime.</small>
               </button>
 
-              <button type="button" onClick={openCreateMaintenance}>
-                <span>🔧</span>
-                <strong>Maintenance</strong>
-                <small>Create a work order for this date.</small>
-              </button>
-
-              <button type="button" onClick={openCreateMaintenance}>
-                <span>📝</span>
-                <strong>Inspection</strong>
-                <small>Add an inspection task.</small>
-              </button>
             </div>
 
             <button
