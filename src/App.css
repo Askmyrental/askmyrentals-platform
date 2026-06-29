@@ -4117,6 +4117,7 @@ button:disabled {
     position: static !important;
   }
 }
+
 .mobileBottomNav {
   display: none;
 }
@@ -4127,40 +4128,46 @@ button:disabled {
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
-    height: 76px !important;
+    height: 88px !important;
+    padding: 8px 6px calc(14px + env(safe-area-inset-bottom)) !important;
     background: #ffffff !important;
     border-top: 1px solid #e5e7eb !important;
     display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-columns: repeat(5, 1fr) !important;
     z-index: 999999 !important;
     box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12) !important;
+    overflow: hidden !important;
   }
 
   .mobileBottomNav button {
     border: 0 !important;
     background: transparent !important;
     color: #475569 !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 4px !important;
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    display: grid !important;
+    place-items: center !important;
+    gap: 2px !important;
+    border-radius: 16px !important;
+    min-width: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .mobileBottomNav span {
-    font-size: 22px !important;
+    font-size: 20px !important;
     line-height: 1 !important;
   }
 
   .mobileBottomNav button.active {
-    color: #0f766e !important;
+    background: #eff6ff !important;
+    color: #2563eb !important;
   }
 
   body,
   .appShell {
-    padding-bottom: 90px !important;
+    padding-bottom: 104px !important;
   }
 }
 .calendarPageCalendarBox {
