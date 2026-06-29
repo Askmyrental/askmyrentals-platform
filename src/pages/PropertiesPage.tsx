@@ -454,7 +454,23 @@ export default function PropertiesPage({
                   </p>
                 </div>
               </div>
+<div className="cardActions">
+  <button
+    className="primaryButton"
+    type="button"
+    onClick={() => startEditingProperty(selectedProperty)}
+  >
+    Edit Property
+  </button>
 
+  <button
+    className="ghostButton"
+    type="button"
+    onClick={syncReservations}
+  >
+    Sync Calendars
+  </button>
+</div>
               <div className="detailStack">
                 <div>
                   <span>Status</span>
