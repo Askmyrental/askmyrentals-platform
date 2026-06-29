@@ -1,10 +1,10 @@
+import { OperationTimelineCalendar } from "./components/OperationsTimelineCalendar";
 import GuestReadyPage from "./pages/GuestReadyPage";
 import HousekeepingPage from "./pages/HousekeepingPage";
 import { parseICalTextToReservations } from "./utils/calendarSync";
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { getMonthDays, getStackedCalendarMonths } from "./utils/calendarUtils";
-import { ScrollableCalendarStack } from "./components/ScrollableCalendarStack";
 import { CalendarPage } from "./pages/CalendarPage";
 import ReservationsPage from "./pages/ReservationsPage";
 import ReservationDetailPage from "./pages/ReservationDetailPage";
@@ -1116,7 +1116,7 @@ function getCalendarDayData(date: Date, homeFilter: string) {
     compact?: boolean;
   }) {
     return (
-     <ScrollableCalendarStack
+  <OperationTimelineCalendar
   homeFilter={options?.homeFilter ?? selectedPropertyId}
         anchorDate={options?.anchorDate ?? calendarDate}
         monthCount={options?.monthCount ?? 12}
@@ -1478,6 +1478,23 @@ console.table(
         (new Date(r.departure).getTime() - new Date(r.arrival).getTime()) /
           86400000
       ),
+    }))
+);
+console.table(
+  mappedReservations
+    .filter(
+      (r) =>
+        r.arrival <= "2026-07-06" &&
+        r.departure >= "2026-06-28"
+    )
+    .map((r) => ({
+      guest: r.guestName,
+      source: r.source,
+      type: r.type,
+      status: r.status,
+      arrival: r.arrival,
+      departure: r.departure,
+      cleaner: r.cleanerId,
     }))
 );
   setReservations(mappedReservations);

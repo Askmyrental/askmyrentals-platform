@@ -8203,4 +8203,460 @@ body,
   .stackedCalendarEvent.eventSingle {
     border-radius: 999px !important;
   }
+}/* =========================================================
+   AMR Calendar 2.0 — Reservation Range Calendar
+   ========================================================= */
+
+/* =========================================================
+   AMR Calendar — Legacy Range Calendar (clean)
+   ========================================================= */
+
+.rangeCalendarGrid {
+  display: grid;
+}
+
+.rangeCalendarWeek {
+  position: relative;
+  min-height: 110px;
+}
+
+.rangeCalendarDays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.rangeCalendarDay {
+  position: relative;
+  min-height: 110px;
+  border: 1px solid #e5e7eb;
+  border-left: 0;
+  background: #fff;
+}
+
+.rangeCalendarDay:first-child {
+  border-left: 1px solid #e5e7eb;
+}
+
+.rangeCalendarDay .dayTop {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  right: 6px;
+  display: flex;
+  justify-content: space-between;
+  z-index: 20;
+}
+
+.rangeReservationLayer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  pointer-events: none;
+  z-index: 5;
+}
+
+.rangeReservationBar {
+  position: relative;
+  pointer-events: auto;
+  height: 18px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.rangeReservationBar span,
+.rangeReservationBar small {
+  display: none;
+}
+
+.rangeReservationBar.rangeStartsInWeek {
+  border-radius: 999px 0 0 999px;
+}
+
+.rangeReservationBar.rangeEndsInWeek {
+  border-radius: 0 999px 999px 0;
+}
+
+.rangeReservationBar.rangeStartsInWeek.rangeEndsInWeek {
+  border-radius: 999px;
+}
+
+.rangeReservationBar.sourceVRBO {
+  background: #2563eb;
+}
+
+.rangeReservationBar.sourceAirbnb {
+  background: #ef4444;
+}
+
+.rangeReservationBar.sourceGuestReservation {
+  background: #7c3aed;
+}
+
+.rangeReservationBar.sourceOwnerBlock {
+  background: #475569;
+}
+
+.rangeReservationBar.needsCleanerEvent {
+  outline: 2px solid #f97316;
+  outline-offset: -2px;
+}
+/* =========================================================
+   AMR Calendar 3.0 — Operations Timeline Calendar
+   ========================================================= */
+
+.operationsTimelineCalendar {
+  display: grid;
+  gap: 28px;
+}
+
+.opsTimelineMonth {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 26px;
+  padding: 18px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+}
+
+.opsTimelineMonthHeader h3 {
+  margin: 0 0 16px;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.opsTimelineWeekdays,
+.opsTimelineDayGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.opsTimelineWeekdays {
+  margin-bottom: 8px;
+}
+
+.opsTimelineWeekdays span {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 900;
+  color: #64748b;
+}
+
+.opsTimelineWeeks {
+  display: grid;
+  gap: 0;
+}
+
+.opsTimelineWeek {
+  position: relative;
+}
+
+.opsTimelineDayGrid {
+  height: 100%;
+}
+
+.opsTimelineDay {
+  position: relative;
+  min-height: 78px;
+  border: 1px solid #e5e7eb;
+  border-left: 0;
+  background: #ffffff;
+  padding: 6px;
+  text-align: left;
+  overflow: hidden;
+}
+
+.opsTimelineDay:first-child {
+  border-left: 1px solid #e5e7eb;
+}
+
+.opsTimelineDate {
+  position: relative;
+  z-index: 3;
+  font-size: 13px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.opsTimelineBadges {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+  z-index: 4;
+}
+
+.opsTimelineBlock {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  z-index: 4;
+  border-radius: 999px;
+  padding: 2px 5px;
+  font-size: 7px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.opsReservationLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.opsReservationBar {
+  position: absolute;
+  pointer-events: auto;
+  height: 18px;
+  border: 0;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 900;
+  text-align: left;
+  padding: 0 7px;
+  overflow: hidden;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.opsReservationBar span,
+.opsReservationBar small {
+  display: none;
+}
+
+.opsReservationBar.startsHere {
+  border-radius: 999px 0 0 999px;
+}
+
+.opsReservationBar.endsHere {
+  border-radius: 0 999px 999px 0;
+}
+
+.opsReservationBar.startsHere.endsHere {
+  border-radius: 999px;
+}
+
+.opsReservationBar.sourceVRBO {
+  background: #2563eb;
+}
+
+.opsReservationBar.sourceAirbnb {
+  background: #ef4444;
+}
+
+.opsReservationBar.sourceGuestReservation {
+  background: #7c3aed;
+}
+
+.opsReservationBar.sourceOwnerBlock {
+  background: #475569;
+}
+
+.opsReservationBar.needsCleanerEvent {
+  outline: 2px solid #f97316;
+  outline-offset: -2px;
+}
+
+.opsTimelineDay.pastCalendarDay {
+  background: #f8fafc;
+}
+
+.opsTimelineDay.mutedDay,
+.opsTimelineDay.blankCalendarDay {
+  background: #f8fafc;
+  opacity: 0.48;
+}
+
+@media screen and (max-width: 900px) {
+  .opsTimelineMonth {
+    border-radius: 22px;
+    padding: 12px;
+  }
+
+  .opsTimelineMonthHeader h3 {
+    font-size: 24px;
+  }
+
+  .opsTimelineWeekdays span {
+    font-size: 11px;
+  }
+
+  .opsTimelineDay {
+    min-height: 78px;
+    padding: 5px;
+  }
+
+  .opsTimelineDate {
+    font-size: 12px;
+  }
+
+  .opsReservationBar {
+    height: 17px;
+  }
+}.opsTimelineWeek {
+  position: relative !important;
+  min-height: 88px !important;
+}
+
+.opsReservationLayer {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 50 !important;
+  pointer-events: none !important;
+}
+
+.opsReservationBar {
+  position: absolute !important;
+  display: block !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  background: #2563eb !important;
+  z-index: 60 !important;
+  pointer-events: auto !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+}
+
+.opsReservationBar.sourceAirbnb {
+  background: #ef4444 !important;
+}
+
+.opsReservationBar.sourceGuestReservation {
+  background: #7c3aed !important;
+}
+
+.opsReservationBar.sourceOwnerBlock {
+  background: #475569 !important;
+}/* Calendar 3.1 — match actual OperationTimelineCalendar class names */
+
+.operationTimelineCalendar {
+  display: grid;
+  gap: 28px;
+}
+
+.opsMonthCard {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  padding: 14px;
+}
+
+.opsMonthHeader h3 {
+  margin: 0 0 14px;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.opsWeekdayGrid,
+.opsDayGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.opsWeekdayGrid span {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 900;
+  color: #64748b;
+}
+
+.opsWeek {
+  position: relative;
+  min-height: 88px;
+}
+
+.opsDayGrid {
+  height: 100%;
+}
+
+.opsDay {
+  min-height: 88px;
+  border: 1px solid #e5e7eb;
+  border-left: 0;
+  background: #ffffff;
+  position: relative;
+  padding: 5px;
+  text-align: left;
+}
+
+.opsDay:first-child {
+  border-left: 1px solid #e5e7eb;
+}
+
+.opsDateNumber {
+  position: relative;
+  z-index: 80;
+  font-size: 13px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.opsDayBadges {
+  position: absolute;
+  top: 4px;
+  right: 3px;
+  z-index: 90;
+}
+
+.opsReservationLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.opsReservationBar {
+  position: absolute;
+  display: block;
+  height: 18px;
+  border: 0;
+  background: #2563eb;
+  z-index: 60;
+  pointer-events: auto;
+  border-radius: 0;
+}
+
+.opsReservationBar.startsHere {
+  border-radius: 999px 0 0 999px;
+}
+
+.opsReservationBar.endsHere {
+  border-radius: 0 999px 999px 0;
+}
+
+.opsReservationBar.startsHere.endsHere {
+  border-radius: 999px;
+}
+
+.opsReservationBar.sourceVRBO {
+  background: #2563eb;
+}
+
+.opsReservationBar.sourceAirbnb {
+  background: #ef4444;
+}
+
+.opsReservationBar.sourceGuestReservation {
+  background: #7c3aed;
+}
+
+.opsReservationBar.sourceOwnerBlock {
+  background: #475569;
+}
+
+.opsReservationBar span,
+.opsReservationBar small {
+  display: none;
+}
+
+.opsReservationBar.needsCleanerEvent {
+  outline: 2px solid #f97316;
+  outline-offset: -2px;
 }
