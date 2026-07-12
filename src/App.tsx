@@ -1,5 +1,8 @@
+import CleanerPropertiesPage from "./pages/CleanerPropertiesPage";
+import type { CleanerPropertyFormValues } from "./pages/CleanerCreatePropertyPage";
 import { OperationTimelineCalendar } from "./components/OperationsTimelineCalendar";
 import GuestReadyPage from "./pages/GuestReadyPage";
+import ReservationDetailPage from "./pages/ReservationDetailPage";
 import HousekeepingPage from "./pages/HousekeepingPage";
 import { parseICalTextToReservations } from "./utils/calendarSync";
 import { useEffect, useMemo, useState } from "react";
@@ -7,7 +10,7 @@ import "./App.css";
 import { getMonthDays, getStackedCalendarMonths } from "./utils/calendarUtils";
 import { CalendarPage } from "./pages/CalendarPage";
 import ReservationsPage from "./pages/ReservationsPage";
-import ReservationDetailPage from "./pages/ReservationDetailPage";
+
 import CleanerPortalPage from "./pages/CleanerPortalPage";
 import CleanersPage from "./pages/CleanersPage";
 import PropertiesPage from "./pages/PropertiesPage";
@@ -57,9 +60,28 @@ type Home = {
   bedrooms: number;
   bathrooms: number;
   maxGuests: number;
+  kitchens?: number;
+  floors?: number;
+  kingBeds?: number;
+  queenBeds?: number;
+  doubleBeds?: number;
+  twinBeds?: number;
+  bunkBeds?: number;
+  pyramidBunks?: number;
+  murphyBeds?: number;
+  sofaSleepers?: number;
   status: "Active" | "Setup Needed" | "Paused";
   notes?: string;
-    operations?: {
+  imageUrl?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
+  cleaningFee?: number;
+  calendarFeedUrl?: string;
+  calendarSource?: string;
+  parkingInstructions?: string;
+  supplyLocations?: string;
+  operations?: {
     access?: string;
     wifiName?: string;
     wifiPassword?: string;
@@ -164,7 +186,6 @@ type WorkOrder = {
   notes: string;
   timeline: string[];
 };
-
 
 
 const starterCleaners: Cleaner[] = [
@@ -307,31 +328,18 @@ function normalizeReservationSource(source: string): ReservationSource {
 function isTaskSource(source: ReservationSource) {
   return source === "Cleaning" || source === "Vendor Visit" || source === "Inspection";
 }
-function getReservationType(
-  source: ReservationSource,
-  status: ReservationStatus,
-  guestName = ""
-): ReservationType {
-  const normalizedGuestName = String(guestName).toLowerCase();
 
-  const looksLikePlatformBlock =
-    normalizedGuestName.includes("block") ||
-    normalizedGuestName.includes("not available") ||
-    normalizedGuestName.includes("unavailable");
+function getReservationType(source: ReservationSource): ReservationType {
+  if (source === "Owner Block") {
+    return "Owner Block";
+  }
 
-  if (source === "Owner Block") return "Owner Block";
-  if (isTaskSource(source)) return "Operational Task";
-
-  if (
-    (source === "VRBO" || source === "Airbnb") &&
-    (status === "Blocked" || looksLikePlatformBlock)
-  ) {
-    return "Mirror Block";
+  if (isTaskSource(source)) {
+    return "Operational Task";
   }
 
   return "Reservation";
 }
-
 function getNotesValue(notes: string | undefined, label: string) {
   const prefix = `${label}:`;
   const line = (notes ?? "")
@@ -361,7 +369,7 @@ function getReservationDisplayTitle(reservation: Reservation) {
     return inspectionType || "Inspection";
   }
 
-  return reservation.guestName;
+  return reservation.guestName?.replace(/^Reserved\s*-\s*/i, "") || "Reservation";
 }
 
 function needsCleanerAssignment(reservation: Reservation) {
@@ -428,7 +436,7 @@ function getCalendarSyncIssues(reservations: Reservation[], homes: Home[], dismi
     return copy;
   };
 
-  const twelveMonthsFromTodayKey = toInputDate(addMonths(new Date(), 12));
+  const twentyFourMonthsFromTodayKey = toInputDate(addMonths(new Date(), 24));
 
   const isCalendarHealthEligible = (reservation: Reservation) => {
     if (!reservation.arrival || !reservation.departure) return false;
@@ -441,9 +449,9 @@ function getCalendarSyncIssues(reservations: Reservation[], homes: Home[], dismi
     // so these can create false missing-protection alerts.
     if (reservation.arrival < todayKey && reservation.departure > todayKey) return false;
 
-    // Only evaluate today through 12 months ahead.
+    // Only evaluate today through 24 months ahead.
     if (reservation.arrival < todayKey) return false;
-    if (reservation.arrival > twelveMonthsFromTodayKey) return false;
+    if (reservation.arrival > twentyFourMonthsFromTodayKey) return false;
 
     return true;
   };
@@ -740,6 +748,78 @@ function getReservationHomeId(reservation: any) {
   return reservation.homeId ?? reservation.propertyId ?? reservation.property_id ?? "";
 }
 
+const CLEANER_PROPERTY_NOTES_PREFIX = "AMR_CLEANER_PROPERTY:";
+
+function detectCalendarSource(url: string) {
+  const normalized = url.trim().toLowerCase();
+
+  if (normalized.includes("airbnb")) return "Airbnb";
+  if (
+    normalized.includes("vrbo") ||
+    normalized.includes("homeaway") ||
+    normalized.includes("homelidays")
+  ) {
+    return "VRBO";
+  }
+  if (normalized.includes("ownerrez")) return "OwnerRez";
+  if (normalized.includes("guesty")) return "Guesty";
+  if (normalized.includes("hospitable")) return "Hospitable";
+  if (normalized.includes("lodgify")) return "Lodgify";
+
+  return "Other";
+}
+
+function encodeCleanerPropertyDetails(values: CleanerPropertyFormValues) {
+  return `${CLEANER_PROPERTY_NOTES_PREFIX}${JSON.stringify({
+    imageUrl: values.propertyPhotoUrl.trim(),
+    address: values.address.trim(),
+    bedrooms: Number(values.bedrooms) || 0,
+    bathrooms: Number(values.bathrooms) || 0,
+    kitchens: Number(values.kitchens) || 0,
+    floors: Number(values.floors) || 0,
+    kingBeds: Number(values.kingBeds) || 0,
+    queenBeds: Number(values.queenBeds) || 0,
+    doubleBeds: Number(values.doubleBeds) || 0,
+    twinBeds: Number(values.twinBeds) || 0,
+    bunkBeds: Number(values.bunkBeds) || 0,
+    pyramidBunks: Number(values.pyramidBunks) || 0,
+    murphyBeds: Number(values.murphyBeds) || 0,
+    sofaSleepers: Number(values.sofaSleepers) || 0,
+    cleaningFee:
+      values.cleaningFee.trim() === ""
+        ? null
+        : Number(values.cleaningFee),
+    ownerName: values.ownerName.trim(),
+    ownerEmail: values.ownerEmail.trim(),
+    ownerPhone: values.ownerPhone.trim(),
+    calendarFeedUrl: "",
+    calendarSource: "",
+    accessInstructions: values.accessInstructions.trim(),
+    wifiName: values.wifiName.trim(),
+    wifiPassword: values.wifiPassword.trim(),
+    parkingInstructions: values.parkingInstructions.trim(),
+    trashInstructions: values.trashInstructions.trim(),
+    supplyLocations: values.supplyLocations.trim(),
+    privateCleanerNotes: values.privateCleanerNotes.trim(),
+  })}`;
+}
+
+function decodeCleanerPropertyDetails(notes: unknown) {
+  if (
+    typeof notes !== "string" ||
+    !notes.startsWith(CLEANER_PROPERTY_NOTES_PREFIX)
+  ) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(notes.slice(CLEANER_PROPERTY_NOTES_PREFIX.length));
+  } catch (error) {
+    console.error("Failed to decode cleaner property details", error);
+    return null;
+  }
+}
+
 
 
 
@@ -751,8 +831,18 @@ function getReservationHomeId(reservation: any) {
 
 export default function App() 
 {
-  const [activePage, setActivePage] = useState("Dashboard");
+  const [activePage, setActivePage] = useState<string>("Pulse");
   const [showOwnerMobileMenu, setShowOwnerMobileMenu] = useState(false);
+  const [openCleanerScheduleOnLoad, setOpenCleanerScheduleOnLoad] = useState(false);
+const cleanerModePages = [
+  "Cleaner Portal",
+  "Cleaner Schedule",
+  "Cleaner Properties",
+  "Cleaner Jobs",
+  "Cleaner Invoices",
+];
+
+  const isCleanerMode = cleanerModePages.includes(activePage);
   const [homes, setHomes] = useState<Home[]>([]);
  const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -771,7 +861,8 @@ const [calendarDate, setCalendarDate] = useState(
   const [selectedCalendarItem, setSelectedCalendarItem] = useState<Reservation | CalendarBlock | null>(null);
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
   const [calendarCreateDraft, setCalendarCreateDraft] = useState<{ source: string; date: string; homeId: string } | null>(null);
-  const [reservationDetailReturnPage, setReservationDetailReturnPage] = useState("Dashboard");
+  const [reservationDetailReturnPage, setReservationDetailReturnPage] = useState<string>("Pulse");
+
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [workOrderFilter, setWorkOrderFilter] = useState("all");
  const [selectedPropertyId, setSelectedPropertyId] = useState("");
@@ -873,7 +964,13 @@ const propertyTaskStats = useMemo(() => {
     upcoming: upcomingTasks.length,
   };
 }, [reservations]);
-
+const calendarSyncIssues = useMemo(() => {
+  return getCalendarSyncIssues(
+    reservations,
+    homes,
+    dismissedDiscrepancies
+  );
+}, [reservations, homes, dismissedDiscrepancies]);
 
 
 async function createManualReservation(form: any) {
@@ -1052,17 +1149,15 @@ console.log("SUPABASE UPDATE RESULT", { error });
   setSelectedCalendarItem(null);
   setActivePage("Reservations");
 }
-  function openReservationFromCalendar(reservation: Reservation) {
-    setSelectedCalendarItem(reservation);
-    setReservationDetailReturnPage(activePage);
-
+ function openReservationFromCalendar(reservation: Reservation) {
+  setSelectedCalendarItem(reservation);
+  setReservationDetailReturnPage(activePage);
   setActivePage("Reservation Detail");
-  }
-
-
+}
 
 function getCalendarDayData(date: Date, homeFilter: string) {
   const dayReservations = reservations.filter((reservation) => {
+    
     const dateKey = toInputDate(date);
 
     const includeDepartureDay =
@@ -1384,37 +1479,85 @@ async function loadPropertiesFromSupabase() {
     return;
   }
 
-  const mappedHomes: Home[] = (data ?? []).map((property: any) => ({
-    id: property.id,
-    name: property.property_name ?? "Unnamed Property",
-    city: property.market ?? "",
-    shortName: (property.property_name ?? "HM")
-      .split(" ")
-      .map((word: string) => word[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase(),
-    address: "",
-    setupMode: "VRBO",
-    vrboId: property.vrbo_listing_id ?? "",
-    airbnbUrl:
-      property.airbnb_ical_url ??
-      property.airbnb_calendar_url ??
-      property.airbnb_property_id ??
-      "",
-    iCalUrl:
+  const mappedHomes: Home[] = (data ?? []).map((property: any) => {
+    const cleanerDetails = decodeCleanerPropertyDetails(property.notes) ?? {};
+    const calendarFeedUrl =
+      cleanerDetails.calendarFeedUrl ??
+      property.calendar_feed_url ??
       property.vrbo_ical_url ??
       property.vrbo_calendar_url ??
       property.vrbo_property_id ??
-      "",
-    defaultCleanerId: property.default_cleaner_id ?? "",
-    bedrooms: 0,
-    bathrooms: 0,
-    maxGuests: 0,
-    status: "Active",
-    notes: "",
-    
-  }));
+      "";
+
+    return {
+      id: property.id,
+      name: property.property_name ?? "Unnamed Property",
+      city: property.market ?? "",
+      shortName: (property.property_name ?? "HM")
+        .split(" ")
+        .map((word: string) => word[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase(),
+      address: cleanerDetails.address ?? property.address ?? "",
+      setupMode: "VRBO",
+      vrboId: "",
+      airbnbUrl: "",
+      iCalUrl: calendarFeedUrl,
+      calendarFeedUrl,
+      calendarSource:
+        cleanerDetails.calendarSource ??
+        detectCalendarSource(calendarFeedUrl),
+      defaultCleanerId: property.default_cleaner_id ?? "",
+      bedrooms: Number(cleanerDetails.bedrooms ?? property.bedrooms ?? 0),
+      bathrooms: Number(cleanerDetails.bathrooms ?? property.bathrooms ?? 0),
+      maxGuests: Number(property.max_guests ?? 0),
+      kitchens: Number(cleanerDetails.kitchens ?? 0),
+      floors: Number(cleanerDetails.floors ?? 0),
+      kingBeds: Number(cleanerDetails.kingBeds ?? 0),
+      queenBeds: Number(cleanerDetails.queenBeds ?? 0),
+      doubleBeds: Number(cleanerDetails.doubleBeds ?? 0),
+      twinBeds: Number(cleanerDetails.twinBeds ?? 0),
+      bunkBeds: Number(cleanerDetails.bunkBeds ?? 0),
+      pyramidBunks: Number(cleanerDetails.pyramidBunks ?? 0),
+      murphyBeds: Number(cleanerDetails.murphyBeds ?? 0),
+      sofaSleepers: Number(cleanerDetails.sofaSleepers ?? 0),
+      status: "Active",
+      notes: cleanerDetails.privateCleanerNotes ?? "",
+      imageUrl: cleanerDetails.imageUrl ?? property.image_url ?? "",
+      ownerName: cleanerDetails.ownerName ?? property.owner_name ?? "",
+      ownerEmail: cleanerDetails.ownerEmail ?? property.owner_email ?? "",
+      ownerPhone: cleanerDetails.ownerPhone ?? property.owner_phone ?? "",
+      cleaningFee:
+        cleanerDetails.cleaningFee ??
+        property.cleaning_fee ??
+        undefined,
+      parkingInstructions:
+        cleanerDetails.parkingInstructions ??
+        property.parking_instructions ??
+        "",
+      supplyLocations:
+        cleanerDetails.supplyLocations ??
+        property.supply_locations ??
+        "",
+      operations: {
+        access:
+          cleanerDetails.accessInstructions ??
+          property.access_instructions ??
+          "",
+        wifiName: cleanerDetails.wifiName ?? property.wifi_name ?? "",
+        wifiPassword:
+          cleanerDetails.wifiPassword ??
+          property.wifi_password ??
+          "",
+        trashInstructions:
+          cleanerDetails.trashInstructions ??
+          property.trash_instructions ??
+          "",
+        cleanerNotes: cleanerDetails.privateCleanerNotes ?? "",
+      },
+    };
+  });
 
   setHomes(mappedHomes);
 
@@ -1451,7 +1594,7 @@ const mappedReservations: Reservation[] = (data ?? []).map((item: any) => {
     guestName: item.guest_name,
     homeId: item.property_id,
     source,
-    type: getReservationType(source, status, item.guest_name),
+   type: getReservationType(source),
     arrival: item.arrival,
     departure: item.departure,
     status,
@@ -1537,6 +1680,150 @@ async function loadCleanersFromSupabase() {
 }
   
  
+  async function createCleanerProperty(
+    values: CleanerPropertyFormValues
+  ) {
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    if (!user) {
+      throw new Error("You must be logged in to create a property.");
+    }
+
+    if (!cleanerPortalId) {
+      throw new Error("No cleaner profile is currently selected.");
+    }
+
+    const { error } = await supabase.from("properties").insert({
+      owner_id: user.id,
+      property_name: values.propertyName.trim(),
+      market: values.city.trim(),
+      default_cleaner_id: cleanerPortalId,
+      calendar_feed_url: null,
+      calendar_source: null,
+      vrbo_property_id: null,
+      airbnb_property_id: null,
+      address: values.address.trim(),
+      image_url: values.propertyPhotoUrl.trim() || null,
+      bedrooms: Number(values.bedrooms) || 0,
+      bathrooms: Number(values.bathrooms) || 0,
+      max_guests: 0,
+      cleaning_fee:
+        values.cleaningFee.trim() === ""
+          ? null
+          : Number(values.cleaningFee),
+      owner_name: values.ownerName.trim(),
+      owner_email: values.ownerEmail.trim() || null,
+      owner_phone: values.ownerPhone.trim() || null,
+      access_instructions: values.accessInstructions.trim() || null,
+      wifi_name: values.wifiName.trim() || null,
+      wifi_password: values.wifiPassword.trim() || null,
+      parking_instructions: values.parkingInstructions.trim() || null,
+      trash_instructions: values.trashInstructions.trim() || null,
+      supply_locations: values.supplyLocations.trim() || null,
+      notes: encodeCleanerPropertyDetails(values),
+    });
+
+    if (error) {
+      console.error("Cleaner property save failed", error);
+      throw new Error(error.message);
+    }
+
+    await loadPropertiesFromSupabase();
+  }
+
+  async function updateCleanerProperty(
+    propertyId: string,
+    values: CleanerPropertyFormValues
+  ) {
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    if (!user) {
+      throw new Error("You must be logged in to update a property.");
+    }
+
+    const existingHome = homes.find(
+      (home) => String(home.id) === String(propertyId)
+    );
+
+    if (!existingHome) {
+      throw new Error("The selected property could not be found.");
+    }
+
+    const { error } = await supabase
+      .from("properties")
+      .update({
+        property_name: values.propertyName.trim(),
+        market: values.city.trim(),
+        address: values.address.trim(),
+        image_url: values.propertyPhotoUrl.trim() || null,
+        bedrooms: Number(values.bedrooms) || 0,
+        bathrooms: Number(values.bathrooms) || 0,
+        cleaning_fee:
+          values.cleaningFee.trim() === ""
+            ? null
+            : Number(values.cleaningFee),
+        owner_name: values.ownerName.trim(),
+        owner_email: values.ownerEmail.trim() || null,
+        owner_phone: values.ownerPhone.trim() || null,
+        access_instructions: values.accessInstructions.trim() || null,
+        wifi_name: values.wifiName.trim() || null,
+        wifi_password: values.wifiPassword.trim() || null,
+        parking_instructions: values.parkingInstructions.trim() || null,
+        trash_instructions: values.trashInstructions.trim() || null,
+        supply_locations: values.supplyLocations.trim() || null,
+        notes: encodeCleanerPropertyDetails(values),
+      })
+      .eq("id", propertyId)
+      .eq("owner_id", user.id);
+
+    if (error) {
+      console.error("Cleaner property update failed", error);
+      throw new Error(error.message);
+    }
+
+    await loadPropertiesFromSupabase();
+  }
+
+  async function deleteCleanerProperty(propertyId: string) {
+    const { error: workOrderDeleteError } = await supabase
+      .from("work_orders")
+      .delete()
+      .eq("property_id", propertyId);
+
+    if (workOrderDeleteError) {
+      console.error("Cleaner property work-order delete failed", workOrderDeleteError);
+      throw new Error(workOrderDeleteError.message);
+    }
+
+    const { error: reservationDeleteError } = await supabase
+      .from("reservations")
+      .delete()
+      .eq("property_id", propertyId);
+
+    if (reservationDeleteError) {
+      console.error("Cleaner property reservation delete failed", reservationDeleteError);
+      throw new Error(reservationDeleteError.message);
+    }
+
+    const { error: propertyDeleteError } = await supabase
+      .from("properties")
+      .delete()
+      .eq("id", propertyId);
+
+    if (propertyDeleteError) {
+      console.error("Cleaner property delete failed", propertyDeleteError);
+      throw new Error(propertyDeleteError.message);
+    }
+
+    await Promise.all([
+      loadPropertiesFromSupabase(),
+      loadReservationsFromSupabase(),
+      loadWorkOrdersFromSupabase(),
+    ]);
+  }
+
   async function createProperty(event: React.FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
@@ -2474,59 +2761,108 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
   }
 
   return (
-   <div className={`appShell ${activePage === "Cleaner Portal" ? "cleanerAppMode" : ""}`}>
+   <div className={`appShell ${isCleanerMode ? "cleanerAppMode" : ""}`}>
   <aside className="sidebar">
     <div className="brand">
-          <div className="brandIcon">AMR</div>
-          <div>
-            <h1>Ask My Rentals</h1>
-            <p>Owner Operations</p>
-            <small className="saveStatus">{saveStatus}</small>
-          </div>
-        </div>
+      <div className="brandIcon">AMR</div>
+      <div>
+        <h1>{isCleanerMode ? "AMR Cleaner" : "Ask My Rentals"}</h1>
+        <p>{isCleanerMode ? "Cleaner Operations" : "Owner Operations"}</p>
+        <small className="saveStatus">{saveStatus}</small>
+      </div>
+    </div>
 
+    {!isCleanerMode && (
+      <div className="propertySelector compactPropertySelector">
+        <label>Active Property</label>
 
-<div className="propertySelector compactPropertySelector">
-  <label>Active Property</label>
-
-  <select
-    value={selectedPropertyId}
-    onChange={(event) => setSelectedPropertyId(event.target.value)}
-  >
-    {homes.map((home) => (
-      <option key={home.id} value={home.id}>
-        {home.name}
-      </option>
-    ))}
-  </select>
-</div>
-<nav className="nav desktopNav"></nav>
-        <nav className="nav desktopNav">
-          {["Dashboard", "Reservations", "Calendar", "Property Setup", "Occupancy", "Cleaners", "Cleaner Portal", "Maintenance", "Notification Center", "Records", ].map(
-            (item) => (
-             <button
-  key={item}
-  className={activePage === item ? "active" : ""}
-  onClick={() => {
-    setActivePage(item);
-    setShowOwnerMobileMenu(false);
-  }}
->
-  {item}
-
-  {item === "Notification Center" &&
-    urgentNotificationCount > 0 && (
-      <span className="notificationBadge">
-        {urgentNotificationCount}
-      </span>
+        <select
+          value={selectedPropertyId}
+          onChange={(event) => setSelectedPropertyId(event.target.value)}
+        >
+          {homes.map((home) => (
+            <option key={home.id} value={home.id}>
+              {home.name}
+            </option>
+          ))}
+        </select>
+      </div>
     )}
-</button>
-            )
-          )}
-        </nav>
 
-        
-      </aside>
+    <nav className="nav desktopNav">
+      {(isCleanerMode
+        ? [
+  { label: "Pulse", page: "Cleaner Portal" },
+  { label: "Schedule", page: "Cleaner Schedule" },
+  { label: "Properties", page: "Cleaner Properties" },
+  { label: "Jobs", page: "Cleaner Jobs" },
+  { label: "Invoices", page: "Cleaner Invoices" },
+  { label: "More", page: "More" },
+]
+        : [
+            { label: "Pulse", page: "Pulse" },
+            { label: "Calendar", page: "Calendar" },
+            { label: "Properties", page: "Properties" },
+            { label: "Occupancy", page: "Occupancy" },
+            { label: "Maintenance", page: "Maintenance" },
+            { label: "More", page: "More" },
+          ]
+      ).map((item) => (
+        <button
+          key={item.label}
+          className={activePage === item.page ? "active" : ""}
+ onClick={() => {
+  if (item.page === "More") {
+    setShowOwnerMobileMenu(true);
+    return;
+  }
+
+  if (isCleanerMode && item.page === "Cleaner Schedule") {
+    setOpenCleanerScheduleOnLoad(true);
+    setActivePage("Cleaner Portal");
+    setShowOwnerMobileMenu(false);
+    return;
+  }
+
+  if (isCleanerMode && item.page === "Cleaner Turns") {
+    setActivePage("Cleaner Portal");
+    setShowOwnerMobileMenu(false);
+
+    window.setTimeout(() => {
+      document
+        .querySelector(".cleanerUpcomingCard")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 50);
+
+    return;
+  }
+
+  if (isCleanerMode && item.page === "Create Job") {
+    window.alert("Create Job flow coming next");
+    return;
+  }
+
+  setActivePage(item.page);
+  setShowOwnerMobileMenu(false);
+}}
+          type="button"
+        >
+          {item.label}
+
+          {!isCleanerMode &&
+            item.page === "Notification Center" &&
+            urgentNotificationCount > 0 && (
+              <span className="notificationBadge">
+                {urgentNotificationCount}
+              </span>
+            )}
+        </button>
+      ))}
+    </nav>
+  </aside>
 
       {/* MOBILE HAMBURGER MENU: keep this overlay permanently paired with the More button below. */}
       {showOwnerMobileMenu && (
@@ -2535,7 +2871,7 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
             <div className="ownerMobileMenuHeader">
               <div>
                 <p className="eyebrow">More options</p>
-                <h3>Owner Menu</h3>
+                <h3>{isCleanerMode ? "Cleaner Menu" : "Owner Menu"}</h3>
               </div>
               <button className="ghostButton" type="button" onClick={() => setShowOwnerMobileMenu(false)}>
                 Close
@@ -2543,26 +2879,34 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
             </div>
 
             <div className="ownerMobileMenuGrid">
-              {[
-                "Property Setup",
-                "Occupancy",
-                "Maintenance",
-                "Cleaners",
-                "Cleaner Portal",
-                "Records",
-                "Messages",
-                "Settings",
-              ].map((item) => (
+              {(isCleanerMode
+                ? [
+                    { label: "Profile", page: "Cleaner Portal" },
+                    { label: "Schedule", page: "Cleaner Schedule" },
+                    { label: "Reports", page: "Cleaner Reports" },
+                    { label: "Invoices", page: "Cleaner Invoices" },
+                    { label: "Help", page: "Cleaner Help" },
+                    { label: "Settings", page: "Cleaner Settings" },
+                  ]
+                : [
+                    { label: "Records", page: "Records" },
+                    { label: "Notifications", page: "Notification Center" },
+                    { label: "Cleaners", page: "Cleaners" },
+                    { label: "Cleaner Portal", page: "Cleaner Portal" },
+                    { label: "Help Improve AMR", page: "Help Improve AMR" },
+                    { label: "Settings", page: "Settings" },
+                  ]
+              ).map((item) => (
                 <button
-                  key={item}
+                  key={item.label}
                   type="button"
-                  className={activePage === item ? "active" : ""}
+                  className={activePage === item.page ? "active" : ""}
                   onClick={() => {
-                    setActivePage(item);
+                    setActivePage(item.page);
                     setShowOwnerMobileMenu(false);
                   }}
                 >
-                  {item === "Notification Center" ? "Notifications" : item}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -2581,7 +2925,7 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
 
       <main className="mainContent">
  
-  {activePage !== "Cleaner Portal" && (
+  {!isCleanerMode && (
     <header className="ownerMobileTopHeader">
       <div className="ownerMobileBrand">
         <div className="ownerMobileLogo">AMR</div>
@@ -2628,37 +2972,38 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
   formatDate={formatDate}
 />
 )}
-{activePage === "Guest Ready" && (
+{activePage === "Pulse" && (
   <GuestReadyPage
-    reservations={reservations.filter(
-      (reservation) => getReservationHomeId(reservation) === selectedPropertyId
-    )}
+    reservations={reservations}
     homes={homes}
     cleaners={cleaners}
-    workOrders={workOrders.filter(
-      (workOrder) => workOrder.homeId === selectedPropertyId
-    )}
+     updateReservation={updateReservation}
+    workOrders={workOrders}
+    calendarSyncIssues={calendarSyncIssues}
     selectedPropertyId={selectedPropertyId}
     formatDate={formatDate}
     needsCleanerAssignment={needsCleanerAssignment}
+    renderScrollableCalendarStack={renderScrollableCalendarStack}
+    setActivePage={setActivePage}
+    setSelectedCalendarItem={setSelectedCalendarItem}
   />
 )}
-       {activePage === "Reservation Detail" && (
+     {activePage === "Reservation Detail" && (
   <ReservationDetailPage
-    reservationDetailReturnPage={reservationDetailReturnPage}
     selectedCalendarItem={selectedCalendarItem}
-    homes={homes}
     selectedCalendarDateKey={selectedCalendarDateKey}
-setSelectedCalendarItem={setSelectedCalendarItem}
-setSelectedCalendarDateKey={setSelectedCalendarDateKey}
-formatDate={formatDate}
-getSourceControlledMessage={getSourceControlledMessage}
+    reservationDetailReturnPage={reservationDetailReturnPage}
+    homes={homes}
     cleaners={cleaners}
     setActivePage={setActivePage}
+    setSelectedCalendarItem={setSelectedCalendarItem}
+    setSelectedCalendarDateKey={setSelectedCalendarDateKey}
     isImportedReservation={isImportedReservation}
     isTaskSource={isTaskSource}
     updateReservation={updateReservation}
     deleteReservation={deleteReservation}
+    formatDate={formatDate}
+    getSourceControlledMessage={getSourceControlledMessage}
   />
 )}
       {activePage === "Reservations" && (
@@ -2699,7 +3044,7 @@ setSearch={setSearch}
      clearCalendarCreateDraft={() => setCalendarCreateDraft(null)}
   />
 )}
-        {activePage === "Property Setup" && (
+        {(activePage === "Property Setup" || activePage === "Properties") && (
  <PropertiesPage
  homes={homes.filter((home) => home.id === selectedPropertyId)}
   cleaners={cleaners}
@@ -2775,7 +3120,6 @@ setSearch={setSearch}
   homes={homes}
   reservations={reservations}
   cleanerPortalId={cleanerPortalId}
-  setCleanerPortalId={setCleanerPortalId}
   cleanerIssueForm={cleanerIssueForm}
   setCleanerIssueForm={setCleanerIssueForm}
   
@@ -2785,8 +3129,59 @@ setSearch={setSearch}
   isImportedReservation={isImportedReservation}
   getUrgency={getUrgency}
   formatDate={formatDate}
-  toInputDate={toInputDate}
+  openCleanerScheduleOnLoad={openCleanerScheduleOnLoad}
+  setOpenCleanerScheduleOnLoad={setOpenCleanerScheduleOnLoad}
 />
+)}
+{activePage === "Cleaner Schedule" && (
+  <CleanerPortalPage
+    cleaners={cleaners}
+    homes={homes}
+    reservations={reservations}
+    cleanerPortalId={cleanerPortalId}
+    cleanerIssueForm={cleanerIssueForm}
+    setCleanerIssueForm={setCleanerIssueForm}
+
+    updateReservation={updateReservation}
+    updateReservationFromCleaner={updateReservationFromCleaner}
+    submitCleanerMaintenanceIssue={submitCleanerMaintenanceIssue}
+    isImportedReservation={isImportedReservation}
+    getUrgency={getUrgency}
+    formatDate={formatDate}
+    openCleanerScheduleOnLoad={openCleanerScheduleOnLoad}
+setOpenCleanerScheduleOnLoad={setOpenCleanerScheduleOnLoad}
+  />
+)}
+{activePage === "Cleaner Portal" && (
+  <CleanerPortalPage
+    cleaners={cleaners}
+    homes={homes}
+    reservations={reservations}
+    cleanerPortalId={cleanerPortalId}
+    cleanerIssueForm={cleanerIssueForm}
+    setCleanerIssueForm={setCleanerIssueForm}
+    updateReservation={updateReservation}
+    updateReservationFromCleaner={updateReservationFromCleaner}
+    submitCleanerMaintenanceIssue={submitCleanerMaintenanceIssue}
+    isImportedReservation={isImportedReservation}
+    getUrgency={getUrgency}
+    formatDate={formatDate}
+    openCleanerScheduleOnLoad={openCleanerScheduleOnLoad}
+    setOpenCleanerScheduleOnLoad={setOpenCleanerScheduleOnLoad}
+  />
+)}
+
+{activePage === "Cleaner Properties" && (
+  <CleanerPropertiesPage
+    homes={homes}
+    reservations={reservations}
+    cleaners={cleaners}
+    workOrders={workOrders}
+    cleanerPortalId={cleanerPortalId}
+    onCreateProperty={createCleanerProperty}
+    onUpdateProperty={updateCleanerProperty}
+    onDeleteProperty={deleteCleanerProperty}
+  />
 )}
         {activePage === "Maintenance" && (
   <MaintenancePage
@@ -2844,64 +3239,111 @@ getCalendarSyncIssues={getCalendarSyncIssues}
     homes={homes}
   />
 )}
-        {![
-  "Dashboard",
-  "Reservations",
-  "Calendar",
-  "Property Setup",
-  "Occupancy",
-  "Reservation Detail",
-  "Cleaners",
-  "Housekeeping",
-  "Cleaner Portal",
-  "Maintenance",
-  "Notification Center",
-  "Records",
-  "Guest Ready",
-].includes(activePage) && renderPlaceholder()}
+        {!(
+  [
+    "Pulse",
+    "Calendar",
+      "Properties",
+    "Property Setup",
+      "Occupancy",
+    "Performance",
+    "Reservation Detail",
+    "Maintenance",
+    "Notification Center",
+    "Records",
+    "Help Improve AMR",
+    "Settings",
+    "Cleaners",
+    "Cleaner Portal",
+    "Housekeeping",
+    "Cleaner Properties",
+  ] as string[]
+).includes(activePage) && renderPlaceholder()}
       </main>
       {/* MOBILE BOTTOM NAV MUST ALWAYS BE: Home / Tasks / Calendar / More (hamburger). */}
-    <nav className="mobileBottomNav" aria-label="Owner mobile bottom navigation">
-  {[
-    { label: "Home", page: "Dashboard", icon: "🏠" },
-    { label: "Reservations", page: "Reservations", icon: "🧾" },
-    { label: "Calendar", page: "Calendar", icon: "📅" },
-    { label: "Notifications", page: "Notification Center", icon: "🔔" },
-    { label: "Maintenance", page: "Maintenance", icon: "🔧" },
-  ].map((item) => (
-    <button
-      key={item.label}
-      className={activePage === item.page ? "active" : ""}
-      onClick={() => {
-        if (item.page === "Maintenance") {
-          setShowWorkOrderForm(false);
-        }
-
-        if (item.page === "Calendar") {
-          setSelectedCalendarDateKey(null);
-          setSelectedCalendarItem(null);
-        }
-
-        setActivePage(item.page);
-        setShowOwnerMobileMenu(false);
-      }}
-      type="button"
+    <nav
+      className="mobileBottomNav"
+      aria-label={isCleanerMode ? "Cleaner mobile bottom navigation" : "Owner mobile bottom navigation"}
     >
-      <span className="navIconWrapper">
-        <span>{item.icon}</span>
+      {(isCleanerMode
+        ?[
+  { label: "Pulse", page: "Cleaner Portal", icon: "🧠" },
+  { label: "Schedule", page: "Cleaner Schedule", icon: "📅" },
+  { label: "Properties", page: "Cleaner Properties", icon: "🏡" },
+  { label: "Jobs", page: "Cleaner Jobs", icon: "💼" },
+  { label: "More", page: "More", icon: "☰" },
+]        : [
+            { label: "Pulse", page: "Pulse", icon: "❤️" },
+            { label: "Calendar", page: "Calendar", icon: "📅" },
+            { label: "Properties", page: "Properties", icon: "🏡" },
+            { label: "Occupancy", page: "Occupancy", icon: "📈" },
+            { label: "More", page: "More", icon: "⚙️" },
+          ]
+      ).map((item) => (
+        <button
+          key={item.label}
+          className={activePage === item.page ? "active" : ""}
+          onClick={() => {
+            if (item.page === "More") {
+  setShowOwnerMobileMenu(true);
+  return;
+}
 
-        {item.page === "Notification Center" &&
-          urgentNotificationCount > 0 && (
-            <span className="notificationMiniCount">
-              {urgentNotificationCount}
-            </span>
-          )}
-      </span>
+if (isCleanerMode && item.page === "Cleaner Schedule") {
+  setOpenCleanerScheduleOnLoad(true);
+  setActivePage("Cleaner Portal");
+  setShowOwnerMobileMenu(false);
+  return;
+}
 
-      <small>{item.label}</small>
-    </button>
-  ))}
-</nav>
+if (isCleanerMode && item.page === "Cleaner Turns") {
+  setActivePage("Cleaner Portal");
+  setShowOwnerMobileMenu(false);
+
+  window.setTimeout(() => {
+    document
+      .querySelector(".cleanerUpcomingCard")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 50);
+
+  return;
+}
+
+if (isCleanerMode && item.page === "Create Job") {
+  window.alert("Create Job flow coming next");
+  return;
+}
+
+            if (item.page === "Maintenance") {
+              setShowWorkOrderForm(false);
+            }
+
+            if (item.page === "Calendar") {
+              setSelectedCalendarDateKey(null);
+              setSelectedCalendarItem(null);
+            }
+
+            setActivePage(item.page);
+            setShowOwnerMobileMenu(false);
+          }}
+          type="button"
+        >
+          <span className="navIconWrapper">
+            <span>{item.icon}</span>
+
+            {!isCleanerMode &&
+              item.page === "Notification Center" &&
+              urgentNotificationCount > 0 && (
+                <span className="notificationMiniCount">
+                  {urgentNotificationCount}
+                </span>
+              )}
+          </span>
+
+          <small>{item.label}</small>
+        </button>
+      ))}
+    </nav>
     </div>
   );
 }

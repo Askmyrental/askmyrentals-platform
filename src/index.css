@@ -1934,4 +1934,2258 @@ button {
 
 .legendOwner {
   background: #94a3b8;
+}/* CLEANER PULSE */
+
+.cleanerPulseShell {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.cleanerPulseHeroGrid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+}
+
+.cleanerHealthCard {
+  background: linear-gradient(135deg,#ffffff,#eff6ff);
+  border: 1px solid #dbeafe;
+  border-radius: 28px;
+  padding: 26px;
+  box-shadow: 0 18px 45px rgba(15,23,42,.1);
+}
+
+.cleanerHealthTopline {
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+}
+
+.cleanerHealthScore {
+  background:#dcfce7;
+  color:#166534;
+  padding:16px;
+  border-radius:20px;
+  text-align:center;
+}
+
+.cleanerHealthScore strong {
+  display:block;
+  font-size:32px;
+}
+
+.cleanerHealthMeter {
+  height:12px;
+  background:#e5e7eb;
+  border-radius:999px;
+  overflow:hidden;
+  margin:20px 0;
+}
+
+.cleanerHealthMeter span {
+  display:block;
+  height:100%;
+  background:#22c55e;
+}
+
+
+.cleanerMetricGrid {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:14px;
+}
+
+.cleanerMetricCard {
+  background:white;
+  border-radius:20px;
+  padding:18px;
+  border:1px solid #e5e7eb;
+  box-shadow:0 12px 30px rgba(15,23,42,.08);
+}
+
+.cleanerMetricCard span {
+  font-size:26px;
+}
+
+.cleanerMetricCard strong {
+  display:block;
+  font-size:30px;
+}
+
+
+.cleanerPulseGrid {
+  display:grid;
+  grid-template-columns:420px 1fr;
+  gap:20px;
+}
+
+
+.cleanerActionStack {
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.cleanerActionCard {
+  display:grid;
+  grid-template-columns:45px 1fr auto;
+  gap:14px;
+  align-items:center;
+  background:#f8fafc;
+  border-radius:18px;
+  padding:16px;
+  border:1px solid #e2e8f0;
+}
+
+.cleanerActionIcon {
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  background:#e0f2fe;
+}
+
+
+.cleanerTurnStack {
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.cleanerTurnCard {
+  background:white;
+  border-radius:22px;
+  padding:18px;
+  border:1px solid #e5e7eb;
+  box-shadow:0 12px 30px rgba(15,23,42,.08);
+}
+
+.cleanerTurnMain {
+  display:flex;
+  justify-content:space-between;
+  margin:14px 0;
+}
+
+
+@media(max-width:1000px){
+
+.cleanerPulseHeroGrid,
+.cleanerPulseGrid{
+grid-template-columns:1fr;
+}
+
+.cleanerMetricGrid{
+grid-template-columns:repeat(2,1fr);
+}
+
+}
+
+
+@media(max-width:700px){
+
+.cleanerMetricGrid{
+grid-template-columns:1fr;
+}
+
+.cleanerActionCard{
+grid-template-columns:1fr;
+}
+
+}/* CLEANER PULSE FLOW OVERRIDE */
+
+.cleanerPulseFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cleanerActionCenterCard {
+  width: 100%;
+}
+
+.cleanerActionStack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.cleanerActionCard {
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+}
+
+.cleanerUpcomingCard {
+  width: 100%;
+}
+
+.cleanerTurnStack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cleanerTurnCard {
+  min-height: 220px;
+}
+
+@media(max-width:900px) {
+  .cleanerTurnStack {
+    grid-template-columns: 1fr;
+  }
+
+  .cleanerActionCard {
+    grid-template-columns: 1fr;
+  }
+}/* ==========================
+   CLEANER PULSE FINAL COMPACT
+   ========================== */
+
+.cleanerPulseShell {
+  gap: 14px !important;
+}
+
+/* remove giant hero behavior */
+.cleanerPulseHeroGrid {
+  display: block !important;
+}
+
+/* compact health strip */
+.cleanerHealthCard {
+  padding: 16px 20px !important;
+  border-radius: 22px !important;
+  margin-bottom: 14px !important;
+}
+
+.cleanerHealthTopline {
+  align-items: center !important;
+}
+
+.cleanerHealthScore {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.cleanerHealthScore strong {
+  font-size: 24px !important;
+}
+
+.cleanerHealthScore span {
+  font-size: 12px;
+}
+
+/* thermometer style */
+.cleanerHealthMeter {
+  height: 8px !important;
+  margin: 10px 0 !important;
+}
+
+.cleanerHealthCard p {
+  margin: 6px 0 0 !important;
+  font-size: 13px;
+}
+
+/* hide redundant metric boxes */
+.cleanerMetricGrid {
+  display: none !important;
+}
+
+
+/* tighten action center */
+.cleanerPulseFlow {
+  gap: 14px !important;
+}
+
+.cleanerActionCenterCard {
+  padding: 18px !important;
+}
+
+.cleanerActionStack {
+  gap: 8px !important;
+}
+
+.cleanerActionCard {
+  min-height: unset !important;
+  padding: 10px 14px !important;
+  grid-template-columns: 38px 1fr auto !important;
+}
+
+.cleanerActionIcon {
+  width: 34px !important;
+  height: 34px !important;
+}
+
+.cleanerActionCard p {
+  margin: 3px 0 0;
+  font-size: 13px;
+}
+
+
+/* departure cards visible sooner */
+.cleanerUpcomingCard {
+  padding: 18px !important;
+}
+
+.cleanerTurnStack {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.cleanerTurnCard {
+  min-height: unset !important;
+  padding: 14px !important;
+}
+
+
+@media(max-width:900px){
+
+.cleanerTurnStack {
+  grid-template-columns: 1fr !important;
+}
+
+}/* FINAL DEPARTURE CARD GRID */
+
+.cleanerTurnStack {
+  grid-template-columns: repeat(3, minmax(220px, 1fr)) !important;
+}
+
+.cleanerTurnCard {
+  padding: 16px !important;
+}
+
+.cleanerTurnCard h3 {
+  font-size: 17px !important;
+}
+
+.cleanerTurnMain {
+  margin: 8px 0 !important;
+}
+
+.cleanerTurnActions {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cleanerTurnActions .warningAction {
+  grid-column: 1 / -1;
+}
+
+@media(max-width:900px){
+  .cleanerTurnStack {
+    grid-template-columns: 1fr !important;
+  }
+}.calendarB2BBadge {
+  font-weight: 900;
+  white-space: nowrap;
+}.cleanerMobileNav {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .cleanerMobileNav {
+    display: grid;
+  }
+}/* CLEANER CALENDAR MOBILE FIX */
+@media (max-width: 900px) {
+  .cleanerCalendarPanel {
+    width: 100%;
+    padding: 18px;
+    overflow-x: hidden;
+  }
+
+  .cleanerCalendarGrid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+    overflow-x: auto;
+  }
+
+  .cleanerCalendarDay {
+    min-height: 72px;
+    padding: 6px;
+    border-radius: 12px;
+  }
+
+  .cleanerCalendarDateNumber {
+    font-size: 12px;
+  }
+
+  .cleanerCalendarEvent {
+    font-size: 10px;
+    padding: 3px 5px;
+    border-radius: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cleanerMonthHeader {
+    margin-top: 14px;
+    margin-bottom: 14px;
+  }
+
+  .occupancyAlertPill {
+    align-self: flex-start;
+  }
+}.cleanerCalendarGrid {
+  width: 100%;
+}
+
+.cleanerCalendarDayName,
+.cleanerCalendarDay {
+  min-width: 0;
+}/* CLEANER CALENDAR EVENT CARD */
+.cleanerCalendarEvent {
+  appearance: none;
+  border: none;
+
+  width: 100%;
+  min-height: 32px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+
+  font-family: inherit;
+  cursor: pointer;
+
+  line-height: 1.1;
+  text-align: center;
+
+  white-space: normal;
+
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.calendarB2BBadge {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+
+/* MOBILE CLEANER CALENDAR */
+@media (max-width: 900px) {
+  .cleanerCalendarEvent {
+    min-height: 34px !important;
+    font-size: 9px;
+
+    writing-mode: horizontal-tb !important;
+    transform: none !important;
+  }
+
+  .calendarB2BBadge {
+    font-size: 8px;
+  }
+}@media (max-width: 900px) {
+  .cleanerCalendarModal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    padding: 14px !important;
+  }
+
+  .cleanerCalendarPanel {
+    padding: 0 !important;
+  }
+
+  .cleanerCalendarGrid {
+    gap: 4px !important;
+  }
+
+  .cleanerCalendarDay {
+    min-height: 76px !important;
+    padding: 4px !important;
+  }
+
+  .modalOverlay {
+    padding: 0 !important;
+  }
+}@media (max-width: 900px) {
+  .cleanerCalendarModal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    padding: 10px !important;
+  }
+
+  .cleanerCalendarGrid {
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+  }
+
+  .cleanerCalendarDay {
+    min-height: 62px !important;
+    padding: 3px !important;
+  }
+
+  .cleanerCalendarEvent {
+    min-height: 28px !important;
+    font-size: 8px !important;
+    padding: 2px !important;
+    line-height: 1.1 !important;
+  }
+
+  .calendarB2BBadge {
+    font-size: 7px !important;
+  }
+}.cleanerScheduleModalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cleanerScheduleClose {
+  border: none;
+  background: #f1f5f9;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+}/* ==========================
+   CLEANER PULSE MOBILE HEADER
+   Keep this at the bottom
+   ========================== */
+
+@media (max-width: 900px) {
+  .cleanerPortalHero {
+    padding: 14px 14px 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .cleanerCommandIntro {
+    margin-bottom: 10px !important;
+  }
+
+  .cleanerCommandIntro .eyebrow {
+    display: none !important;
+  }
+
+  .cleanerCommandIntro h2 {
+    font-size: 21px !important;
+    line-height: 1.1 !important;
+    margin: 0 !important;
+  }
+
+  .cleanerCommandIntro .headerSubtext {
+    display: none !important;
+  }
+
+  .cleanerCommandStats {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .cleanerCommandStatCard {
+    min-width: 0 !important;
+    min-height: 62px !important;
+    padding: 8px 6px !important;
+    border-radius: 16px !important;
+    display: grid !important;
+    grid-template-columns: auto auto !important;
+    justify-content: center !important;
+    align-items: center !important;
+    column-gap: 5px !important;
+    row-gap: 1px !important;
+    text-align: center !important;
+  }
+
+  .cleanerCommandStatCard > span {
+    font-size: 15px !important;
+    line-height: 1 !important;
+  }
+
+  .cleanerCommandStatCard > strong {
+    font-size: 19px !important;
+    line-height: 1 !important;
+  }
+
+  .cleanerCommandStatCard > small {
+    grid-column: 1 / -1 !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+  }
+
+  .cleanerPulseShell {
+    gap: 10px !important;
+  }
+
+  .compactCleanerHealthCard {
+    padding: 13px 14px !important;
+    margin-top: 0 !important;
+    margin-bottom: 8px !important;
+  }
+
+  .compactCleanerHealthCard .eyebrow {
+    margin-bottom: 4px !important;
+  }
+
+  .compactCleanerHealthCard h3 {
+    font-size: 15px !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+  }
+
+  .compactCleanerHealthCard .cleanerHealthScore strong {
+    font-size: 21px !important;
+  }
+
+  .compactCleanerHealthCard .cleanerHealthMeter {
+    margin: 8px 0 !important;
+  }
+
+  .compactCleanerHealthCard > p {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+}.cleanerCommandStatButton {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.cleanerCommandStatButton:hover {
+  transform: translateY(-1px);
+}
+
+.cleanerCommandStatButton:active {
+  transform: translateY(0);
+}
+
+.cleanerCommandStatButton:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.25);
+  outline-offset: 2px;
+}.cleanerTodaySnapshot{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+
+    margin:18px 0 12px;
+}
+
+.cleanerTodaySnapshot button{
+    border:1px solid #e5e7eb;
+    border-radius:16px;
+
+    background:#fff;
+
+    padding:14px;
+
+    text-align:center;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+.cleanerTodaySnapshot button:hover{
+    transform:translateY(-1px);
+}
+
+.cleanerTodaySnapshot strong{
+    display:block;
+    font-size:28px;
+    font-weight:700;
+    color:#111827;
+}
+
+.cleanerTodaySnapshot small{
+    display:block;
+    margin-top:6px;
+
+    font-size:11px;
+    font-weight:700;
+
+    color:#64748b;
+}/* ==========================
+   CLEANER TASK PREVIEW MODAL
+   Keep at bottom of CSS file
+   ========================== */
+
+.cleanerCalendarModal {
+  position: relative;
+}
+
+.cleanerTaskPreviewOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+
+  border-radius: inherit;
+}
+
+.cleanerTaskPreviewCard {
+  width: min(440px, 100%);
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 22px;
+
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.cleanerTaskPreviewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.cleanerTaskPreviewHeader h3 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.cleanerTaskPreviewDetails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.cleanerTaskPreviewDetails > div {
+  min-width: 0;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 14px;
+}
+
+.cleanerTaskPreviewDetails span,
+.cleanerTaskPreviewNotes > span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.cleanerTaskPreviewDetails strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.cleanerTaskPreviewNotes {
+  margin-top: 14px;
+  padding: 14px;
+  background: #f8fafc;
+  border-radius: 14px;
+}
+
+.cleanerTaskPreviewNotes p {
+  margin: 0;
+}
+
+.cleanerTaskPreviewActions {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cleanerTaskPreviewActions button {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .cleanerTaskPreviewOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000001;
+
+    align-items: flex-end;
+    padding: 12px;
+    border-radius: 0;
+  }
+
+  .cleanerTaskPreviewCard {
+    width: 100%;
+    max-height: 78vh;
+    border-radius: 24px 24px 18px 18px;
+    padding: 18px;
+  }
+
+  .cleanerTaskPreviewHeader h3 {
+    font-size: 21px;
+  }
+
+  .cleanerTaskPreviewDetails {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cleanerTaskPreviewActions {
+    grid-template-columns: 1fr;
+  }
+}/* ==========================
+   COMPLETE TASK MODAL
+   Add at the bottom of index.css
+   ========================== */
+
+.completeTaskOverlay {
+  z-index: 1000002;
+}
+
+.completeTaskModal {
+  width: min(680px, calc(100vw - 28px));
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.completeTaskHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.completeTaskHeader h3 {
+  margin: 0 0 6px;
+  font-size: 26px;
+}
+
+.completeTaskHeader p:not(.eyebrow) {
+  margin: 0;
+  color: #64748b;
+}
+
+.completeTaskForm {
+  display: grid;
+  gap: 16px;
+}
+
+.completeTaskSection {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.completeTaskSection legend {
+  padding: 0 6px;
+  font-weight: 800;
+  color: #172033;
+}
+
+.completeTaskChoiceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.completeTaskChoice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid #dbe3ef;
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.completeTaskChoice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.completeTaskChoice.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.completeTaskField {
+  display: grid;
+  gap: 7px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.completeTaskField small {
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.completeTaskField input,
+.completeTaskField textarea,
+.completeTaskField select,
+.completeTaskUpload input {
+  width: 100%;
+  border: 1px solid #d9dee8;
+  border-radius: 14px;
+  padding: 11px 12px;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+}
+
+.completeTaskField textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.completeTaskToggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.completeTaskToggle input {
+  margin-top: 4px;
+}
+
+.completeTaskToggle strong,
+.completeTaskToggle small {
+  display: block;
+}
+
+.completeTaskToggle small {
+  margin-top: 3px;
+  color: #64748b;
+}
+
+.completeTaskUpload {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  font-weight: 700;
+}
+
+.completeTaskUpload small {
+  color: #64748b;
+}
+
+.completeTaskMaintenanceFields {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.completeTaskMoneyInput {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  border: 1px solid #d9dee8;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.completeTaskMoneyInput span {
+  padding-left: 12px;
+  font-weight: 900;
+  color: #475569;
+}
+
+.completeTaskMoneyInput input {
+  border: 0;
+  border-radius: 0;
+}
+
+.completeTaskError {
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #fff1f2;
+  color: #be123c;
+  font-weight: 700;
+}
+
+.completeTaskActions {
+  position: sticky;
+  bottom: -24px;
+
+  display: grid;
+  grid-template-columns: 150px 150px minmax(220px, 1fr);
+  gap: 10px;
+
+  padding: 14px 0 24px;
+  background: #ffffff;
+}
+
+.completeTaskActions button {
+  width: 100%;
+  min-height: 46px;
+}
+
+.completeTaskUndoButton {
+  border: 1px solid #f59e0b;
+  background: #fff7ed;
+  color: #b45309;
+  border-radius: 14px;
+  font-weight: 800;
+}
+
+.completeTaskFinishButton {
+  border: none;
+  background: #16a34a;
+  color: #ffffff;
+  border-radius: 14px;
+  font-weight: 800;
+}
+
+.completeTaskFinishButton:hover {
+  background: #15803d;
+}/* ==========================
+   CLEANER TASK CARD — CLEAN PASS
+   Add at the bottom of index.css
+   ========================== */
+
+.cleanerJobCard {
+  display: grid;
+  gap: 14px;
+}
+
+.cleanerJobType {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.cleanerJobStatusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.cleanerJobPayRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: #f8fafc;
+}
+
+.cleanerJobPayRow span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cleanerJobPayRow strong {
+  color: #172033;
+  font-size: 20px;
+}
+
+.cleanerJobSection {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.cleanerJobSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cleanerJobSectionHeader strong {
+  color: #172033;
+  font-size: 14px;
+}
+
+.cleanerNotesEditor textarea {
+  width: 100%;
+  min-height: 86px;
+  resize: vertical;
+  border: 1px solid #d9dee8;
+  border-radius: 13px;
+  padding: 10px 11px;
+  background: #f8fafc;
+  color: #172033;
+  font: inherit;
+}
+
+.cleanerNotesEditor .secondaryButton {
+  width: 100%;
+  margin-top: 9px;
+}
+
+.cleanerNoteSaved {
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cleanerIntelligenceList {
+  display: grid;
+  gap: 8px;
+}
+
+.cleanerIntelligenceList p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.cleanerInvoiceSnapshot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cleanerInvoiceSnapshot > div {
+  display: grid;
+  gap: 4px;
+}
+
+.cleanerInvoiceSnapshot span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cleanerInvoiceSnapshot strong {
+  color: #172033;
+  font-size: 18px;
+}
+
+.cleanerJobPrimaryActions {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  gap: 9px;
+  padding-top: 10px;
+  background: #ffffff;
+}
+
+.cleanerJobPrimaryActions button {
+  width: 100%;
+  min-height: 44px;
+}
+
+@media (max-width: 900px) {
+  .cleanerTaskPreviewCard.cleanerJobCard {
+    max-height: 78vh;
+    padding: 18px;
+  }
+
+  .cleanerJobCard {
+    gap: 12px;
+  }
+
+  .cleanerJobSection {
+    padding: 12px;
+  }
+
+  .cleanerInvoiceSnapshot {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cleanerInvoiceSnapshot .secondaryButton {
+    width: 100%;
+  }
+
+  .cleanerJobPrimaryActions {
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+}/* =========================================================
+   CLEANER TASK CARD + COMPLETE TASK MODAL — POLISH PASS
+   Paste at the absolute bottom of src/index.css
+   ========================================================= */
+
+/* TASK CARD */
+
+.cleanerTaskPreviewCard.cleanerJobCard {
+  width: min(440px, 100%);
+  max-height: min(78vh, 760px);
+  overflow-y: auto;
+  padding: 20px;
+  border-radius: 24px;
+}
+
+.cleanerJobCard {
+  display: grid;
+  gap: 14px;
+}
+
+.cleanerJobCard .cleanerTaskPreviewHeader {
+  margin-bottom: 0;
+}
+
+.cleanerJobCard .cleanerTaskPreviewHeader h3 {
+  margin-bottom: 2px;
+}
+
+.cleanerJobType {
+  margin: 2px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.cleanerJobStatusRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.cleanerJobStatusRow .conflictWarningPill {
+  margin: 0;
+}
+
+.cleanerJobPayRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: #f8fafc;
+}
+
+.cleanerJobPayRow span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cleanerJobPayRow strong {
+  color: #172033;
+  font-size: 18px;
+}
+
+.cleanerJobSection {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.cleanerJobSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cleanerJobSectionHeader strong {
+  color: #172033;
+  font-size: 14px;
+}
+
+.cleanerNotesEditor textarea {
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  border: 1px solid #d9dee8;
+  border-radius: 13px;
+  padding: 11px 12px;
+  background: #f8fafc;
+  color: #172033;
+  font: inherit;
+}
+
+.cleanerNotesEditor .secondaryButton {
+  width: 100%;
+  margin-top: 9px;
+}
+
+.cleanerNoteSaved {
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cleanerIntelligenceList {
+  display: grid;
+  gap: 8px;
+}
+
+.cleanerIntelligenceList p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.cleanerInvoiceSnapshot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cleanerInvoiceSnapshot > div {
+  display: grid;
+  gap: 4px;
+}
+
+.cleanerInvoiceSnapshot span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cleanerInvoiceSnapshot strong {
+  color: #172033;
+  font-size: 18px;
+}
+
+.cleanerJobPrimaryActions {
+  position: sticky;
+  bottom: -20px;
+  display: grid;
+  gap: 9px;
+  padding: 12px 0 20px;
+  background: #ffffff;
+}
+
+.cleanerJobPrimaryActions button {
+  width: 100%;
+  min-height: 44px;
+}
+
+/* COMPLETE TASK MODAL */
+
+.completeTaskOverlay {
+  z-index: 1000002;
+}
+
+.completeTaskModal {
+  width: min(680px, calc(100vw - 28px));
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.completeTaskHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.completeTaskHeader h3 {
+  margin: 0 0 6px;
+  font-size: 26px;
+}
+
+.completeTaskHeader p:not(.eyebrow) {
+  margin: 0;
+  color: #64748b;
+}
+
+.completeTaskForm {
+  display: grid;
+  gap: 16px;
+}
+
+.completeTaskSection {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.completeTaskSection legend {
+  padding: 0 6px;
+  font-weight: 800;
+  color: #172033;
+}
+
+.completeTaskChoiceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.completeTaskChoice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid #dbe3ef;
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.completeTaskChoice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.completeTaskChoice.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.completeTaskField {
+  display: grid;
+  gap: 7px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.completeTaskField small {
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.completeTaskField input,
+.completeTaskField textarea,
+.completeTaskField select,
+.completeTaskUpload input {
+  width: 100%;
+  border: 1px solid #d9dee8;
+  border-radius: 14px;
+  padding: 11px 12px;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+}
+
+.completeTaskField textarea {
+  min-height: 124px;
+  resize: vertical;
+}
+
+.completeTaskToggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.completeTaskToggle > input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.completeTaskPhotoCopy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.completeTaskPhotoIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #eff6ff;
+  font-size: 20px;
+}
+
+.completeTaskPhotoCopy strong,
+.completeTaskPhotoCopy small {
+  display: block;
+}
+
+.completeTaskPhotoCopy small {
+  margin-top: 2px;
+  color: #64748b;
+}
+
+.completeTaskUpload {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  font-weight: 700;
+}
+
+.completeTaskUpload small {
+  color: #64748b;
+}
+
+.completeTaskMaintenanceFields {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  animation: completeTaskReveal 0.18s ease-out;
+}
+
+@keyframes completeTaskReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.completeTaskMoneyInput {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  border: 1px solid #d9dee8;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.completeTaskMoneyInput span {
+  padding-left: 12px;
+  font-weight: 900;
+  color: #475569;
+}
+
+.completeTaskMoneyInput input {
+  border: 0;
+  border-radius: 0;
+}
+
+.completeTaskError {
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #fff1f2;
+  color: #be123c;
+  font-weight: 700;
+}
+
+.completeTaskActions {
+  position: sticky;
+  bottom: -24px;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 10px;
+  padding: 14px 0 24px;
+  background: #ffffff;
+}
+
+.completeTaskActions button {
+  min-height: 46px;
+}
+
+@media (max-width: 900px) {
+  .cleanerTaskPreviewCard.cleanerJobCard {
+    width: 100%;
+    max-height: 78vh;
+    padding: 18px;
+  }
+
+  .cleanerInvoiceSnapshot {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cleanerInvoiceSnapshot .secondaryButton {
+    width: 100%;
+  }
+
+  .completeTaskOverlay {
+    align-items: flex-end;
+    padding: 0 !important;
+  }
+
+  .completeTaskModal {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 24px 24px 0 0;
+    padding: 18px;
+  }
+
+  .completeTaskHeader h3 {
+    font-size: 22px;
+  }
+
+  .completeTaskChoiceGrid {
+    gap: 8px;
+  }
+
+  .completeTaskChoice {
+    min-height: 46px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .completeTaskActions {
+    bottom: -18px;
+    grid-template-columns: 1fr 1fr;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .completeTaskActions .primaryButton {
+    grid-column: 1 / -1;
+  }
+}.privateTaskNotesHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.privateTaskNotesHeading span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}@media (max-width: 900px) {
+  .privateTaskNotesHeading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+}.completeTaskFieldHelp {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}@media (max-width: 900px) {
+  .completeTaskActions {
+    bottom: -18px;
+    grid-template-columns: 1fr 1fr;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .completeTaskFinishButton {
+    grid-column: 1 / -1;
+  }
+}.cleanerJobPrimaryActions .completeTaskUndoButton {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #f59e0b;
+  border-radius: 14px;
+  background: #fff7ed;
+  color: #b45309;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cleanerJobPrimaryActions .completeTaskUndoButton:hover {
+  background: #ffedd5;
+}/* ==========================
+   CLEANER PULSE TASK CARDS
+   ========================== */
+
+.cleanerPulseTaskGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cleanerPulseTaskCard {
+  width: 100%;
+  display: grid;
+  gap: 13px;
+  padding: 17px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: #ffffff;
+  color: #172033;
+
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+.cleanerPulseTaskCard:hover {
+  transform: translateY(-2px);
+  border-color: #bfdbfe;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+}
+
+.cleanerPulseTaskCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.cleanerPulseTaskCardTop h3 {
+  margin: 2px 0 4px;
+  font-size: 18px;
+}
+
+.cleanerPulseTaskCardTop > div:first-child > span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.cleanerPulseTaskDate {
+  display: grid;
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.cleanerPulseTaskDate strong {
+  font-size: 16px;
+}
+
+.cleanerPulseTaskDate span {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.cleanerPulseTaskBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cleanerPulseTaskNote {
+  min-height: 62px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.cleanerPulseTaskNote span {
+  display: block;
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.cleanerPulseTaskNote p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.4;
+
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.cleanerPulseTaskFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 11px;
+  border-top: 1px solid #eef2f7;
+}
+
+.cleanerPulseTaskFooter span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cleanerPulseTaskFooter strong {
+  color: #2563eb;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .cleanerPulseTaskGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .cleanerPulseTaskCard {
+    padding: 15px;
+    border-radius: 18px;
+  }
+
+  .cleanerPulseTaskCardTop h3 {
+    font-size: 17px;
+  }
+}/* ==========================
+   MAINTENANCE PHOTO UPLOAD
+   ========================== */
+
+.completeTaskMaintenanceFields .completeTaskUpload {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.completeTaskMaintenanceFields .completeTaskUpload > small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.completeTaskMaintenanceFields .completeTaskUpload input[type="file"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.completeTaskMaintenanceFields
+  .completeTaskUpload
+  input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #b45309;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.completeTaskMaintenanceFields
+  .completeTaskUpload
+  input[type="file"]::file-selector-button:hover {
+  background: #ffedd5;
+}.cleanerPulseInvoiceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cleanerPulseInvoiceInfo span {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.cleanerPulseInvoiceInfo strong {
+  font-size: 24px;
+  line-height: 1;
+  color: #0f172a;
+  font-weight: 800;
+}.cleanerPulseInsight {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.cleanerPulseInsight span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.cleanerPulseInsight p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #334155;
+}/* TASK CARD CAN OPEN FROM PULSE OR SCHEDULE */
+.cleanerTaskPreviewGlobalOverlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000002 !important;
+
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(3px);
+  border-radius: 0 !important;
+}
+
+.cleanerTaskPreviewGlobalOverlay .cleanerTaskPreviewCard {
+  width: min(460px, 100%);
+  max-height: min(82vh, 760px);
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .cleanerTaskPreviewGlobalOverlay {
+    align-items: flex-end;
+    padding: 12px;
+  }
+
+  .cleanerTaskPreviewGlobalOverlay .cleanerTaskPreviewCard {
+    width: 100%;
+    max-height: 80vh;
+  }
+}/* =========================================================
+   CLEANER PROPERTY DETAIL
+========================================================= */
+
+.cleanerPropertyDetailPage {
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 8px 4px 50px;
+}
+
+.cleanerPropertyDetailBackButton {
+  margin-bottom: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.cleanerPropertyDetailHero {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.4fr);
+  overflow: hidden;
+  margin-bottom: 24px;
+  border: 1px solid #dce6f1;
+  border-radius: 26px;
+  background: #ffffff;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08);
+}
+
+.cleanerPropertyDetailImage {
+  min-height: 310px;
+  background: linear-gradient(145deg, #dbeafe, #e2e8f0);
+}
+
+.cleanerPropertyDetailImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cleanerPropertyDetailImagePlaceholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 310px;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: #64748b;
+}
+
+.cleanerPropertyDetailImagePlaceholder span {
+  font-size: 3rem;
+}
+
+.cleanerPropertyDetailImagePlaceholder small {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cleanerPropertyDetailHeroContent {
+  padding: 30px;
+}
+
+.cleanerPropertyDetailTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.cleanerPropertyDetailTitleRow h1 {
+  margin: 0;
+  color: #172033;
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.cleanerPropertyDetailTitleRow .cleanerPropertyCalendarBadge {
+  position: static;
+}
+
+.cleanerPropertyDetailAddress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.cleanerPropertyDetailQuickStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.cleanerPropertyDetailQuickStats > div {
+  padding: 15px;
+  border: 1px solid #e3eaf2;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.cleanerPropertyDetailQuickStats span {
+  display: block;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.cleanerPropertyDetailQuickStats strong {
+  display: block;
+  margin-top: 6px;
+  color: #172033;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.cleanerPropertyDetailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.cleanerPropertyDetailCard {
+  padding: 22px;
+  border: 1px solid #dce6f1;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.06);
+}
+
+.cleanerPropertyDetailWideCard {
+  grid-column: 1 / -1;
+}
+
+.cleanerPropertyDetailCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.cleanerPropertyDetailCardHeader h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 1.15rem;
+}
+
+.cleanerPropertyDetailCardHeader > span {
+  display: grid;
+  min-width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 12px;
+  background: #eef5ff;
+  color: #172033;
+  font-weight: 900;
+}
+
+.cleanerPropertyDetailInfoList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cleanerPropertyDetailInfoList > div {
+  padding: 13px 14px;
+  border: 1px solid #e7edf4;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.cleanerPropertyDetailInfoList span,
+.cleanerPropertyDetailInsightGrid span {
+  display: block;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.cleanerPropertyDetailInfoList strong,
+.cleanerPropertyDetailInsightGrid strong {
+  display: block;
+  margin-top: 5px;
+  color: #172033;
+  font-size: 0.86rem;
+}
+
+.cleanerPropertyDetailNotes {
+  min-height: 190px;
+  padding: 16px;
+  border: 1px solid #e7edf4;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.cleanerPropertyDetailNotes p {
+  margin: 0;
+}
+
+.cleanerPropertyDetailTaskList {
+  display: grid;
+  gap: 10px;
+}
+
+.cleanerPropertyDetailTask {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 15px;
+  border: 1px solid #e5ebf3;
+  border-radius: 15px;
+  background: #f8fafc;
+}
+
+.cleanerPropertyDetailTask strong,
+.cleanerPropertyDetailTask span {
+  display: block;
+}
+
+.cleanerPropertyDetailTask > div span {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
+.cleanerPropertyDetailTaskStatus {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #315b9c;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.cleanerPropertyDetailEmpty {
+  display: grid;
+  min-height: 150px;
+  place-content: center;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  color: #64748b;
+  text-align: center;
+}
+
+.cleanerPropertyDetailEmpty p {
+  margin: 0;
+}
+
+.cleanerPropertyDetailInsightGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cleanerPropertyDetailInsightGrid > div {
+  padding: 16px;
+  border: 1px solid #e5ebf3;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+@media screen and (max-width: 1000px) {
+  .cleanerPropertyDetailHero {
+    grid-template-columns: 1fr;
+  }
+
+  .cleanerPropertyDetailImage,
+  .cleanerPropertyDetailImagePlaceholder {
+    min-height: 240px;
+  }
+
+  .cleanerPropertyDetailInsightGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 760px) {
+  .cleanerPropertyDetailPage {
+    padding: 4px 0 105px;
+  }
+
+  .cleanerPropertyDetailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .cleanerPropertyDetailWideCard {
+    grid-column: auto;
+  }
+
+  .cleanerPropertyDetailHeroContent {
+    padding: 22px;
+  }
+
+  .cleanerPropertyDetailTitleRow {
+    flex-direction: column;
+  }
+
+  .cleanerPropertyDetailQuickStats,
+  .cleanerPropertyDetailInfoList,
+  .cleanerPropertyDetailInsightGrid {
+    grid-template-columns: 1fr;
+  }
 }

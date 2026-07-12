@@ -121,14 +121,37 @@ export function CalendarPage({
           <div className="readOnlyPropertyField">{activePropertyName}</div>
         </label>
 
-        <div className="calendarLegend calendarLegendSticky">
-          <span><i className="legendDot sourceVRBO" /> VRBO</span>
-          <span><i className="legendDot sourceAirbnb" /> Airbnb</span>
-          <span><i className="legendDot sourceGuestReservation" /> Guest</span>
-          <span><i className="legendDot sourceOwnerBlock" /> Block</span>
-          <span><i className="legendDot needsCleaner" /> Needs Cleaner</span>
-          <span><i className="legendDot conflict" /> Conflict</span>
-        </div>
+       <div className="calendarLegend calendarLegendSticky">
+  <span className="legendItem">
+    <span className="legendDot needsCleanerDot" />
+    Needs Cleaner
+  </span>
+
+  <span className="legendItem">
+    <span className="legendDot assignedDot" />
+    Assigned
+  </span>
+
+  <span className="legendItem">
+    <span className="legendDot acceptedDot" />
+    Accepted
+  </span>
+
+  <span className="legendItem">
+    <span className="legendDot inProcessDot" />
+    In Process
+  </span>
+
+  <span className="legendItem">
+    <span className="legendDot completedDot" />
+    Completed
+  </span>
+
+  <span className="legendItem">
+    <span className="legendDot ownerBlockDot" />
+    Owner Block
+  </span>
+</div>
       </section>
 
       <section className="calendarLayout">
