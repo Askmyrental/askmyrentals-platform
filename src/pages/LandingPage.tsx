@@ -24,9 +24,9 @@ function FeatureCard({ icon, title, copy }: FeatureCardProps) {
 }
 
 export default function LandingPage({
-  cleanerLoginPath = "/cleaner-login",
-  ownerLoginPath = "/owner-login",
-  cleanerSignupPath = "/cleaner-signup",
+  cleanerLoginPath = "/cleaner/login",
+  ownerLoginPath = "/owner/login",
+  cleanerSignupPath = "/cleaner/signup",
 }: LandingPageProps) {
   const goTo = (path: string) => {
     window.location.href = path;

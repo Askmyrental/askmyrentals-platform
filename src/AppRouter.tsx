@@ -7,7 +7,16 @@ import SignupPage from "./pages/SignupPage";
 export default function AppRouter() {
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route
+        path="/"
+        element={
+          <LandingPage
+            cleanerLoginPath="/cleaner/login"
+            ownerLoginPath="/owner/login"
+            cleanerSignupPath="/cleaner/signup"
+          />
+        }
+      />
 
       <Route
         path="/owner/login"
@@ -36,10 +45,12 @@ export default function AppRouter() {
 
       <Route
         path="/signup"
-        element={<Navigate to="/" replace />}
+        element={<Navigate to="/cleaner/signup" replace />}
       />
 
-      <Route path="/app" element={<AuthGate />} />
+      <Route path="/app/*" element={<AuthGate />} />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
