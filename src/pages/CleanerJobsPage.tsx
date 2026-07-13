@@ -73,6 +73,7 @@ export default function CleanerJobsPage({
   const [showCreateJob, setShowCreateJob] = useState(false);
   const [selectedJob, setSelectedJob] = useState<CleanerJob | null>(null);
   const [editingJob, setEditingJob] = useState<CleanerJob | null>(null);
+  const [showJobCreatedNotice, setShowJobCreatedNotice] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -195,11 +196,13 @@ export default function CleanerJobsPage({
 
   function openNewJob() {
     resetJobForm();
+    setShowJobCreatedNotice(false);
     setErrorMessage("");
     setShowCreateJob(true);
   }
 
   function openEditJob(job: CleanerJob) {
+    setShowJobCreatedNotice(false);
     setEditingJob(job);
     setForm({
       propertyId: job.property_id ?? "",
@@ -281,6 +284,7 @@ export default function CleanerJobsPage({
       if (error) throw error;
 
       const savedJob = data as CleanerJob;
+      const wasEditingJob = Boolean(editingJob);
 
       setJobs((current) => {
         const nextJobs = editingJob
@@ -295,6 +299,7 @@ export default function CleanerJobsPage({
       });
 
       setSelectedJob(savedJob);
+      setShowJobCreatedNotice(!wasEditingJob);
       setShowCreateJob(false);
       resetJobForm();
     } catch (error) {
@@ -534,7 +539,10 @@ export default function CleanerJobsPage({
                   <button
                     className="secondaryButton"
                     type="button"
-                    onClick={() => setSelectedJob(job)}
+                    onClick={() => {
+                      setShowJobCreatedNotice(false);
+                      setSelectedJob(job);
+                    }}
                   >
                     Open Job
                   </button>
@@ -576,7 +584,13 @@ export default function CleanerJobsPage({
       )}
 
       {selectedJob && (
-        <div className="modalOverlay" onClick={() => setSelectedJob(null)}>
+        <div
+          className="modalOverlay"
+          onClick={() => {
+            setSelectedJob(null);
+            setShowJobCreatedNotice(false);
+          }}
+        >
           <section
             className="modalCard cleanerJobCard"
             onClick={(event) => event.stopPropagation()}
@@ -590,11 +604,34 @@ export default function CleanerJobsPage({
               <button
                 className="secondaryButton"
                 type="button"
-                onClick={() => setSelectedJob(null)}
+                onClick={() => {
+                  setSelectedJob(null);
+                  setShowJobCreatedNotice(false);
+                }}
               >
                 Close
               </button>
             </div>
+
+            {showJobCreatedNotice && (
+              <section
+                className="cleanerJobCreatedNotice"
+                role="status"
+                aria-live="polite"
+              >
+                <div className="cleanerJobCreatedNoticeIcon" aria-hidden="true">
+                  ✓
+                </div>
+
+                <div className="cleanerJobCreatedNoticeCopy">
+                  <strong>Job created successfully</strong>
+                  <p>
+                    This job is now on your schedule and ready to track from the
+                    Schedule page.
+                  </p>
+                </div>
+              </section>
+            )}
 
             <section className="cleanerJobSection">
               <p><strong>Customer:</strong> {selectedJob.customer_name}</p>
