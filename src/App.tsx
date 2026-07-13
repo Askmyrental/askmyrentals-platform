@@ -1,4 +1,7 @@
+import CleanerProfilePage from "./pages/CleanerProfilePage";
+import CleanerJobsPage from "./pages/CleanerJobsPage";
 import CleanerPropertiesPage from "./pages/CleanerPropertiesPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import type { CleanerPropertyFormValues } from "./pages/CleanerCreatePropertyPage";
 import { OperationTimelineCalendar } from "./components/OperationsTimelineCalendar";
 import GuestReadyPage from "./pages/GuestReadyPage";
@@ -829,9 +832,19 @@ function decodeCleanerPropertyDetails(notes: unknown) {
 
 
 
-export default function App() 
+type AppProps = {
+  initialPage?: string;
+  userRole?: string | null;
+};
+
+export default function App({ initialPage, userRole }: AppProps) 
 {
-  const [activePage, setActivePage] = useState<string>("Pulse");
+  const isAuthenticatedCleaner =
+    userRole === "cleaner" || userRole === "employee";
+
+  const [activePage, setActivePage] = useState<string>(
+    initialPage ?? (isAuthenticatedCleaner ? "Cleaner Portal" : "Pulse")
+  );
   const [showOwnerMobileMenu, setShowOwnerMobileMenu] = useState(false);
   const [openCleanerScheduleOnLoad, setOpenCleanerScheduleOnLoad] = useState(false);
 const cleanerModePages = [
@@ -840,9 +853,11 @@ const cleanerModePages = [
   "Cleaner Properties",
   "Cleaner Jobs",
   "Cleaner Invoices",
+  "Cleaner Profile",
 ];
 
-  const isCleanerMode = cleanerModePages.includes(activePage);
+  const isCleanerMode =
+    isAuthenticatedCleaner || cleanerModePages.includes(activePage);
   const [homes, setHomes] = useState<Home[]>([]);
  const [cleaners, setCleaners] = useState<Cleaner[]>(starterCleaners);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -913,6 +928,8 @@ useEffect(() => {
   });
   const [importMessage, setImportMessage] = useState("Demo data is active. Switch to Live Mode when you are ready to start from real VRBO/iCal sources.");
   const [cleanerPortalId, setCleanerPortalId] = useState(starterCleaners[0]?.id ?? "");
+  const [invoiceTaskDraft, setInvoiceTaskDraft] = useState<any | null>(null);
+  const [readyInvoiceTasks, setReadyInvoiceTasks] = useState<any[]>([]);
  const [cleanerIssueForm, setCleanerIssueForm] = useState<CleanerIssueForm>({
   reservationId: "",
   homeId: "",
@@ -936,10 +953,12 @@ useEffect(() => {
   
   const [saveStatus] = useState("Connected to Supabase");
   useEffect(() => {
-  loadPropertiesFromSupabase();
-  loadReservationsFromSupabase();
-  loadWorkOrdersFromSupabase();
-  loadCleanersFromSupabase();
+  void Promise.all([
+    loadPropertiesFromSupabase(),
+    loadReservationsFromSupabase(),
+    loadWorkOrdersFromSupabase(),
+    loadCleanersFromSupabase(),
+  ]);
 }, []);
 
 
@@ -1481,13 +1500,23 @@ async function loadPropertiesFromSupabase() {
 
   const mappedHomes: Home[] = (data ?? []).map((property: any) => {
     const cleanerDetails = decodeCleanerPropertyDetails(property.notes) ?? {};
-    const calendarFeedUrl =
+    const vrboCalendarUrl = String(
+      cleanerDetails.vrboCalendarUrl ??
       cleanerDetails.calendarFeedUrl ??
       property.calendar_feed_url ??
       property.vrbo_ical_url ??
       property.vrbo_calendar_url ??
       property.vrbo_property_id ??
-      "";
+      ""
+    ).trim();
+
+    const airbnbCalendarUrl = String(
+      cleanerDetails.airbnbCalendarUrl ??
+      property.airbnb_ical_url ??
+      property.airbnb_calendar_url ??
+      property.airbnb_property_id ??
+      ""
+    ).trim();
 
     return {
       id: property.id,
@@ -1502,12 +1531,12 @@ async function loadPropertiesFromSupabase() {
       address: cleanerDetails.address ?? property.address ?? "",
       setupMode: "VRBO",
       vrboId: "",
-      airbnbUrl: "",
-      iCalUrl: calendarFeedUrl,
-      calendarFeedUrl,
+      airbnbUrl: airbnbCalendarUrl,
+      iCalUrl: vrboCalendarUrl,
+      calendarFeedUrl: vrboCalendarUrl,
       calendarSource:
         cleanerDetails.calendarSource ??
-        detectCalendarSource(calendarFeedUrl),
+        detectCalendarSource(vrboCalendarUrl || airbnbCalendarUrl),
       defaultCleanerId: property.default_cleaner_id ?? "",
       bedrooms: Number(cleanerDetails.bedrooms ?? property.bedrooms ?? 0),
       bathrooms: Number(cleanerDetails.bathrooms ?? property.bathrooms ?? 0),
@@ -1846,8 +1875,14 @@ if (!propertyForm.name.trim()) {
     property_name: propertyForm.name.trim(),
     default_cleaner_id: propertyForm.defaultCleanerId || null,
     market: propertyForm.city.trim(),
-    vrbo_property_id: propertyForm.iCalUrl || null,
-airbnb_property_id: propertyForm.airbnbUrl || null,
+    calendar_feed_url: propertyForm.iCalUrl.trim() || null,
+    calendar_source: propertyForm.iCalUrl.trim()
+      ? detectCalendarSource(propertyForm.iCalUrl)
+      : propertyForm.airbnbUrl.trim()
+        ? detectCalendarSource(propertyForm.airbnbUrl)
+        : null,
+    vrbo_property_id: propertyForm.iCalUrl.trim() || null,
+    airbnb_property_id: propertyForm.airbnbUrl.trim() || null,
   });
 
   if (error) {
@@ -1886,6 +1921,12 @@ async function updateProperty(id: string, updates: Partial<Home>) {
     .update({
       property_name: nextHome.name,
       market: nextHome.city,
+      calendar_feed_url: String(nextHome.iCalUrl ?? "").trim() || null,
+      calendar_source: String(nextHome.iCalUrl ?? "").trim()
+        ? detectCalendarSource(String(nextHome.iCalUrl))
+        : String(nextHome.airbnbUrl ?? "").trim()
+          ? detectCalendarSource(String(nextHome.airbnbUrl))
+          : null,
       vrbo_property_id: String(nextHome.iCalUrl ?? "").trim() || null,
       airbnb_property_id: String(nextHome.airbnbUrl ?? "").trim() || null,
       default_cleaner_id: nextHome.defaultCleanerId || null,
@@ -2745,6 +2786,22 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
 }
    
   
+  function openInvoiceFromTask(task: any) {
+    setInvoiceTaskDraft(task);
+    setReadyInvoiceTasks([]);
+    setSelectedCalendarItem(null);
+    setShowOwnerMobileMenu(false);
+    setActivePage("Cleaner Invoices");
+  }
+
+  function reviewReadyInvoices(tasks: any[]) {
+    setInvoiceTaskDraft(null);
+    setReadyInvoiceTasks(tasks);
+    setSelectedCalendarItem(null);
+    setShowOwnerMobileMenu(false);
+    setActivePage("Cleaner Invoices");
+  }
+
   function renderPlaceholder() {
     return (
       <section className="placeholderPage">
@@ -2819,7 +2876,7 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
 
   if (isCleanerMode && item.page === "Cleaner Schedule") {
     setOpenCleanerScheduleOnLoad(true);
-    setActivePage("Cleaner Portal");
+    setActivePage("Cleaner Schedule");
     setShowOwnerMobileMenu(false);
     return;
   }
@@ -2881,7 +2938,7 @@ async function submitCleanerMaintenanceIssue(event: React.FormEvent<HTMLFormElem
             <div className="ownerMobileMenuGrid">
               {(isCleanerMode
                 ? [
-                    { label: "Profile", page: "Cleaner Portal" },
+                   { label: "Profile", page: "Cleaner Profile" },
                     { label: "Schedule", page: "Cleaner Schedule" },
                     { label: "Reports", page: "Cleaner Reports" },
                     { label: "Invoices", page: "Cleaner Invoices" },
@@ -3130,8 +3187,15 @@ setSearch={setSearch}
   getUrgency={getUrgency}
   formatDate={formatDate}
   openCleanerScheduleOnLoad={openCleanerScheduleOnLoad}
-  setOpenCleanerScheduleOnLoad={setOpenCleanerScheduleOnLoad}
+ setOpenCleanerScheduleOnLoad={setOpenCleanerScheduleOnLoad}
+ onCreateInvoiceFromTask={openInvoiceFromTask}
+ onReviewReadyInvoices={reviewReadyInvoices}
 />
+)}
+{activePage === "Cleaner Profile" && (
+  <CleanerProfilePage
+    // We'll pass props here after we build the page
+  />
 )}
 {activePage === "Cleaner Schedule" && (
   <CleanerPortalPage
@@ -3150,27 +3214,10 @@ setSearch={setSearch}
     formatDate={formatDate}
     openCleanerScheduleOnLoad={openCleanerScheduleOnLoad}
 setOpenCleanerScheduleOnLoad={setOpenCleanerScheduleOnLoad}
+onCreateInvoiceFromTask={openInvoiceFromTask}
+onReviewReadyInvoices={reviewReadyInvoices}
   />
 )}
-{activePage === "Cleaner Portal" && (
-  <CleanerPortalPage
-    cleaners={cleaners}
-    homes={homes}
-    reservations={reservations}
-    cleanerPortalId={cleanerPortalId}
-    cleanerIssueForm={cleanerIssueForm}
-    setCleanerIssueForm={setCleanerIssueForm}
-    updateReservation={updateReservation}
-    updateReservationFromCleaner={updateReservationFromCleaner}
-    submitCleanerMaintenanceIssue={submitCleanerMaintenanceIssue}
-    isImportedReservation={isImportedReservation}
-    getUrgency={getUrgency}
-    formatDate={formatDate}
-    openCleanerScheduleOnLoad={openCleanerScheduleOnLoad}
-    setOpenCleanerScheduleOnLoad={setOpenCleanerScheduleOnLoad}
-  />
-)}
-
 {activePage === "Cleaner Properties" && (
   <CleanerPropertiesPage
     homes={homes}
@@ -3181,6 +3228,21 @@ setOpenCleanerScheduleOnLoad={setOpenCleanerScheduleOnLoad}
     onCreateProperty={createCleanerProperty}
     onUpdateProperty={updateCleanerProperty}
     onDeleteProperty={deleteCleanerProperty}
+  />
+)}
+{activePage === "Cleaner Jobs" && (
+  <CleanerJobsPage
+    homes={homes}
+    onCreateInvoiceFromJob={openInvoiceFromTask}
+  />
+)}
+{activePage === "Cleaner Invoices" && (
+  <InvoicesPage
+    homes={homes}
+    reservations={reservations}
+    initialTask={invoiceTaskDraft}
+    readyTasks={readyInvoiceTasks}
+    onInitialTaskConsumed={() => setInvoiceTaskDraft(null)}
   />
 )}
         {activePage === "Maintenance" && (
@@ -3255,8 +3317,12 @@ getCalendarSyncIssues={getCalendarSyncIssues}
     "Settings",
     "Cleaners",
     "Cleaner Portal",
+    "Cleaner Schedule",
+    "Cleaner Profile",
     "Housekeeping",
     "Cleaner Properties",
+    "Cleaner Jobs",
+    "Cleaner Invoices",
   ] as string[]
 ).includes(activePage) && renderPlaceholder()}
       </main>
@@ -3291,7 +3357,7 @@ getCalendarSyncIssues={getCalendarSyncIssues}
 
 if (isCleanerMode && item.page === "Cleaner Schedule") {
   setOpenCleanerScheduleOnLoad(true);
-  setActivePage("Cleaner Portal");
+  setActivePage("Cleaner Schedule");
   setShowOwnerMobileMenu(false);
   return;
 }

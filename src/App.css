@@ -11220,5 +11220,192 @@ body,
 .cleanerPropertyRequestCopyStatus {
   color: #047857;
   font-weight: 800;
+}/* =========================================================
+   CLEANER PULSE — PROFESSIONAL MOBILE HEADER
+   Paste at the absolute bottom of index.css
+   ========================================================= */
+
+.cleanerMobileStatusLine {
+  display: none;
+}
+
+.cleanerTodaySnapshot button:disabled,
+.cleanerMobileStatusLine button:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+@media (max-width: 900px) {
+  .cleanerPortalHero.cleanerCommandHero {
+    display: grid !important;
+    gap: 10px !important;
+    padding: 14px 15px !important;
+    margin: 0 0 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 20px !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .cleanerCommandIntro {
+    margin: 0 !important;
+  }
+
+  .cleanerCommandIntro .eyebrow {
+    display: block !important;
+    margin: 0 0 4px !important;
+    color: #64748b !important;
+    font-size: 9px !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  .cleanerCommandIntro h2 {
+    margin: 0 !important;
+    color: #172033 !important;
+    font-size: 20px !important;
+    line-height: 1.15 !important;
+    letter-spacing: -0.025em !important;
+  }
+
+  .cleanerCommandIntro .headerSubtext {
+    display: block !important;
+    margin: 4px 0 0 !important;
+    color: #64748b !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+
+  .cleanerTodayLabel,
+  .cleanerTodaySnapshot {
+    display: none !important;
+  }
+
+  .cleanerMobileStatusLine {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+    align-items: stretch;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid #eef2f7;
+  }
+
+  .cleanerMobileStatusLine button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 5px 3px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #172033;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .cleanerMobileStatusLine button:not(:disabled):hover,
+  .cleanerMobileStatusLine button:not(:disabled):active {
+    background: #f8fafc;
+  }
+
+  .cleanerMobileStatusIcon {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 10px;
+    background: #f1f5f9;
+    font-size: 14px;
+  }
+
+  .cleanerMobileStatusLine button > span:last-child {
+    display: grid;
+    min-width: 0;
+    gap: 1px;
+  }
+
+  .cleanerMobileStatusLine strong {
+    color: #172033;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .cleanerMobileStatusLine small {
+    overflow: hidden;
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 750;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cleanerMobileStatusDivider {
+    width: 1px;
+    background: #e2e8f0;
+  }
+
+  .cleanerHealthCard.compactCleanerHealthCard {
+    padding: 12px 14px !important;
+    margin: 0 0 8px !important;
+    border-radius: 18px !important;
+  }
+
+  .compactCleanerHealthCard .cleanerHealthTopline {
+    gap: 12px !important;
+  }
+
+  .compactCleanerHealthCard .eyebrow {
+    display: none !important;
+  }
+
+  .compactCleanerHealthCard h3 {
+    font-size: 14px !important;
+  }
+
+  .compactCleanerHealthCard .cleanerHealthScore strong {
+    font-size: 19px !important;
+  }
+
+  .compactCleanerHealthCard .cleanerHealthScore span {
+    font-size: 9px !important;
+  }
+
+  .compactCleanerHealthCard > p {
+    display: none !important;
+  }
+
+  .compactCleanerHealthCard .cleanerHealthMeter {
+    height: 6px !important;
+    margin: 7px 0 0 !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .cleanerPortalHero.cleanerCommandHero {
+    padding: 13px !important;
+  }
+
+  .cleanerCommandIntro h2 {
+    font-size: 18px !important;
+  }
+
+  .cleanerMobileStatusLine {
+    gap: 5px;
+  }
+
+  .cleanerMobileStatusLine button {
+    gap: 6px;
+  }
+
+  .cleanerMobileStatusIcon {
+    width: 27px;
+    height: 27px;
+  }
+
+  .cleanerMobileStatusLine small {
+    font-size: 8px;
+  }
 }
 

@@ -42,9 +42,10 @@ export function CalendarPage({
   getReservationDisplayTitle,
   onCalendarCreate,
 }: CalendarPageProps) {
-  const activePropertyId = selectedPropertyId || homes[0]?.id || "";
+  const activePropertyId = String(selectedPropertyId || homes[0]?.id || "");
+  const dateKey = (value: unknown) => String(value ?? "").slice(0, 10);
   const activePropertyName =
-    homes.find((home) => home.id === activePropertyId)?.name ??
+    homes.find((home) => String(home.id) === activePropertyId)?.name ??
     homes[0]?.name ??
     "No Property Selected";
 
@@ -52,9 +53,9 @@ export function CalendarPage({
     ? reservations
         .filter(
           (reservation) =>
-            reservation.homeId === activePropertyId &&
-            selectedCalendarDateKey >= reservation.arrival &&
-            selectedCalendarDateKey < reservation.departure
+            String(reservation.homeId) === activePropertyId &&
+            dateKey(selectedCalendarDateKey) >= dateKey(reservation.arrival) &&
+            dateKey(selectedCalendarDateKey) < dateKey(reservation.departure)
         )
         .sort((a, b) => {
           if (isTaskSource(a.source) && !isTaskSource(b.source)) return 1;
@@ -66,9 +67,9 @@ export function CalendarPage({
   const selectedDateBlocks = selectedCalendarDateKey
     ? calendarBlocks.filter(
         (block) =>
-          block.homeId === activePropertyId &&
-          selectedCalendarDateKey >= block.start &&
-          selectedCalendarDateKey < block.end
+          String(block.homeId) === activePropertyId &&
+          dateKey(selectedCalendarDateKey) >= dateKey(block.start) &&
+          dateKey(selectedCalendarDateKey) < dateKey(block.end)
       )
     : [];
 
@@ -199,8 +200,12 @@ export function CalendarPage({
 
               <div className="dashboardReservationCards">
                 {selectedDateReservations.map((reservation) => {
-                  const home = homes.find((item) => item.id === reservation.homeId);
-                  const cleaner = cleaners.find((item) => item.id === reservation.cleanerId);
+                  const home = homes.find(
+                    (item) => String(item.id) === String(reservation.homeId)
+                  );
+                  const cleaner = cleaners.find(
+                    (item) => String(item.id) === String(reservation.cleanerId)
+                  );
                   const isTask = isTaskSource(reservation.source);
 
                   return (
@@ -248,7 +253,7 @@ export function CalendarPage({
                   >
                     <span className="platformBadge">BLOCK</span>
                     <h3>{block.title}</h3>
-                    <p>{homes.find((home) => home.id === block.homeId)?.name ?? "Unknown property"}</p>
+                    <p>{homes.find((home) => String(home.id) === String(block.homeId))?.name ?? "Unknown property"}</p>
 
                     <div className="reservationPreviewMeta">
                       <div>
@@ -274,7 +279,7 @@ export function CalendarPage({
 
               <p className="mutedText">
                 {"guestName" in selectedCalendarItem
-                  ? homes.find((home) => home.id === selectedCalendarItem.homeId)?.name
+                  ? homes.find((home) => String(home.id) === String(selectedCalendarItem.homeId))?.name
                   : selectedCalendarItem.type}
               </p>
             </>

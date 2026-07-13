@@ -18,6 +18,7 @@ type CompleteTaskModalProps = {
   home: any;
   onClose: () => void;
   onUndoStart: () => void;
+  onSaveDraft: (result: CompleteTaskResult) => void;
   onFinish: (result: CompleteTaskResult) => void;
 };
 
@@ -26,6 +27,7 @@ export default function CompleteTaskModal({
   home,
   onClose,
   onUndoStart,
+  onSaveDraft,
   onFinish,
 }: CompleteTaskModalProps) {
   const [guestReady, setGuestReady] = useState<"yes" | "no">("yes");
@@ -46,16 +48,53 @@ export default function CompleteTaskModal({
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const savedDraft = task?.completionDraft;
+
+    setGuestReady(savedDraft?.guestReady === false ? "no" : "yes");
+    setNotes(savedDraft?.notes ?? "");
+    setIncludePhotos(Boolean(savedDraft?.includePhotos));
+    setPhotos([]);
+    setMaintenanceChoice(
+      savedDraft?.maintenanceReported ? "issue" : "none"
+    );
+    setMaintenanceTitle(savedDraft?.maintenanceTitle ?? "");
+    setMaintenanceDescription(
+      savedDraft?.maintenanceDescription ?? ""
+    );
+    setMaintenanceUrgency(
+      savedDraft?.maintenanceUrgency ?? "Medium"
+    );
+    setMaintenancePhotos([]);
     setCleaningFee(
       String(
-        task?.cleaningFee ??
+        savedDraft?.cleaningFee ??
+          task?.cleaningFee ??
           task?.amount ??
           task?.invoiceAmount ??
           task?.price ??
           ""
       )
     );
+    setError("");
   }, [task]);
+
+  const buildResult = (): CompleteTaskResult => ({
+    guestReady: guestReady === "yes",
+    notes: notes.trim(),
+    includePhotos,
+    photos,
+    maintenanceReported: maintenanceChoice === "issue",
+    maintenanceTitle: maintenanceTitle.trim(),
+    maintenanceDescription: maintenanceDescription.trim(),
+    maintenanceUrgency,
+    maintenancePhotos,
+    cleaningFee: cleaningFee.trim(),
+  });
+
+  const handleSaveDraft = () => {
+    setError("");
+    onSaveDraft(buildResult());
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -79,18 +118,7 @@ export default function CompleteTaskModal({
       return;
     }
 
-    onFinish({
-      guestReady: guestReady === "yes",
-      notes: notes.trim(),
-      includePhotos,
-      photos,
-      maintenanceReported: maintenanceChoice === "issue",
-      maintenanceTitle: maintenanceTitle.trim(),
-      maintenanceDescription: maintenanceDescription.trim(),
-      maintenanceUrgency,
-      maintenancePhotos,
-      cleaningFee: cleaningFee.trim(),
-    });
+    onFinish(buildResult());
   };
 
   return (
@@ -369,28 +397,40 @@ export default function CompleteTaskModal({
           )}
 
           <div className="completeTaskActions">
-            <button
-              type="button"
-              className="secondaryButton"
-              onClick={onClose}
-            >
-              Back to Task
-            </button>
+            <div className="completeTaskSecondaryActions">
+              <button
+                type="button"
+                className="secondaryButton"
+                onClick={onClose}
+              >
+                Back to Task
+              </button>
 
-            <button
-              type="button"
-              className="completeTaskUndoButton"
-              onClick={onUndoStart}
-            >
-              Undo Start
-            </button>
+              <button
+                type="button"
+                className="completeTaskUndoButton"
+                onClick={onUndoStart}
+              >
+                Undo Start
+              </button>
+            </div>
 
-            <button
-              type="submit"
-              className="completeTaskFinishButton"
-            >
-              Finish &amp; Notify Owner
-            </button>
+            <div className="completeTaskFinalActions">
+              <button
+                type="button"
+                className="completeTaskDraftButton"
+                onClick={handleSaveDraft}
+              >
+                Save &amp; Finish Later
+              </button>
+
+              <button
+                type="submit"
+                className="completeTaskFinishButton"
+              >
+                Finish &amp; Notify Owner
+              </button>
+            </div>
           </div>
         </form>
       </div>

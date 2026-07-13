@@ -14,7 +14,6 @@ export default function CleanerPortalCalendar({
   onSelectTask,
 }: CleanerPortalCalendarProps) {
   const today = new Date();
-
   const [calendarMonth, setCalendarMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1)
   );
@@ -24,7 +23,6 @@ export default function CleanerPortalCalendar({
     calendarMonth.getMonth(),
     1
   );
-
   const calendarStart = new Date(monthStart);
   calendarStart.setDate(monthStart.getDate() - monthStart.getDay());
 
@@ -38,72 +36,97 @@ export default function CleanerPortalCalendar({
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
-
     return `${year}-${month}-${day}`;
   };
+
+  const normalizeDateKey = (value: unknown) =>
+    String(value ?? "").slice(0, 10);
+
+  const normalizeId = (value: unknown) => String(value ?? "");
+
+  const getTaskDate = (task: any) =>
+    task.departure ??
+    task.scheduledDate ??
+    task.scheduled_date ??
+    "";
+
+  const getTaskTime = (task: any) =>
+    task.scheduledTime ??
+    task.scheduled_time ??
+    "";
 
   const tasksForDay = (date: Date) => {
     const key = toDateKey(date);
 
-    return cleanerTasks.filter(
-      (task) => task.departure === key
-    );
+    return cleanerTasks
+      .filter((task) => normalizeDateKey(getTaskDate(task)) === key)
+      .sort((first, second) =>
+        String(getTaskTime(first)).localeCompare(String(getTaskTime(second)))
+      );
   };
 
-  const isBackToBack = (task: any) =>
-    cleanerTasks.some(
+  const isBackToBack = (task: any) => {
+    if (task.isCleanerJob) return false;
+
+    return cleanerTasks.some(
       (item) =>
-        item.id !== task.id &&
-        item.homeId === task.homeId &&
-        item.arrival === task.departure
-    );
-
-  const goToPreviousMonth = () => {
-    setCalendarMonth(
-      new Date(
-        calendarMonth.getFullYear(),
-        calendarMonth.getMonth() - 1,
-        1
-      )
+        !item.isCleanerJob &&
+        normalizeId(item.id) !== normalizeId(task.id) &&
+        normalizeId(item.homeId) === normalizeId(task.homeId) &&
+        normalizeDateKey(item.arrival) ===
+          normalizeDateKey(task.departure)
     );
   };
 
-  const goToNextMonth = () => {
-    setCalendarMonth(
-      new Date(
-        calendarMonth.getFullYear(),
-        calendarMonth.getMonth() + 1,
-        1
-      )
+  const getTaskTitle = (task: any) => {
+    if (task.isCleanerJob) {
+      return task.jobType ?? task.taskType ?? "Independent Job";
+    }
+
+    const home = homes.find(
+      (item) => normalizeId(item.id) === normalizeId(task.homeId)
     );
+
+    return home?.name ?? "Cleaning";
   };
 
   return (
-    <section
-      className="cleanerCalendarPanel"
-      id="cleanerPortalCalendar"
-    >
+    <section className="cleanerCalendarPanel" id="cleanerPortalCalendar">
       <div className="cleanerMonthHeader">
         <button
           type="button"
           className="calendarMonthNav"
-          onClick={goToPreviousMonth}
+          onClick={() =>
+            setCalendarMonth(
+              new Date(
+                calendarMonth.getFullYear(),
+                calendarMonth.getMonth() - 1,
+                1
+              )
+            )
+          }
           aria-label="Previous month"
         >
           ←
         </button>
 
         <strong>
-          {calendarMonth.toLocaleString("default", {
-            month: "long",
-          })}{" "}
+          {calendarMonth.toLocaleString("default", { month: "long" })}{" "}
           {calendarMonth.getFullYear()}
         </strong>
 
         <button
           type="button"
           className="calendarMonthNav"
-          onClick={goToNextMonth}
+          onClick={() =>
+            setCalendarMonth(
+              new Date(
+                calendarMonth.getFullYear(),
+                calendarMonth.getMonth() + 1,
+                1
+              )
+            )
+          }
           aria-label="Next month"
         >
           →
@@ -111,16 +134,11 @@ export default function CleanerPortalCalendar({
       </div>
 
       <div className="cleanerCalendarGrid">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-          (day) => (
-            <div
-              key={day}
-              className="cleanerCalendarDayName"
-            >
-              {day}
-            </div>
-          )
-        )}
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+          <div key={day} className="cleanerCalendarDayName">
+            {day}
+          </div>
+        ))}
 
         {days.map((day) => {
           const dateKey = toDateKey(day);
@@ -140,31 +158,39 @@ export default function CleanerPortalCalendar({
               </span>
 
               {dayTasks.slice(0, 2).map((task) => {
-                const home = homes.find(
-                  (item) => item.id === task.homeId
+                const urgency = getUrgency(
+                  normalizeDateKey(getTaskDate(task))
                 );
-                const urgency = getUrgency(task.departure);
+                const taskTime = getTaskTime(task);
 
                 return (
                   <button
                     key={`${task.id}-${dateKey}`}
                     type="button"
-                    className={`cleanerCalendarEvent ${urgency.className}`}
+                    className={`cleanerCalendarEvent ${
+                      task.isCleanerJob ? "cleanerCalendarJobEvent" : ""
+                    } ${urgency?.className ?? "normal"}`}
                     onClick={() =>
-                      onSelectTask?.(String(task.id))
+                      onSelectTask?.(normalizeId(task.id))
                     }
-                    aria-label={`Open task for ${
-                      home?.name ?? "Cleaning"
-                    } on ${dateKey}`}
+                    aria-label={`Open ${getTaskTitle(task)} on ${dateKey}`}
                   >
-                    <span>
-                      {home?.name ?? "Cleaning"}
-                    </span>
+                    {task.isCleanerJob && (
+                      <span className="cleanerCalendarJobBadge">
+                        JOB
+                      </span>
+                    )}
+
+                    <span>{getTaskTitle(task)}</span>
+
+                    {taskTime && (
+                      <small className="cleanerCalendarEventTime">
+                        {taskTime}
+                      </small>
+                    )}
 
                     {isBackToBack(task) && (
-                      <span className="calendarB2BBadge">
-                        🔁 B2B
-                      </span>
+                      <span className="calendarB2BBadge">🔁 B2B</span>
                     )}
                   </button>
                 );

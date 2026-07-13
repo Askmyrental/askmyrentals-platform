@@ -1,315 +1,369 @@
-import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
+import "./landing-page.css";
 
-export default function LandingPage() {
+type LandingPageProps = {
+  cleanerLoginPath?: string;
+  ownerLoginPath?: string;
+  cleanerSignupPath?: string;
+};
+
+type FeatureCardProps = {
+  icon: ReactNode;
+  title: string;
+  copy: string;
+};
+
+function FeatureCard({ icon, title, copy }: FeatureCardProps) {
   return (
-    <main className="landingPage">
-      <header className="landingHeader">
-        <Link to="/" className="landingBrand">
-          <span className="brandIcon">AMR</span>
-          <span>
-            Ask My Rentals
-            <small>Owner Operations</small>
-          </span>
-        </Link>
+    <article className="amrMarketingFeatureCard">
+      <div className="amrMarketingFeatureIcon">{icon}</div>
+      <h3>{title}</h3>
+      <p>{copy}</p>
+    </article>
+  );
+}
 
-        <nav className="landingNav">
-          <a href="#features">Features</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#resources">Resources</a>
-          <Link to="/login">Log In</Link>
-          <Link to="/signup" className="primaryButton">
-            Start Free
-          </Link>
+export default function LandingPage({
+  cleanerLoginPath = "/cleaner-login",
+  ownerLoginPath = "/owner-login",
+  cleanerSignupPath = "/cleaner-signup",
+}: LandingPageProps) {
+  const goTo = (path: string) => {
+    window.location.href = path;
+  };
+
+  return (
+    <div className="amrMarketingPage">
+      <header className="amrMarketingHero">
+        <nav className="amrMarketingNav" aria-label="Main navigation">
+          <button
+            type="button"
+            className="amrMarketingBrand"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            aria-label="AMR home"
+          >
+            <span className="amrMarketingBrandMark">⌂</span>
+            <span>
+              <strong>AMR</strong>
+              <small>Ask My Rentals</small>
+            </span>
+          </button>
+
+          <div className="amrMarketingNavLinks">
+            <a href="#product">Product</a>
+            <a href="#cleaners">For Cleaners</a>
+            <a href="#owners">For Owners</a>
+            <a href="#pricing">Pricing</a>
+          </div>
+
+          <div className="amrMarketingNavActions">
+            <button
+              type="button"
+              className="amrMarketingTextButton"
+              onClick={() => goTo(cleanerLoginPath)}
+            >
+              Cleaner Login
+            </button>
+
+            <button
+              type="button"
+              className="amrMarketingOwnerButton"
+              onClick={() => goTo(ownerLoginPath)}
+            >
+              Owner Login
+            </button>
+          </div>
         </nav>
-      </header>
 
-      <section className="heartbeatHero">
-        <div className="heartbeatCopy">
-          <p className="eyebrow">Vacation rental owner operating system</p>
+        <section className="amrMarketingHeroGrid">
+          <div className="amrMarketingHeroCopy">
+            <span className="amrMarketingEyebrow">Built for cleaners</span>
 
-          <h1>
-            Every vacation rental has a heartbeat.
-            <span> We monitor it.</span>
-          </h1>
+            <h1>
+              Run your cleaning business with{" "}
+              <span>more clarity.</span>
+            </h1>
 
-          <p>
-            Ask My Rentals watches your calendars, cleaners, maintenance, and
-            alerts — so you can focus on providing unforgettable stays.
-          </p>
+            <p>
+              AMR brings schedules, properties, jobs, invoices, and payments
+              together in one simple place.
+            </p>
 
-          <div className="landingActions">
-            <Link to="/signup" className="primaryButton largeButton">
-              Start Free
-            </Link>
-            <a href="#features" className="secondaryButton largeButton">
-              See Features
-            </a>
+            <div className="amrMarketingHeroActions">
+              <button
+                type="button"
+                className="amrMarketingPrimaryButton"
+                onClick={() => goTo(cleanerSignupPath)}
+              >
+                Start Free Trial <span aria-hidden="true">→</span>
+              </button>
+
+              <button
+                type="button"
+                className="amrMarketingSecondaryButton"
+                onClick={() =>
+                  document
+                    .getElementById("product")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+              >
+                See the Platform <span aria-hidden="true">▶</span>
+              </button>
+            </div>
+
+            <div className="amrMarketingTrustRow">
+              <span>✓ Built for cleaners</span>
+              <span>✓ Get paid faster</span>
+              <span>✓ Simple and organized</span>
+            </div>
           </div>
 
-          <div className="heroTrust">
-            <span>No credit card required</span>
-            <span>Setup in minutes</span>
-            <span>Cancel anytime</span>
-          </div>
-        </div>
+          <div className="amrMarketingProductFrame" aria-label="AMR product preview">
+            <div className="amrMarketingBrowserBar">
+              <span />
+              <span />
+              <span />
+            </div>
 
-        <div className="heroScreenshotFrame">
-          <div className="browserChrome">
-            <span></span>
-            <span></span>
-            <span></span>
-            <p>app.askmyrentals.com</p>
-          </div>
+            <div className="amrMarketingProductShell">
+              <aside className="amrMarketingProductSidebar">
+                <div className="amrMarketingMiniBrand">
+                  <span>⌂</span>
+                  <strong>AMR</strong>
+                </div>
 
-          <div className="marketingDashboard">
-            <aside>
-              <div className="miniLogo">AMR</div>
-              <strong>Ask My Rentals</strong>
-              <small>Owner Operations</small>
+                {["Pulse", "Schedule", "Properties", "Jobs", "Invoices", "Reports"].map(
+                  (item, index) => (
+                    <div
+                      key={item}
+                      className={
+                        index === 0
+                          ? "amrMarketingMiniNavItem active"
+                          : "amrMarketingMiniNavItem"
+                      }
+                    >
+                      <span>{["✦", "□", "⌂", "✓", "$", "▥"][index]}</span>
+                      {item}
+                    </div>
+                  )
+                )}
+              </aside>
 
-              <label>Active Property</label>
-              <div className="fakeSelect">Sea Oats</div>
+              <div className="amrMarketingProductMain">
+                <div className="amrMarketingProductHeader">
+                  <div>
+                    <h2>Welcome back, Taylor 👋</h2>
+                    <p>Your workday is organized and ready.</p>
+                  </div>
 
-              <nav>
-                <span className="active">Dashboard</span>
-                <span>Reservations</span>
-                <span>Calendar</span>
-                <span>Property Setup</span>
-                <span>Occupancy</span>
-                <span>Cleaners</span>
-                <span>Maintenance</span>
-                <span>Notification Center</span>
-              </nav>
-            </aside>
+                  <button type="button">+ New Invoice</button>
+                </div>
 
-            <section>
-              <div className="marketingTopRow">
-                <article className="wideCard">
-                  <p>ASK MY RENTALS</p>
-                  <h3>Good evening</h3>
-                  <span>1 operation needs attention today.</span>
-                </article>
+                <div className="amrMarketingMetricRow">
+                  <article>
+                    <span>Today</span>
+                    <strong>3</strong>
+                    <small>Jobs scheduled</small>
+                  </article>
 
-                <article className="healthCard">
-                  <p>OPERATIONS HEALTH</p>
-                  <strong>92%</strong>
-                  <span>Excellent</span>
-                </article>
-              </div>
+                  <article>
+                    <span>In Progress</span>
+                    <strong>2</strong>
+                    <small>Active jobs</small>
+                  </article>
 
-              <div className="miniStats">
-                <article>
-                  <p>Arrivals Today</p>
-                  <strong>3</strong>
-                  <span>Guests checking in</span>
-                </article>
-                <article>
-                  <p>Departures Today</p>
-                  <strong>2</strong>
-                  <span>Turnovers to watch</span>
-                </article>
-                <article>
-                  <p>Cleans Today</p>
-                  <strong>4</strong>
-                  <span>1 need cleaner assigned</span>
-                </article>
-                <article>
-                  <p>Cleaner Alerts</p>
-                  <strong className="redText">1</strong>
-                  <span>0 awaiting acceptance</span>
-                </article>
-              </div>
+                  <article>
+                    <span>Ready to Invoice</span>
+                    <strong>2</strong>
+                    <small>Completed tasks</small>
+                  </article>
+                </div>
 
-              <div className="marketingCards">
-                <article>
-                  <b>🧹 Housekeeping</b>
-                  <strong>21 Upcoming Cleans</strong>
-                  <span>20 accepted · 1 unassigned</span>
-                </article>
+                <div className="amrMarketingDashboardGrid">
+                  <section className="amrMarketingSchedulePanel">
+                    <div className="amrMarketingPanelHeader">
+                      <strong>Today&apos;s Schedule</strong>
+                      <span>View calendar</span>
+                    </div>
 
-                <article>
-                  <b>🔧 Maintenance</b>
-                  <strong>2 Open Issues</strong>
-                  <span>1 urgent</span>
-                </article>
+                    {[
+                      ["10:00 AM", "Sea Otz", "In Progress"],
+                      ["11:30 AM", "Ocean View", "Upcoming"],
+                      ["1:00 PM", "Sunset Retreat", "Upcoming"],
+                    ].map(([time, property, status]) => (
+                      <div className="amrMarketingScheduleRow" key={`${time}-${property}`}>
+                        <div>
+                          <small>{time}</small>
+                          <strong>{property}</strong>
+                        </div>
+                        <span
+                          className={
+                            status === "In Progress"
+                              ? "amrMarketingStatus active"
+                              : "amrMarketingStatus"
+                          }
+                        >
+                          {status}
+                        </span>
+                      </div>
+                    ))}
+                  </section>
 
-                <article>
-                  <b>🏡 Guest Ready</b>
-                  <strong>Sea Oats</strong>
-                  <span>Review open alerts</span>
-                </article>
-
-                <article>
-                  <b>🔔 Notifications</b>
-                  <strong>2 Open Alerts</strong>
-                  <span>Open Notification Center</span>
-                </article>
-              </div>
-
-              <div className="reservationPreview">
-                <p>NEXT 3</p>
-                <h4>Upcoming Reservations</h4>
-                <div>
-                  <span>Airbnb · Sea Oats · Today → May 24</span>
-                  <span>VRBO · Sea Oats · May 24 → May 29</span>
-                  <span>VRBO · Coates Cabin · May 28 → Jun 2</span>
+                  <section className="amrMarketingHealthPanel">
+                    <strong>Business Health</strong>
+                    <div className="amrMarketingHealthRing">
+                      <span>92%</span>
+                      <small>Excellent</small>
+                    </div>
+                    <ul>
+                      <li>Schedule is on track</li>
+                      <li>Payments connected</li>
+                      <li>Tasks up to date</li>
+                      <li>Invoices on track</li>
+                    </ul>
+                  </section>
                 </div>
               </div>
-            </section>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </header>
 
-      <section className="proofStrip" id="features">
-        <article>
-          <span>🛡️</span>
-          <strong>Protect revenue</strong>
-          <p>Catch issues before guests are impacted.</p>
-        </article>
-
-        <article>
-          <span>📅</span>
-          <strong>Stay organized</strong>
-          <p>One dashboard for every property and task.</p>
-        </article>
-
-        <article>
-          <span>👥</span>
-          <strong>Work with confidence</strong>
-          <p>Cleaners, owners, and systems stay aligned.</p>
-        </article>
-
-        <article>
-          <span>⚡</span>
-          <strong>Act fast</strong>
-          <p>Real-time alerts for what needs attention.</p>
-        </article>
-
-        <article>
-          <span>🔒</span>
-          <strong>Sleep better</strong>
-          <p>Know your properties are in good hands.</p>
-        </article>
-      </section>
-
-      <section className="productStory">
-        <div className="miniProductFrame">
-          <div className="browserChrome">
-            <span></span>
-            <span></span>
-            <span></span>
-            <p>Calendar Health</p>
+      <main>
+        <section className="amrMarketingFeatureSection" id="product">
+          <div className="amrMarketingSectionHeading">
+            <span className="amrMarketingEyebrow">One simple platform</span>
+            <h2>Everything behind every clean, in one place.</h2>
           </div>
 
-          <div className="storyMockup">
-            <h3>Calendar Health</h3>
-            <p>We scan your calendars for gaps and conflicts.</p>
+          <div className="amrMarketingFeatureGrid">
+            <FeatureCard
+              icon="□"
+              title="Schedule"
+              copy="Plan cleans, organize jobs, and keep every day on track."
+            />
+            <FeatureCard
+              icon="⌂"
+              title="Properties"
+              copy="Keep property details, notes, and preferences organized."
+            />
+            <FeatureCard
+              icon="✓"
+              title="Jobs & Tasks"
+              copy="Start work, complete tasks, and stay on top of every clean."
+            />
+            <FeatureCard
+              icon="$"
+              title="Invoices & Payments"
+              copy="Create invoices in seconds and get paid through Stripe."
+            />
+          </div>
+        </section>
 
-            <div className="alertRow">
-              <strong>⚠️ VRBO reservation is not protected on Airbnb</strong>
-              <span>Sea Oats · May 28 → Jun 2 · High Priority</span>
+        <section className="amrMarketingSplitSection" id="cleaners">
+          <div className="amrMarketingSplitCopy">
+            <span className="amrMarketingEyebrow">Cleaner first</span>
+            <h2>Built for cleaners. Easy for owners.</h2>
+            <p>
+              Cleaners run the operation. Owners stay informed and pay invoices
+              with ease. Everyone gets what they need without the clutter.
+            </p>
+
+            <div className="amrMarketingBulletList">
+              <span>✓ Cleaners stay organized and efficient</span>
+              <span>✓ Owners get visibility without taking over</span>
+              <span>✓ Payments and records stay connected</span>
+            </div>
+          </div>
+
+          <div className="amrMarketingInvoicePreview" id="owners">
+            <div className="amrMarketingInvoiceList">
+              <div className="amrMarketingPanelHeader">
+                <strong>Recent Invoices</strong>
+                <span>View all</span>
+              </div>
+
+              {[
+                ["Sea Otz", "$320.00", "Paid"],
+                ["Ocean View", "$280.00", "Sent"],
+                ["Sunset Retreat", "$450.00", "Sent"],
+              ].map(([name, amount, status]) => (
+                <div className="amrMarketingInvoiceRow" key={name}>
+                  <strong>{name}</strong>
+                  <span>{amount}</span>
+                  <small className={status === "Paid" ? "paid" : ""}>
+                    {status}
+                  </small>
+                </div>
+              ))}
             </div>
 
-            <div className="goodRow">Coates Cabin · Good</div>
-            <div className="goodRow">Pelican Cove · Good</div>
+            <div className="amrMarketingPayCard">
+              <span>Invoice #1043</span>
+              <strong>$320.00</strong>
+              <small>Due Jun 2, 2026</small>
+              <button type="button">Pay Invoice</button>
+              <em>Secured by Stripe</em>
+            </div>
           </div>
+        </section>
+
+        <section className="amrMarketingCta" id="pricing">
+          <div>
+            <span className="amrMarketingCtaIcon">✦</span>
+          </div>
+
+          <div>
+            <h2>Ready to simplify the business side of cleaning?</h2>
+            <p>Start with AMR and keep your day moving.</p>
+          </div>
+
+          <button
+            type="button"
+            className="amrMarketingPrimaryButton"
+            onClick={() => goTo(cleanerSignupPath)}
+          >
+            Get Started <span aria-hidden="true">→</span>
+          </button>
+        </section>
+      </main>
+
+      <footer className="amrMarketingFooter">
+        <div>
+          <div className="amrMarketingFooterBrand">
+            <span className="amrMarketingBrandMark">⌂</span>
+            <div>
+              <strong>AMR</strong>
+              <small>Ask My Rentals</small>
+            </div>
+          </div>
+          <p>Software built for cleaning businesses that want more clarity.</p>
         </div>
 
         <div>
-          <p className="eyebrow">Calendar intelligence</p>
-          <h2>Never miss a calendar sync problem again.</h2>
-          <p>
-            We continuously check Airbnb and VRBO for gaps, overlaps, and
-            missing protection — so you can fix issues before double bookings happen.
-          </p>
-        </div>
-      </section>
-
-      <section className="productStory reverse">
-        <div>
-          <p className="eyebrow">Cleaner coordination</p>
-          <h2>Every turnover. Always accounted for.</h2>
-          <p>
-            Assign cleanings, track acceptance, and give your cleaners everything
-            they need to get the job done right.
-          </p>
-        </div>
-
-        <div className="miniProductFrame">
-          <div className="browserChrome">
-            <span></span>
-            <span></span>
-            <span></span>
-            <p>Cleaner Portal</p>
-          </div>
-
-          <div className="storyMockup">
-            <h3>Upcoming Cleans</h3>
-
-            <div className="cleanRow">
-              <span>Sea Oats</span>
-              <b>Accepted</b>
-            </div>
-            <div className="cleanRow">
-              <span>Coates Cabin</span>
-              <b>Accepted</b>
-            </div>
-            <div className="cleanRow">
-              <span>Sunset Point</span>
-              <b className="orangeText">Unassigned</b>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="productStory">
-        <div className="miniProductFrame">
-          <div className="browserChrome">
-            <span></span>
-            <span></span>
-            <span></span>
-            <p>Maintenance</p>
-          </div>
-
-          <div className="storyMockup">
-            <h3>Maintenance</h3>
-
-            <div className="tableRow">
-              <span>Loose shower handle</span>
-              <b>Owner Review</b>
-            </div>
-            <div className="tableRow">
-              <span>AC not cooling</span>
-              <b>Scheduled</b>
-            </div>
-            <div className="tableRow">
-              <span>Front door lock stiff</span>
-              <b>Completed</b>
-            </div>
-          </div>
+          <strong>Product</strong>
+          <a href="#product">Features</a>
+          <a href="#cleaners">For Cleaners</a>
+          <a href="#owners">For Owners</a>
         </div>
 
         <div>
-          <p className="eyebrow">Maintenance tracking</p>
-          <h2>Every issue tracked from report to completion.</h2>
-          <p>
-            Cleaner reports become owner-reviewed work orders, so nothing gets
-            lost in texts, notes, or memory.
-          </p>
+          <strong>Company</strong>
+          <a href="#about">About</a>
+          <a href="#pricing">Pricing</a>
+          <a href="mailto:hello@askmyrentals.com">Contact</a>
         </div>
-      </section>
 
-      <section className="finalBlueCta" id="pricing">
         <div>
-          <p className="eyebrow">Ready when you are</p>
-          <h2>Ready to run your rentals with total confidence?</h2>
-          <p>Join independent owners who want cleaner operations and fewer surprises.</p>
+          <strong>Access</strong>
+          <button type="button" onClick={() => goTo(cleanerLoginPath)}>
+            Cleaner Login
+          </button>
+          <button type="button" onClick={() => goTo(ownerLoginPath)}>
+            Owner Login
+          </button>
         </div>
-
-        <Link to="/signup" className="whiteButton">
-          Start Your Free Account →
-        </Link>
-      </section>
-    </main>
+      </footer>
+    </div>
   );
 }

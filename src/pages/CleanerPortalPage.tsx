@@ -11,6 +11,7 @@ import CleanerPortalCalendar from "./CleanerPortalCalendar";
 import CompleteTaskModal, {
   type CompleteTaskResult,
 } from "../components/pulse/CompleteTaskModal";
+import { supabase } from "../utils/supabase";
 
 type WorkOrderUrgency = "Low" | "Medium" | "High" | "After Hours";
 
@@ -41,6 +42,8 @@ type CleanerPortalPageProps = {
   isImportedReservation: (reservation: any) => boolean;
   getUrgency: (date: string) => any;
   formatDate: (date: string) => string;
+  onCreateInvoiceFromTask: (task: any) => void;
+  onReviewReadyInvoices: (tasks: any[]) => void;
 };
 
 const SelectableCleanerPortalCalendar =
@@ -59,6 +62,8 @@ export default function CleanerPortalPage({
   openCleanerScheduleOnLoad,
   setOpenCleanerScheduleOnLoad,
   updateReservationFromCleaner,
+  onCreateInvoiceFromTask,
+  onReviewReadyInvoices,
 }: CleanerPortalPageProps) {
   const [showCleanerIssueModal, setShowCleanerIssueModal] = useState(false);
   const [showCleanerCalendar, setShowCleanerCalendar] = useState(false);
@@ -73,6 +78,8 @@ export default function CleanerPortalPage({
   const [taskOpenedFrom, setTaskOpenedFrom] = useState<
     "pulse" | "schedule"
   >("schedule");
+  const [cleanerJobs, setCleanerJobs] = useState<any[]>([]);
+  const [jobsLoadingError, setJobsLoadingError] = useState("");
 
   useEffect(() => {
     if (!openCleanerScheduleOnLoad) return;
@@ -81,8 +88,52 @@ export default function CleanerPortalPage({
     setOpenCleanerScheduleOnLoad(false);
   }, [openCleanerScheduleOnLoad, setOpenCleanerScheduleOnLoad]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCleanerJobs() {
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+      const user = userData.user;
+
+      if (cancelled) return;
+
+      if (userError || !user) {
+        setJobsLoadingError("Unable to load independent jobs.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("cleaner_jobs")
+        .select("*")
+        .eq("cleaner_id", user.id)
+        .neq("status", "cancelled")
+        .order("scheduled_date", { ascending: true })
+        .order("scheduled_time", { ascending: true });
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Cleaner job schedule load failed", error);
+        setJobsLoadingError(error.message);
+        return;
+      }
+
+      setCleanerJobs(data ?? []);
+      setJobsLoadingError("");
+    }
+
+    void loadCleanerJobs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const activeCleaner =
-    cleaners.find((cleaner) => cleaner.id === cleanerPortalId) ?? cleaners[0];
+    cleaners.find(
+      (cleaner) => String(cleaner.id) === String(cleanerPortalId)
+    ) ?? cleaners[0];
 
   const toLocalDate = (dateString: string) => {
     const date = new Date(`${dateString}T12:00:00`);
@@ -134,35 +185,75 @@ export default function CleanerPortalPage({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const cleanerHomes = homes.filter(
-    (home) => home.defaultCleanerId === activeCleaner?.id
-  );
-
-  const cleanerTasks = reservations
+  const reservationTasks = reservations
     .filter((reservation) => {
       const departureDate = toLocalDate(reservation.departure);
+      const normalizedStatus = String(
+        reservation.status ?? ""
+      ).toLowerCase();
+      const normalizedSource = String(
+        reservation.source ?? ""
+      ).toLowerCase();
 
-      const cleanerOwnsProperty = cleanerHomes.some(
-        (home) => home.id === reservation.homeId
-      );
+      const isCleanerTurn =
+        isImportedReservation(reservation) ||
+        normalizedSource === "guest reservation" ||
+        normalizedSource === "owner block" ||
+        normalizedSource === "cleaning";
 
       return (
-        (reservation.cleanerId === activeCleaner?.id ||
-          cleanerOwnsProperty) &&
-        (isImportedReservation(reservation) ||
-          reservation.source === "Guest Reservation" ||
-          reservation.source === "Owner Block" ||
-          reservation.source === "Cleaning") &&
+        isCleanerTurn &&
         departureDate >= today &&
-        reservation.status !== "Blocked" &&
-        reservation.status !== "No Clean Needed"
+        normalizedStatus !== "blocked" &&
+        normalizedStatus !== "no clean needed"
       );
-    })
-    .sort(
-      (firstReservation, secondReservation) =>
-        toLocalDate(firstReservation.departure).getTime() -
-        toLocalDate(secondReservation.departure).getTime()
-    );
+    });
+
+  const normalizedJobTasks = cleanerJobs
+    .filter((job) => toLocalDate(job.scheduled_date) >= today)
+    .map((job) => ({
+      id: `job:${job.id}`,
+      cleanerJobId: job.id,
+      isCleanerJob: true,
+      source: "cleaner job",
+      homeId: job.property_id ?? "",
+      arrival: job.scheduled_date,
+      departure: job.scheduled_date,
+      scheduledDate: job.scheduled_date,
+      scheduledTime: job.scheduled_time ?? "",
+      status:
+        job.status === "in_progress"
+          ? "In Progress"
+          : job.status === "completed"
+            ? "Completed"
+            : job.status === "invoiced" || job.status === "paid"
+              ? "Invoice Sent"
+              : "Upcoming",
+      jobType: job.job_type,
+      taskType: job.job_type,
+      customerName: job.customer_name,
+      customerEmail: job.customer_email ?? "",
+      customerPhone: job.customer_phone ?? "",
+      serviceAddress: job.service_address ?? "",
+      amount: Number(job.amount_cents ?? 0) / 100,
+      cleaningFee: Number(job.amount_cents ?? 0) / 100,
+      notes: job.notes ?? "",
+      cleanerNotes: job.notes ?? "",
+    }));
+
+  const cleanerTasks = [...reservationTasks, ...normalizedJobTasks].sort(
+    (firstTask, secondTask) => {
+      const dateDifference =
+        toLocalDate(firstTask.departure).getTime() -
+        toLocalDate(secondTask.departure).getTime();
+
+      if (dateDifference !== 0) return dateDifference;
+
+      return String(firstTask.scheduledTime ?? "").localeCompare(
+        String(secondTask.scheduledTime ?? "")
+      );
+    }
+  );
 
   const todayTasks = cleanerTasks.filter((reservation) => {
     const departureDate = toLocalDate(reservation.departure);
@@ -180,11 +271,12 @@ export default function CleanerPortalPage({
   );
 
   const isBackToBack = (reservation: any) =>
+    !reservation.isCleanerJob &&
     reservations.some(
       (item) =>
         item.id !== reservation.id &&
-        item.homeId === reservation.homeId &&
-        item.arrival === reservation.departure
+        String(item.homeId) === String(reservation.homeId) &&
+        String(item.arrival).slice(0, 10) === String(reservation.departure).slice(0, 10)
     );
 
   const cleanerHealthScore = useMemo(() => {
@@ -201,6 +293,61 @@ export default function CleanerPortalPage({
     inProgressTasks.length,
     readyToInvoiceTasks.length,
   ]);
+
+  async function updateCleanerTask(
+    task: any,
+    nextStatus: CleanerPortalStatus,
+    note: string
+  ) {
+    if (!task.isCleanerJob) {
+      updateReservationFromCleaner(
+        String(task.id),
+        nextStatus,
+        note
+      );
+      return task;
+    }
+
+    const statusMap: Record<CleanerPortalStatus, string> = {
+      Upcoming: "upcoming",
+      "In Progress": "in_progress",
+      "Ready to Invoice": "completed",
+      Invoiced: "invoiced",
+    };
+
+    const { data, error } = await supabase
+      .from("cleaner_jobs")
+      .update({
+        status: statusMap[nextStatus],
+        notes: note || task.notes || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", task.cleanerJobId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Independent job update failed", error);
+      window.alert(error.message);
+      return null;
+    }
+
+    setCleanerJobs((current) =>
+      current.map((job) => (job.id === data.id ? data : job))
+    );
+
+    return {
+      ...task,
+      status:
+        nextStatus === "Ready to Invoice"
+          ? "Completed"
+          : nextStatus,
+      notes: data.notes ?? "",
+      cleanerNotes: data.notes ?? "",
+      cleaningFee: Number(data.amount_cents ?? 0) / 100,
+      amount: Number(data.amount_cents ?? 0) / 100,
+    };
+  }
 
   const closeIssueModal = () => setShowCleanerIssueModal(false);
 
@@ -234,19 +381,20 @@ export default function CleanerPortalPage({
     }
   };
 
-  const saveTaskNote = () => {
+  const saveTaskNote = async () => {
     if (!selectedCleanerTask || !selectedTaskStatus) return;
 
     const cleanNote = taskNoteDraft.trim();
-
-    updateReservationFromCleaner(
-      String(selectedCleanerTask.id),
+    const updatedTask = await updateCleanerTask(
+      selectedCleanerTask,
       selectedTaskStatus,
-      cleanNote || "Cleaner note cleared."
+      cleanNote
     );
 
+    if (!updatedTask) return;
+
     setSelectedCleanerTask({
-      ...selectedCleanerTask,
+      ...updatedTask,
       cleanerNotes: cleanNote,
     });
     setTaskNoteSaved(true);
@@ -273,18 +421,71 @@ export default function CleanerPortalPage({
     setTaskBeingCompleted(null);
   };
 
-  const undoTaskStart = () => {
+  const undoTaskStart = async () => {
     if (!taskBeingCompleted) return;
 
-    updateReservationFromCleaner(
-      String(taskBeingCompleted.id),
+    const updatedTask = await updateCleanerTask(
+      taskBeingCompleted,
       "Upcoming",
       "Cleaner reset the task to not started."
     );
 
-    setSelectedCleanerTask({
+    if (!updatedTask) return;
+
+    setSelectedCleanerTask(updatedTask);
+    setTaskNoteDraft(
+      updatedTask.cleanerNotes ??
+        updatedTask.notes ??
+        ""
+    );
+    setTaskNoteSaved(false);
+    setTaskBeingCompleted(null);
+  };
+
+  const saveCompletionDraft = async (result: CompleteTaskResult) => {
+    if (!taskBeingCompleted) return;
+
+    const draftTask = {
       ...taskBeingCompleted,
-      status: "Upcoming",
+      status: "In Progress",
+      cleaningFee: result.cleaningFee,
+      completionDraft: {
+        guestReady: result.guestReady,
+        notes: result.notes,
+        includePhotos: result.includePhotos,
+        maintenanceReported: result.maintenanceReported,
+        maintenanceTitle: result.maintenanceTitle,
+        maintenanceDescription: result.maintenanceDescription,
+        maintenanceUrgency: result.maintenanceUrgency,
+        cleaningFee: result.cleaningFee,
+      },
+    };
+
+    const draftSummary = [
+      "Completion report saved as draft.",
+      result.notes ? `Homeowner message: ${result.notes}` : "",
+      result.maintenanceReported
+        ? `Maintenance draft: ${result.maintenanceTitle}. ${result.maintenanceDescription}`
+        : "",
+      result.cleaningFee ? `Cleaning fee: $${result.cleaningFee}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const updatedTask = await updateCleanerTask(
+      {
+        ...draftTask,
+        notes: draftSummary,
+      },
+      "In Progress",
+      draftSummary
+    );
+
+    if (!updatedTask) return;
+
+    setSelectedCleanerTask({
+      ...updatedTask,
+      completionDraft: draftTask.completionDraft,
     });
     setTaskNoteDraft(
       taskBeingCompleted.cleanerNotes ??
@@ -293,9 +494,11 @@ export default function CleanerPortalPage({
     );
     setTaskNoteSaved(false);
     setTaskBeingCompleted(null);
+
+    window.alert("Draft saved. The task remains in progress.");
   };
 
-  const finishCompletedTask = (result: CompleteTaskResult) => {
+  const finishCompletedTask = async (result: CompleteTaskResult) => {
     if (!taskBeingCompleted) return;
 
     const completionParts = [
@@ -318,25 +521,31 @@ export default function CleanerPortalPage({
       result.cleaningFee
         ? `Cleaning fee: $${result.cleaningFee}.`
         : "",
-      "Owner completion report queued.",
+      taskBeingCompleted.isCleanerJob
+        ? "Independent job completed."
+        : "Owner completion report queued.",
     ].filter(Boolean);
 
-    updateReservationFromCleaner(
-      String(taskBeingCompleted.id),
-      "Completed",
+    const updatedTask = await updateCleanerTask(
+      taskBeingCompleted,
+      "Ready to Invoice",
       completionParts.join(" ")
     );
+
+    if (!updatedTask) return;
 
     setTaskBeingCompleted(null);
 
     window.alert(
-      "Task completed. The owner report and invoice are ready for the next step."
+      taskBeingCompleted.isCleanerJob
+        ? "Job completed and ready to invoice."
+        : "Task completed. The owner report and invoice are ready for the next step."
     );
   };
 
   const selectedTaskHome = selectedCleanerTask
     ? homes.find(
-        (home) => home.id === selectedCleanerTask.homeId
+        (home) => String(home.id) === String(selectedCleanerTask.homeId)
       )
     : null;
 
@@ -384,15 +593,65 @@ export default function CleanerPortalPage({
           <p className="eyebrow">Cleaner Pulse</p>
 
           <h2>
-            Good morning,{" "}
+            Welcome back,{" "}
             {(activeCleaner?.name ?? "Cleaner").split(" ")[0]} 👋
           </h2>
 
-          <p className="cleanerTodayLabel">Today&apos;s Status</p>
-
           <p className="headerSubtext">
-            Your tasks, active work, and invoice reminders are ready.
+            Your workday is organized and ready.
           </p>
+        </div>
+
+        <div
+          className="cleanerMobileStatusLine"
+          aria-label="Today’s cleaner status"
+        >
+          <button
+            type="button"
+            onClick={() =>
+              document
+                .querySelector(".cleanerUpcomingCard")
+                ?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                })
+            }
+          >
+            <span className="cleanerMobileStatusIcon">🧹</span>
+            <span>
+              <strong>{todayTasks.length}</strong>
+              <small>
+                {todayTasks.length === 1 ? "task due today" : "tasks due today"}
+              </small>
+            </span>
+          </button>
+
+          <span className="cleanerMobileStatusDivider" aria-hidden="true" />
+
+          <button
+            type="button"
+            disabled={readyToInvoiceTasks.length === 0}
+            onClick={() => {
+              if (readyToInvoiceTasks.length === 1) {
+                onCreateInvoiceFromTask(readyToInvoiceTasks[0]);
+                return;
+              }
+
+              if (readyToInvoiceTasks.length > 1) {
+                onReviewReadyInvoices(readyToInvoiceTasks);
+              }
+            }}
+          >
+            <span className="cleanerMobileStatusIcon">💵</span>
+            <span>
+              <strong>{readyToInvoiceTasks.length}</strong>
+              <small>
+                {readyToInvoiceTasks.length === 1
+                  ? "task ready to invoice"
+                  : "tasks ready to invoice"}
+              </small>
+            </span>
+          </button>
         </div>
 
         <div
@@ -411,27 +670,36 @@ export default function CleanerPortalPage({
             }
           >
             <strong>{todayTasks.length}</strong>
-            <small>🧹 TODAY</small>
+            <small>🧹 Today</small>
           </button>
 
           <button
             type="button"
-            onClick={() =>
-              document
-                .querySelector(".cleanerActionCenterCard")
-                ?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                })
-            }
+            disabled={readyToInvoiceTasks.length === 0}
+            onClick={() => {
+              if (readyToInvoiceTasks.length === 1) {
+                onCreateInvoiceFromTask(readyToInvoiceTasks[0]);
+                return;
+              }
+
+              if (readyToInvoiceTasks.length > 1) {
+                onReviewReadyInvoices(readyToInvoiceTasks);
+              }
+            }}
           >
             <strong>{readyToInvoiceTasks.length}</strong>
-            <small>💵 READY</small>
+            <small>💵 Ready to Invoice</small>
           </button>
         </div>
       </header>
 
       <main className="cleanerPulseShell">
+        {jobsLoadingError && (
+          <section className="emptyStateCard">
+            <strong>Independent jobs could not be loaded</strong>
+            <p>{jobsLoadingError}</p>
+          </section>
+        )}
         <article className="cleanerHealthCard compactCleanerHealthCard">
           <div className="cleanerHealthTopline">
             <div>
@@ -532,16 +800,19 @@ export default function CleanerPortalPage({
                 <button
                   className="primaryButton"
                   type="button"
-                  onClick={() =>
-                    document
-                      .querySelector(".cleanerUpcomingCard")
-                      ?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      })
-                  }
+                  disabled={readyToInvoiceTasks.length === 0}
+                  onClick={() => {
+                    if (readyToInvoiceTasks.length === 1) {
+                      onCreateInvoiceFromTask(readyToInvoiceTasks[0]);
+                      return;
+                    }
+
+                    onReviewReadyInvoices(readyToInvoiceTasks);
+                  }}
                 >
-                  Send Invoice
+                  {readyToInvoiceTasks.length === 1
+                    ? "Create Invoice"
+                    : "Review Invoices"}
                 </button>
               </article>
             </div>
@@ -563,125 +834,154 @@ export default function CleanerPortalPage({
               </button>
             </div>
 
-      <div className="cleanerTurnStack cleanerPulseTaskGrid">
-  {cleanerTasks.slice(0, 6).map((reservation) => {
-    const home = homes.find(
-      (item) => item.id === reservation.homeId
-    );
-
-    const cleanerStatus =
-      getCleanerPortalStatus(reservation);
-
-    const privateNote =
-      reservation.cleanerNotes ??
-      reservation.notes ??
-      "";
-
-    return (
-      <button
-        key={reservation.id}
-        type="button"
-        className="cleanerPulseTaskCard"
-        data-cleaner-task-id={reservation.id}
-        onClick={() => {
-          setShowCleanerCalendar(false);
-          openTaskPreview(String(reservation.id), "pulse");
-        }}
-      >
-        <div className="cleanerPulseTaskCardTop">
-          <div>
-            <p className="eyebrow">Task</p>
-            <h3>{home?.name ?? "Unknown Property"}</h3>
-            <span>
-              {reservation.jobType ??
-                reservation.taskType ??
-                "Vacation Rental Turnover"}
-            </span>
-            <p className="cleanerPulsePay">
-  💵 Estimated Pay{" "}
-  <strong>
-    {reservation.cleaningFee ??
-      reservation.amount ??
-      reservation.invoiceAmount ??
-      "Set on invoice"}
-  </strong>
-</p>
-          </div>
-
-          <div className="cleanerPulseTaskDate">
-            <strong>
-              {formatCleanDate(reservation.departure)}
-            </strong>
-            <span>Task Date</span>
-          </div>
+      <div className="cleanerTaskLedger" role="table" aria-label="Upcoming cleaner tasks">
+        <div className="cleanerTaskLedgerHeader" role="row">
+          <span role="columnheader">Date</span>
+          <span role="columnheader">Property</span>
+          <span role="columnheader">Task</span>
+          <span role="columnheader">Status</span>
+          <span role="columnheader">Pay</span>
+          <span role="columnheader">Action</span>
         </div>
 
-        <div className="cleanerPulseTaskBadges">
-          {isBackToBack(reservation) && (
-            <span className="conflictWarningPill">
-              🔁 B2B
-            </span>
+        <div className="cleanerTaskLedgerBody">
+          {cleanerTasks.map((reservation) => {
+            const home = homes.find(
+              (item) => String(item.id) === String(reservation.homeId)
+            );
+
+            const cleanerStatus = getCleanerPortalStatus(reservation);
+            const privateNote =
+              reservation.cleanerNotes ??
+              reservation.notes ??
+              "";
+
+            const estimatedPay =
+              reservation.cleaningFee ??
+              reservation.amount ??
+              reservation.invoiceAmount ??
+              reservation.price ??
+              null;
+
+            return (
+              <article
+                key={reservation.id}
+                className="cleanerTaskLedgerRow"
+                role="row"
+                tabIndex={0}
+                data-cleaner-task-id={reservation.id}
+                onClick={() => {
+                  setShowCleanerCalendar(false);
+                  openTaskPreview(String(reservation.id), "pulse");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setShowCleanerCalendar(false);
+                    openTaskPreview(String(reservation.id), "pulse");
+                  }
+                }}
+              >
+                <div className="cleanerTaskLedgerDate" role="cell">
+                  <strong>{formatCleanDate(reservation.departure)}</strong>
+                  <small>Task date</small>
+                </div>
+
+                <div className="cleanerTaskLedgerProperty" role="cell">
+                  <strong>
+                    {reservation.isCleanerJob
+                      ? reservation.customerName ?? "Independent Job"
+                      : home?.name ?? "Unknown Property"}
+                  </strong>
+                  <small>
+                    {reservation.isCleanerJob
+                      ? reservation.serviceAddress || "Independent job"
+                      : home?.address ??
+                        home?.addressLine1 ??
+                        "Property details"}
+                  </small>
+                </div>
+
+                <div className="cleanerTaskLedgerTask" role="cell">
+                  <strong>
+                    {reservation.jobType ??
+                      reservation.taskType ??
+                      "Vacation Rental Turnover"}
+                  </strong>
+                  <small>
+                    {privateNote
+                      ? privateNote
+                      : "No private task note"}
+                  </small>
+                </div>
+
+                <div className="cleanerTaskLedgerStatus" role="cell">
+                  <div className="cleanerTaskLedgerBadges">
+                    {isBackToBack(reservation) && (
+                      <span className="conflictWarningPill">
+                        🔁 B2B
+                      </span>
+                    )}
+
+                    <span
+                      className={`conflictWarningPill cleanerStatusPill status-${getCleanerPortalStatusClass(
+                        cleanerStatus
+                      )}`}
+                    >
+                      {cleanerStatus}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="cleanerTaskLedgerPay" role="cell">
+                  <strong>
+                    {estimatedPay === null || estimatedPay === ""
+                      ? "Set on invoice"
+                      : `$${estimatedPay}`}
+                  </strong>
+                  <small>
+                    {reservation.isCleanerJob
+                      ? "Independent job"
+                      : `${home?.outstandingInvoiceCount ?? 0} outstanding`}
+                  </small>
+                </div>
+
+                <div className="cleanerTaskLedgerAction" role="cell">
+                  <button
+                    type="button"
+                    className={`primaryButton cleanerTaskLedgerActionButton action-${getCleanerPortalStatusClass(
+                      cleanerStatus
+                    )}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setShowCleanerCalendar(false);
+
+                      if (cleanerStatus === "Ready to Invoice") {
+                        onCreateInvoiceFromTask(reservation);
+                        return;
+                      }
+
+                      openTaskPreview(String(reservation.id), "pulse");
+                    }}
+                  >
+                    {cleanerStatus === "Upcoming" && "Start"}
+                    {cleanerStatus === "In Progress" && "Continue"}
+                    {cleanerStatus === "Ready to Invoice" && "Invoice"}
+                    {cleanerStatus === "Invoiced" && "View"}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+
+          {cleanerTasks.length === 0 && (
+            <div className="emptyStateCard">
+              <strong>No upcoming tasks</strong>
+              <p>No upcoming tasks are currently assigned.</p>
+            </div>
           )}
-
-          <span
-            className={`conflictWarningPill cleanerStatusPill status-${getCleanerPortalStatusClass(
-              cleanerStatus
-            )}`}
-          >
-            {cleanerStatus}
-          </span>
         </div>
-
-          <div className="cleanerPulseTaskNote">
-            <span>🔒 Private note</span>
-            <p>{privateNote}</p>
-          </div>
-        <div className="cleanerPulseInsight">
-  <span>✨ AMR Insight</span>
-
-  <p>
-    {reservation.isBackToBack
-      ? "Tight turnaround today. Plan supplies before arrival."
-      : "Everything looks good for this turnover."}
-  </p>
-</div>
-
-      <div className="cleanerPulseTaskFooter">
-  <div className="cleanerPulseInvoiceInfo">
-    <span>Outstanding Invoices</span>
-
-    <strong>
-      {home?.outstandingInvoiceCount ?? 0}
-    </strong>
-  </div>
-
-  <button
-    type="button"
-    className="primaryButton cleanerCardActionButton"
-    onClick={(event) => {
-      event.stopPropagation();
-
-      setShowCleanerCalendar(false);
-      openTaskPreview(String(reservation.id), "pulse");
-    }}
-  >
-    {cleanerStatus === "Upcoming" && "▶ Start Task"}
-    {cleanerStatus === "In Progress" && "⏳ Continue Task"}
-    {cleanerStatus === "Ready to Invoice" && "💵 Send Invoice"}
-    {cleanerStatus === "Invoiced" && "✓ View Invoice"}
-  </button>
-</div>
-      </button>
-    );
-  })}
-
-  {cleanerTasks.length === 0 && (
-    <div className="emptyStateCard">
-      <strong>No upcoming tasks</strong>
-      <p>No upcoming tasks are currently assigned.</p>
-    </div>
-  )}
-</div>
+      </div>
           </article>
         </section>
       </main>
@@ -744,7 +1044,10 @@ export default function CleanerPortalPage({
                       <p className="eyebrow">Task</p>
                       <h3>
                         {selectedTaskHome?.name ??
-                          "Unknown Property"}
+                          selectedCleanerTask.customerName ??
+                          (selectedCleanerTask.isCleanerJob
+                            ? "Independent Job"
+                            : "Unknown Property")}
                       </h3>
                       <p className="cleanerJobType">
                         {selectedCleanerTask.jobType ??
@@ -868,17 +1171,16 @@ export default function CleanerPortalPage({
                       <button
                         className="primaryButton"
                         type="button"
-                        onClick={() => {
-                          updateReservationFromCleaner(
-                            String(selectedCleanerTask.id),
+                        onClick={async () => {
+                          const updatedTask = await updateCleanerTask(
+                            selectedCleanerTask,
                             "In Progress",
                             "Cleaner started the task."
                           );
 
-                          setSelectedCleanerTask({
-                            ...selectedCleanerTask,
-                            status: "In Progress",
-                          });
+                          if (updatedTask) {
+                            setSelectedCleanerTask(updatedTask);
+                          }
                         }}
                       >
                         ▶ Start Task
@@ -900,17 +1202,16 @@ export default function CleanerPortalPage({
     <button
       className="completeTaskUndoButton"
       type="button"
-      onClick={() => {
-        updateReservationFromCleaner(
-          String(selectedCleanerTask.id),
+      onClick={async () => {
+        const updatedTask = await updateCleanerTask(
+          selectedCleanerTask,
           "Upcoming",
           "Cleaner reset the task to not started."
         );
 
-        setSelectedCleanerTask({
-          ...selectedCleanerTask,
-          status: "Upcoming",
-        });
+        if (updatedTask) {
+          setSelectedCleanerTask(updatedTask);
+        }
       }}
     >
       ↩ Undo Start
@@ -924,9 +1225,11 @@ export default function CleanerPortalPage({
     <button
       className="primaryButton"
       type="button"
-      onClick={() =>
-        window.alert("Invoice flow coming next 💵")
-      }
+      onClick={() => {
+        onCreateInvoiceFromTask(selectedCleanerTask);
+        setSelectedCleanerTask(null);
+        setShowCleanerCalendar(false);
+      }}
     >
       💵 Send Invoice
     </button>
@@ -934,17 +1237,16 @@ export default function CleanerPortalPage({
     <button
       className="completeTaskUndoButton"
       type="button"
-      onClick={() => {
-        updateReservationFromCleaner(
-          String(selectedCleanerTask.id),
+      onClick={async () => {
+        const updatedTask = await updateCleanerTask(
+          selectedCleanerTask,
           "In Progress",
           "Cleaner reopened the completed task."
         );
 
-        setSelectedCleanerTask({
-          ...selectedCleanerTask,
-          status: "In Progress",
-        });
+        if (updatedTask) {
+          setSelectedCleanerTask(updatedTask);
+        }
       }}
     >
       ↩ Reopen Task
@@ -981,10 +1283,11 @@ export default function CleanerPortalPage({
         <CompleteTaskModal
           task={taskBeingCompleted}
           home={homes.find(
-            (home) => home.id === taskBeingCompleted.homeId
+            (home) => String(home.id) === String(taskBeingCompleted.homeId)
           )}
           onClose={returnToInProgressTask}
           onUndoStart={undoTaskStart}
+          onSaveDraft={saveCompletionDraft}
           onFinish={finishCompletedTask}
         />
       )}
