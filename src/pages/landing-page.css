@@ -877,14 +877,27 @@ html {
     grid-template-columns: 1fr auto;
   }
 
+  .amrMarketingNavActions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   .amrMarketingNavActions .amrMarketingTextButton {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 0.72rem;
+    white-space: nowrap;
   }
 
   .amrMarketingOwnerButton {
     min-height: 38px;
-    padding: 8px 11px;
-    font-size: 0.76rem;
+    padding: 8px 10px;
+    font-size: 0.72rem;
+    white-space: nowrap;
   }
 
   .amrMarketingHeroGrid {
@@ -992,6 +1005,33 @@ html {
 }
 
 @media (max-width: 480px) {
+  .amrMarketingBrand {
+    gap: 7px;
+  }
+
+  .amrMarketingBrand small {
+    display: none;
+  }
+
+  .amrMarketingBrand strong {
+    font-size: 1.15rem;
+  }
+
+  .amrMarketingNav {
+    gap: 8px;
+  }
+
+  .amrMarketingNavActions {
+    gap: 4px;
+  }
+
+  .amrMarketingNavActions .amrMarketingTextButton,
+  .amrMarketingOwnerButton {
+    min-height: 36px;
+    padding: 7px 8px;
+    font-size: 0.67rem;
+  }
+
   .amrMarketingBrandMark {
     width: 36px;
     height: 36px;
