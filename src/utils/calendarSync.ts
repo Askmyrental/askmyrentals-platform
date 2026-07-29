@@ -65,22 +65,40 @@ export function parseICalTextToReservations(
         normalizedSummary.includes("closed") ||
         normalizedSummary.includes("owner block");
 
+      const isVrboOwnerBlock = source === "VRBO" && isBlocked;
+
       // Airbnb manual blocked calendar exports are arriving with one extra
       // checkout edge day compared with the actual owner-selected blocked range.
-      // Guest reservations should keep the raw iCal departure date.
+      // Guest reservations and VRBO owner blocks should keep the raw iCal end date.
       const departure =
         source === "Airbnb" && isBlocked
           ? subtractOneDay(rawDeparture)
           : rawDeparture;
 
+      const importedSource = isVrboOwnerBlock ? "Owner Block" : source;
+      const importedStatus = isVrboOwnerBlock
+        ? "Unassigned"
+        : isBlocked
+          ? "Blocked"
+          : "Unassigned";
+
+      const guestName = isVrboOwnerBlock
+        ? "Owner Stay"
+        : isBlocked
+          ? `${source} Block`
+          : summary || `${source} Guest`;
+
       console.log("PARSED ICAL EVENT", {
         source,
+        importedSource,
         uid,
         summary: calendarEvent.summary,
         arrival,
         rawDeparture,
         departure,
         isBlocked,
+        isVrboOwnerBlock,
+        importedStatus,
         startIsDate: startDate?.isDate,
         endIsDate: endDate?.isDate,
       });
@@ -88,14 +106,20 @@ export function parseICalTextToReservations(
       return {
         property_id: propertyId,
         ical_uid: uid,
-        guest_name: isBlocked ? `${source} Block` : summary || `${source} Guest`,
-        source,
+        guest_name: guestName,
+        source: importedSource,
         arrival,
         departure,
         cleaner_id: null,
-        status: isBlocked ? "Blocked" : "Unassigned",
-        notes: "",
-        timeline: [`Imported from ${source} calendar`],
+        status: importedStatus,
+        notes: isVrboOwnerBlock
+          ? "Imported from VRBO as an owner block. Cleaning is required unless marked No Clean Needed."
+          : "",
+        timeline: [
+          isVrboOwnerBlock
+            ? "Imported from VRBO calendar as Owner Block"
+            : `Imported from ${source} calendar`,
+        ],
       };
     })
     .filter(Boolean);

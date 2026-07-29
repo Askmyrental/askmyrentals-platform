@@ -144,13 +144,35 @@ export default function PropertiesPage({
           />
         </label>
 
+        <div
+          className="fullWidth"
+          style={{
+            padding: "14px 16px",
+            border: "1px solid #bfdbfe",
+            borderRadius: "14px",
+            background: "#eff6ff",
+            color: "#1e3a8a",
+            lineHeight: 1.45,
+          }}
+        >
+          <strong>Which calendar should I use?</strong>
+          <p style={{ margin: "5px 0 0" }}>
+            If the property is listed on both VRBO and Airbnb, connect the
+            VRBO calendar when available. VRBO calendar feeds are generally
+            more consistent for blocked dates and schedule changes.
+          </p>
+        </div>
+
         <label className="fullWidth">
-          VRBO iCal Link
+          VRBO iCal Link <span style={{ color: "#16844a", fontWeight: 800 }}>· Preferred</span>
           <input
             value={propertyForm.iCalUrl || ""}
             onChange={(event) => updateFormField("iCalUrl", event.target.value)}
             placeholder="Paste VRBO export calendar link"
           />
+          <small style={{ display: "block", marginTop: "6px", color: "#64748b" }}>
+            Recommended when the owner uses both VRBO and Airbnb.
+          </small>
         </label>
 
         <label className="fullWidth">
@@ -160,6 +182,10 @@ export default function PropertiesPage({
             onChange={(event) => updateFormField("airbnbUrl", event.target.value)}
             placeholder="Paste Airbnb calendar export link"
           />
+          <small style={{ display: "block", marginTop: "6px", color: "#92400e" }}>
+            Airbnb may combine neighboring blocked dates into one calendar
+            event, which can create extra schedule-change alerts.
+          </small>
         </label>
 
         {isEditing && (

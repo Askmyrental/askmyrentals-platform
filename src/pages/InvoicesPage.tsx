@@ -16,6 +16,8 @@ type Invoice = {
   customer_name: string;
   customer_email: string | null;
   property_id: string | null;
+  reservation_id?: string | null;
+  cleaner_job_id?: string | null;
   property_name: string | null;
   subtotal_cents: number;
   tax_cents: number;
@@ -32,6 +34,10 @@ type Invoice = {
   manual_payment_reference?: string | null;
   manual_payment_note?: string | null;
   amount_paid_cents?: number | null;
+  invoice_items?: {
+    description: string;
+    sort_order?: number | null;
+  }[];
 };
 
 type InvoiceItem = {
@@ -47,7 +53,11 @@ type InvoicesPageProps = {
   reservations: any[];
   initialTask?: any | null;
   readyTasks?: any[];
+  initialStatusFilter?: string;
+  initialInvoiceId?: string | null;
   onInitialTaskConsumed?: () => void;
+  onInitialInvoiceConsumed?: () => void;
+  onCloseInvoiceFlow?: () => void;
 };
 
 function toInputDate(date: Date) {
@@ -85,13 +95,21 @@ export default function InvoicesPage({
   reservations,
   initialTask,
   readyTasks = [],
+  initialStatusFilter = "all",
+  initialInvoiceId = null,
   onInitialTaskConsumed,
+  onInitialInvoiceConsumed,
+  onCloseInvoiceFlow,
 }: InvoicesPageProps) {
   const today = useMemo(() => new Date(), []);
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showWorkFilter, setShowWorkFilter] = useState(false);
+  const [selectedWorkFilters, setSelectedWorkFilters] = useState<Set<string>>(
+    () => new Set(["all"])
+  );
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -105,6 +123,9 @@ export default function InvoicesPage({
   const [showMarkPaid, setShowMarkPaid] = useState(false);
   const [invoiceToMarkPaid, setInvoiceToMarkPaid] = useState<Invoice | null>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [isVoidingInvoice, setIsVoidingInvoice] = useState(false);
+  const [sourceTask, setSourceTask] = useState<any | null>(null);
+  const [openedFromTaskFlow, setOpenedFromTaskFlow] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     paymentDate: toInputDate(today),
     amount: "",
@@ -145,6 +166,9 @@ export default function InvoicesPage({
   const totalCents = subtotalCents + taxCents;
 
   function openCreateInvoiceForTask(task: any) {
+    setSourceTask(task);
+    setOpenedFromTaskFlow(true);
+
     const home = homes.find(
       (item) => String(item.id) === String(task.homeId)
     );
@@ -186,13 +210,31 @@ export default function InvoicesPage({
     openCreateInvoiceForTask(initialTask);
   }, [initialTask, homes]);
 
+  useEffect(() => {
+    setSelectedStatus(initialStatusFilter || "all");
+  }, [initialStatusFilter]);
+
+  useEffect(() => {
+    if (!initialInvoiceId || invoices.length === 0) return;
+
+    const requestedInvoice = invoices.find(
+      (invoice) => String(invoice.id) === String(initialInvoiceId)
+    );
+
+    if (!requestedInvoice) return;
+
+    setSelectedStatus("all");
+    void openInvoice(requestedInvoice);
+    onInitialInvoiceConsumed?.();
+  }, [initialInvoiceId, invoices, onInitialInvoiceConsumed]);
+
   async function loadInvoices() {
     setIsLoading(true);
     setErrorMessage("");
 
     const { data, error } = await supabase
       .from("invoices")
-      .select("*")
+      .select("*, invoice_items(description, sort_order)")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -202,8 +244,25 @@ export default function InvoicesPage({
       return;
     }
 
-    setInvoices((data ?? []) as Invoice[]);
+    const loadedInvoices = (data ?? []) as Invoice[];
+    setInvoices(loadedInvoices);
     setIsLoading(false);
+
+    const requestedInvoiceId = window.sessionStorage.getItem(
+      "amr:open-invoice-id"
+    );
+
+    if (requestedInvoiceId) {
+      window.sessionStorage.removeItem("amr:open-invoice-id");
+      const requestedInvoice = loadedInvoices.find(
+        (invoice) => String(invoice.id) === String(requestedInvoiceId)
+      );
+
+      if (requestedInvoice) {
+        setSelectedStatus("all");
+        void openInvoice(requestedInvoice);
+      }
+    }
   }
 
   function handlePropertyChange(propertyId: string) {
@@ -286,6 +345,10 @@ export default function InvoicesPage({
           cleaner_id: user.id,
           property_id: form.propertyId || null,
           reservation_id: form.reservationId || null,
+          cleaner_job_id:
+            sourceTask?.isCleanerJob && sourceTask.cleanerJobId
+              ? sourceTask.cleanerJobId
+              : null,
           invoice_number: invoiceNumber,
           status: "draft",
           customer_name: form.customerName.trim(),
@@ -330,12 +393,50 @@ export default function InvoicesPage({
         created_by: user.id,
       });
 
+      if (sourceTask?.isCleanerJob && sourceTask.cleanerJobId) {
+        const { error: jobUpdateError } = await supabase
+          .from("cleaner_jobs")
+          .update({
+            status: "invoiced",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", sourceTask.cleanerJobId);
+
+        if (jobUpdateError) {
+          console.error("Cleaner job invoice link update failed", jobUpdateError);
+        }
+
+        try {
+          const savedJobInvoiceMap = JSON.parse(
+            window.localStorage.getItem("amr:job-invoice-map") ?? "{}"
+          );
+          savedJobInvoiceMap[String(sourceTask.cleanerJobId)] = String(invoice.id);
+          window.localStorage.setItem(
+            "amr:job-invoice-map",
+            JSON.stringify(savedJobInvoiceMap)
+          );
+        } catch (storageError) {
+          console.warn("Unable to save cleaner job invoice link", storageError);
+        }
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("amr:invoice-created", {
+          detail: {
+            invoiceId: invoice.id,
+            reservationId: invoice.reservation_id ?? null,
+            cleanerJobId: sourceTask?.cleanerJobId ?? null,
+          },
+        })
+      );
+
       const createdInvoice = invoice as Invoice;
 
       setInvoices((current) => [createdInvoice, ...current]);
       setSelectedInvoice(createdInvoice);
       setSelectedInvoiceItems([item as InvoiceItem]);
       setShowCreateInvoice(false);
+      setSourceTask(null);
       onInitialTaskConsumed?.();
 
       setForm({
@@ -443,6 +544,18 @@ export default function InvoicesPage({
     }
   }
 
+
+  function closeInvoiceFlow() {
+    setSelectedInvoice(null);
+    setShowCreateInvoice(false);
+    setSourceTask(null);
+
+    if (openedFromTaskFlow) {
+      setOpenedFromTaskFlow(false);
+      onCloseInvoiceFlow?.();
+    }
+  }
+
   function openMarkPaid(invoice: Invoice) {
     setInvoiceToMarkPaid(invoice);
     setPaymentForm({
@@ -524,6 +637,77 @@ export default function InvoicesPage({
     }
   }
 
+  async function voidInvoice(invoice: Invoice) {
+    if (!["sent", "viewed", "overdue"].includes(invoice.status)) return;
+
+    const confirmed = window.confirm(
+      `Void ${invoice.invoice_number}?\n\nThis cancels the payment request. The invoice will remain in your history as a voided record and will be removed from Outstanding.`
+    );
+
+    if (!confirmed) return;
+
+    setIsVoidingInvoice(true);
+    setErrorMessage("");
+
+    try {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (sessionError || !accessToken) {
+        throw new Error("You must be logged in to void an invoice.");
+      }
+
+      const response = await fetch(
+        `http://localhost:4000/api/invoices/${invoice.id}/void`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to void the invoice.");
+      }
+
+      const updatedInvoice = result.invoice as Invoice;
+
+      setInvoices((current) =>
+        current.map((item) =>
+          item.id === updatedInvoice.id ? updatedInvoice : item
+        )
+      );
+
+      setSelectedInvoice((current) =>
+        current?.id === updatedInvoice.id ? null : current
+      );
+      setSelectedInvoiceItems([]);
+
+      setCopyMessage("");
+      setSendConfirmation("");
+
+      window.dispatchEvent(
+        new CustomEvent("amr:invoice-voided", {
+          detail: {
+            invoiceId: updatedInvoice.id,
+            reservationId: updatedInvoice.reservation_id ?? null,
+          },
+        })
+      );
+    } catch (error) {
+      console.error("Invoice void failed", error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to void the invoice."
+      );
+    } finally {
+      setIsVoidingInvoice(false);
+    }
+  }
+
   async function deleteDraftInvoice(invoice: Invoice) {
     if (invoice.status !== "draft") return;
 
@@ -551,11 +735,89 @@ export default function InvoicesPage({
       current.filter((item) => item.id !== invoice.id)
     );
 
+    window.dispatchEvent(
+      new CustomEvent("amr:invoice-deleted", {
+        detail: {
+          invoiceId: invoice.id,
+          reservationId: invoice.reservation_id ?? null,
+        },
+      })
+    );
+
     if (selectedInvoice?.id === invoice.id) {
       setSelectedInvoice(null);
       setSelectedInvoiceItems([]);
     }
   }
+
+  const MANUAL_JOBS_FILTER = "__manual_jobs__";
+
+  function toggleWorkFilter(filterId: string) {
+    setSelectedWorkFilters((current) => {
+      if (filterId === "all") {
+        return new Set(["all"]);
+      }
+
+      const next = new Set(current);
+      next.delete("all");
+
+      if (next.has(filterId)) {
+        next.delete(filterId);
+      } else {
+        next.add(filterId);
+      }
+
+      if (next.size === 0) {
+        return new Set(["all"]);
+      }
+
+      return next;
+    });
+  }
+
+  function invoiceMatchesWorkFilter(invoice: Invoice) {
+    if (selectedWorkFilters.has("all")) return true;
+
+    const isManualJob = Boolean(invoice.cleaner_job_id);
+
+    if (
+      selectedWorkFilters.has(MANUAL_JOBS_FILTER) &&
+      isManualJob
+    ) {
+      return true;
+    }
+
+    if (
+      invoice.property_id &&
+      selectedWorkFilters.has(String(invoice.property_id))
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  const workFilteredInvoices = invoices.filter(invoiceMatchesWorkFilter);
+
+  const filteredReadyTasks = readyTasks.filter((task) => {
+    if (selectedWorkFilters.has("all")) return true;
+
+    if (task.isCleanerJob) {
+      return selectedWorkFilters.has(MANUAL_JOBS_FILTER);
+    }
+
+    return selectedWorkFilters.has(String(task.homeId ?? ""));
+  });
+
+  const workFilterLabel = selectedWorkFilters.has("all")
+    ? "All Work"
+    : selectedWorkFilters.size === 1
+      ? selectedWorkFilters.has(MANUAL_JOBS_FILTER)
+        ? "Manual Jobs"
+        : homes.find((home) =>
+            selectedWorkFilters.has(String(home.id))
+          )?.name ?? "1 selected"
+      : `${selectedWorkFilters.size} selected`;
 
   const statusPriority: Record<InvoiceStatus, number> = {
     draft: 0,
@@ -566,10 +828,13 @@ export default function InvoicesPage({
     void: 5,
   };
 
-  const filteredInvoices = invoices
+  const filteredInvoices = workFilteredInvoices
     .filter((invoice) => {
     const matchesStatus =
-      selectedStatus === "all" || invoice.status === selectedStatus;
+      selectedStatus === "all" ||
+      (selectedStatus === "outstanding" &&
+        ["sent", "viewed", "overdue"].includes(invoice.status)) ||
+      invoice.status === selectedStatus;
 
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const matchesSearch =
@@ -599,21 +864,427 @@ export default function InvoicesPage({
       );
     });
 
-  const draftInvoices = invoices.filter(
+  const draftInvoices = workFilteredInvoices.filter(
     (invoice) => invoice.status === "draft"
   );
 
-  const outstandingInvoices = invoices.filter((invoice) =>
+  const outstandingInvoices = workFilteredInvoices.filter((invoice) =>
     ["sent", "viewed", "overdue"].includes(invoice.status)
   );
 
-  const outstandingCents = outstandingInvoices.reduce(
-    (total, invoice) => total + invoice.total_cents,
-    0
+  const paidInvoices = workFilteredInvoices.filter(
+    (invoice) => invoice.status === "paid"
   );
+
+  const overdueInvoices = workFilteredInvoices.filter(
+    (invoice) => invoice.status === "overdue"
+  );
+
+  function getInvoiceTaskDate(invoice: Invoice) {
+    const linkedTask = reservations.find(
+      (reservation) =>
+        String(reservation.id) === String(invoice.reservation_id ?? "")
+    );
+
+    const taskDate =
+      linkedTask?.departure ??
+      linkedTask?.date ??
+      linkedTask?.serviceDate ??
+      linkedTask?.taskDate ??
+      linkedTask?.scheduledDate ??
+      invoice.issue_date;
+
+    return formatInvoiceDate(taskDate ?? null);
+  }
+
+  function getInvoiceServiceDetails(invoice: Invoice) {
+    const linkedTask = reservations.find(
+      (reservation) =>
+        String(reservation.id) === String(invoice.reservation_id ?? "")
+    );
+
+    const firstItemDescription =
+      invoice.invoice_items
+        ?.slice()
+        .sort(
+          (first, second) =>
+            Number(first.sort_order ?? 0) -
+            Number(second.sort_order ?? 0)
+        )[0]?.description ??
+      selectedInvoiceItems[0]?.description ??
+      "Service";
+
+    return {
+      serviceType: firstItemDescription,
+      serviceDate: formatInvoiceDate(
+        linkedTask?.departure ??
+          linkedTask?.scheduledDate ??
+          linkedTask?.date ??
+          linkedTask?.serviceDate ??
+          linkedTask?.taskDate ??
+          invoice.issue_date
+      ),
+      propertyOrCustomer:
+        invoice.property_name ||
+        linkedTask?.propertyName ||
+        linkedTask?.customerName ||
+        invoice.customer_name ||
+        "—",
+    };
+  }
 
   return (
     <main className="cleanerInvoicesPage">
+
+      <style>{`
+        .cleanerInvoiceVoidButton {
+          border: 1px solid #f1b8b8 !important;
+          background: #fff5f5 !important;
+          color: #b42318 !important;
+        }
+
+        .cleanerInvoiceVoidButton:hover {
+          background: #fee4e2 !important;
+        }
+
+        .cleanerInvoiceLedgerRow.isVoid {
+          background: #f8fafc !important;
+          border-color: #e2e8f0 !important;
+          opacity: 0.68;
+          cursor: default !important;
+        }
+
+        .cleanerInvoiceLedgerRow.isVoid:hover {
+          transform: none !important;
+          box-shadow: none !important;
+        }
+
+        .cleanerInvoiceStatusBadge.status-void {
+          background: #e2e8f0 !important;
+          color: #64748b !important;
+          border-color: #cbd5e1 !important;
+        }
+
+        .cleanerInvoiceVoidHistoryNote {
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .cleanerInvoiceVoidedNotice {
+          display: flex;
+          gap: 10px;
+          margin: 14px 0;
+          padding: 13px 14px;
+          border: 1px solid #cbd5e1;
+          border-radius: 14px;
+          background: #f8fafc;
+          color: #475569;
+        }
+
+        .cleanerInvoiceVoidedNotice strong,
+        .cleanerInvoiceVoidedNotice p {
+          display: block;
+          margin: 0;
+        }
+
+        .cleanerInvoiceVoidedNotice p {
+          margin-top: 3px;
+          font-size: 13px;
+        }
+
+        .cleanerInvoiceServiceDetails {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+          margin: 16px 0;
+          padding: 14px;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          background: #f8fafc;
+        }
+
+        .cleanerInvoiceServiceDetails div {
+          min-width: 0;
+        }
+
+        .cleanerInvoiceServiceDetails span,
+        .cleanerInvoiceServiceDetails strong {
+          display: block;
+        }
+
+        .cleanerInvoiceServiceDetails span {
+          margin-bottom: 4px;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .cleanerInvoiceServiceDetails strong {
+          color: #0f172a;
+          font-size: 14px;
+          overflow-wrap: anywhere;
+        }
+
+        .cleanerInvoiceWorkFilterWrap {
+          position: relative;
+          margin-left: auto;
+        }
+
+        .cleanerInvoiceHistoryHeader {
+          width: 100%;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          gap: 16px;
+        }
+
+        .cleanerInvoiceHistoryHeader > div:first-child {
+          min-width: 0;
+        }
+
+        .cleanerInvoiceHistoryHeader .cleanerInvoiceWorkFilterWrap {
+          flex: 0 0 auto;
+          margin-left: auto !important;
+        }
+
+        .cleanerInvoiceWorkFilterButton {
+          min-width: 150px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .cleanerInvoiceWorkFilterPanel {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          z-index: 1000005;
+          width: min(360px, calc(100vw - 32px));
+          max-height: min(560px, calc(100vh - 48px));
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr) auto;
+          transform: translate(-50%, -50%);
+          border: 1px solid #dbe3ee;
+          border-radius: 18px;
+          background: #ffffff;
+          box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+          overflow: hidden;
+        }
+
+        .cleanerInvoiceWorkFilterHeader {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 16px;
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .cleanerInvoiceWorkFilterHeader h3 {
+          margin: 0;
+        }
+
+        .cleanerInvoiceWorkFilterOptions {
+          overflow-y: auto;
+          padding: 10px 16px;
+          overscroll-behavior: contain;
+        }
+
+        .cleanerInvoiceWorkFilterOption {
+          display: flex !important;
+          grid-template-columns: none !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          gap: 12px !important;
+          width: 100% !important;
+          min-height: 42px;
+          padding: 8px 0;
+          margin: 0 !important;
+          color: #0f172a;
+          font-weight: 700;
+          text-align: left !important;
+          cursor: pointer;
+        }
+
+        .cleanerInvoiceWorkFilterOption input[type="checkbox"] {
+          width: 18px !important;
+          height: 18px !important;
+          min-width: 18px !important;
+          flex: 0 0 18px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        .cleanerInvoiceWorkFilterOption span {
+          display: block !important;
+          flex: 1 1 auto !important;
+          min-width: 0 !important;
+          width: auto !important;
+          margin: 0 !important;
+          text-align: left !important;
+          line-height: 1.3 !important;
+          overflow-wrap: anywhere;
+        }
+
+        .cleanerInvoiceWorkFilterDivider {
+          height: 1px;
+          margin: 6px 0;
+          background: #e2e8f0;
+        }
+
+        .cleanerInvoiceWorkFilterActions {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 14px 16px;
+          border-top: 1px solid #e2e8f0;
+          background: #ffffff;
+        }
+
+        @media screen and (max-width: 700px) {
+          .cleanerInvoicesPage .reservationWorkspaceCard {
+            padding: 12px !important;
+          }
+
+          .cleanerInvoiceServiceDetails {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+
+          .cleanerInvoicesPage .operationsCardHeader {
+            margin-bottom: 8px !important;
+          }
+
+          .cleanerInvoiceHistoryHeader {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+            align-items: stretch !important;
+          }
+
+          .cleanerInvoiceHistoryHeader .cleanerInvoiceWorkFilterWrap {
+            width: 100% !important;
+            margin-left: 0 !important;
+          }
+
+          .cleanerInvoiceHistoryHeader .cleanerInvoiceWorkFilterButton {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedger {
+            display: grid !important;
+            gap: 8px !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerHeader {
+            display: none !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerRow {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            gap: 4px 10px !important;
+            padding: 10px 12px !important;
+            min-height: 0 !important;
+            border-radius: 12px !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerNumber {
+            grid-column: 1;
+            grid-row: 1;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerNumber strong {
+            font-size: 13px !important;
+            line-height: 1.15 !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerNumber small {
+            margin-top: 1px !important;
+            font-size: 9px !important;
+            line-height: 1.1 !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerAmount {
+            grid-column: 2;
+            grid-row: 1;
+            align-self: start;
+            text-align: right;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerAmount strong {
+            font-size: 13px !important;
+            line-height: 1.15 !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerCustomer {
+            grid-column: 1 / -1;
+            grid-row: 2;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerCustomer strong {
+            font-size: 12px !important;
+            line-height: 1.15 !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerCustomer small {
+            margin-top: 1px !important;
+            font-size: 10px !important;
+            line-height: 1.1 !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerDate {
+            grid-column: 1;
+            font-size: 9px !important;
+            line-height: 1.1 !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerDate[data-label="Due"] {
+            display: none !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerStatus {
+            grid-column: 1 / -1;
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            margin-top: 1px !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceStatusBadge {
+            padding: 3px 7px !important;
+            font-size: 9px !important;
+            line-height: 1 !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerStatus small {
+            font-size: 9px !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerActions {
+            grid-column: 1 / -1;
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            margin-top: 3px !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerActions .cleanerInvoiceStatusBadge {
+            margin-left: auto !important;
+            flex: 0 0 auto !important;
+          }
+
+          .cleanerInvoicesPage .cleanerInvoiceLedgerActions button {
+            min-height: 30px !important;
+            padding: 5px 10px !important;
+            font-size: 10px !important;
+            border-radius: 9px !important;
+          }
+        }
+      `}</style>
       <header className="cleanerPropertiesHeader">
         <div>
           <p className="cleanerPropertiesEyebrow">Get Paid</p>
@@ -628,6 +1299,8 @@ export default function InvoicesPage({
           type="button"
           onClick={() => {
             setErrorMessage("");
+            setSourceTask(null);
+            setOpenedFromTaskFlow(false);
             setShowCreateInvoice(true);
           }}
         >
@@ -636,53 +1309,81 @@ export default function InvoicesPage({
       </header>
 
       <section className="cleanerPropertiesMetrics" aria-label="Invoice summary">
-        <article className="cleanerPropertiesMetricCard">
-          <div className="cleanerPropertiesMetricIcon">🧾</div>
-          <div>
-            <strong>{invoices.length}</strong>
-            <span>All Invoices</span>
-          </div>
-        </article>
-
-        <article className="cleanerPropertiesMetricCard">
+        <button
+          type="button"
+          className={`cleanerPropertiesMetricCard ${
+            selectedStatus === "draft" ? "active" : ""
+          }`}
+          onClick={() => setSelectedStatus("draft")}
+          aria-pressed={selectedStatus === "draft"}
+        >
           <div className="cleanerPropertiesMetricIcon">📝</div>
           <div>
             <strong>{draftInvoices.length}</strong>
             <span>Drafts</span>
           </div>
-        </article>
+        </button>
 
-        <article className="cleanerPropertiesMetricCard">
+        <button
+          type="button"
+          className={`cleanerPropertiesMetricCard ${
+            selectedStatus === "outstanding" ? "active" : ""
+          }`}
+          onClick={() => setSelectedStatus("outstanding")}
+          aria-pressed={selectedStatus === "outstanding"}
+        >
           <div className="cleanerPropertiesMetricIcon">⏳</div>
           <div>
             <strong>{outstandingInvoices.length}</strong>
             <span>Outstanding</span>
           </div>
-        </article>
+        </button>
 
-        <article className="cleanerPropertiesMetricCard">
-          <div className="cleanerPropertiesMetricIcon">💵</div>
+        <button
+          type="button"
+          className={`cleanerPropertiesMetricCard ${
+            selectedStatus === "paid" ? "active" : ""
+          }`}
+          onClick={() => setSelectedStatus("paid")}
+          aria-pressed={selectedStatus === "paid"}
+        >
+          <div className="cleanerPropertiesMetricIcon">✅</div>
           <div>
-            <strong>{formatMoney(outstandingCents)}</strong>
-            <span>Awaiting Payment</span>
+            <strong>{paidInvoices.length}</strong>
+            <span>Paid</span>
           </div>
-        </article>
+        </button>
+
+        <button
+          type="button"
+          className={`cleanerPropertiesMetricCard ${
+            selectedStatus === "overdue" ? "active" : ""
+          }`}
+          onClick={() => setSelectedStatus("overdue")}
+          aria-pressed={selectedStatus === "overdue"}
+        >
+          <div className="cleanerPropertiesMetricIcon">⚠️</div>
+          <div>
+            <strong>{overdueInvoices.length}</strong>
+            <span>Overdue</span>
+          </div>
+        </button>
       </section>
 
-      {readyTasks.length > 0 && (
+      {filteredReadyTasks.length > 0 && (
         <section className="reservationWorkspaceCard cleanerReadyInvoiceQueue">
           <div className="operationsCardHeader">
             <div>
               <p className="eyebrow">Ready to invoice</p>
               <h3>
-                {readyTasks.length} completed{" "}
-                {readyTasks.length === 1 ? "task" : "tasks"}
+                {filteredReadyTasks.length} completed{" "}
+                {filteredReadyTasks.length === 1 ? "task" : "tasks"}
               </h3>
             </div>
           </div>
 
           <div className="cleanerTurnStack">
-            {readyTasks.map((task) => {
+            {filteredReadyTasks.map((task) => {
               const home = homes.find(
                 (item) => String(item.id) === String(task.homeId)
               );
@@ -736,6 +1437,7 @@ export default function InvoicesPage({
         >
           <option value="all">All statuses</option>
           <option value="draft">Draft</option>
+          <option value="outstanding">Outstanding</option>
           <option value="sent">Sent</option>
           <option value="viewed">Viewed</option>
           <option value="paid">Paid</option>
@@ -743,6 +1445,96 @@ export default function InvoicesPage({
           <option value="void">Void</option>
         </select>
       </section>
+
+      {showWorkFilter && (
+        <>
+          <button
+            type="button"
+            className="modalOverlay"
+            aria-label="Close work filter"
+            onClick={() => setShowWorkFilter(false)}
+          />
+
+          <section
+            className="cleanerInvoiceWorkFilterPanel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filter invoices by property or manual jobs"
+          >
+            <header className="cleanerInvoiceWorkFilterHeader">
+              <div>
+                <p className="eyebrow">Invoice filter</p>
+                <h3>Choose Work</h3>
+              </div>
+
+              <button
+                type="button"
+                className="cleanerScheduleClose"
+                aria-label="Close work filter"
+                onClick={() => setShowWorkFilter(false)}
+              >
+                ✕
+              </button>
+            </header>
+
+            <div className="cleanerInvoiceWorkFilterOptions">
+              <label className="cleanerInvoiceWorkFilterOption">
+                <input
+                  type="checkbox"
+                  checked={selectedWorkFilters.has("all")}
+                  onChange={() => toggleWorkFilter("all")}
+                />
+                <span>All Work</span>
+              </label>
+
+              <div className="cleanerInvoiceWorkFilterDivider" />
+
+              {homes.map((home) => (
+                <label
+                  className="cleanerInvoiceWorkFilterOption"
+                  key={home.id}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedWorkFilters.has(String(home.id))}
+                    onChange={() => toggleWorkFilter(String(home.id))}
+                  />
+                  <span>{home.name}</span>
+                </label>
+              ))}
+
+              <div className="cleanerInvoiceWorkFilterDivider" />
+
+              <label className="cleanerInvoiceWorkFilterOption">
+                <input
+                  type="checkbox"
+                  checked={selectedWorkFilters.has(MANUAL_JOBS_FILTER)}
+                  onChange={() => toggleWorkFilter(MANUAL_JOBS_FILTER)}
+                />
+                <span>Manual Jobs</span>
+              </label>
+            </div>
+
+            <footer className="cleanerInvoiceWorkFilterActions">
+              <button
+                type="button"
+                className="secondaryButton"
+                onClick={() => setSelectedWorkFilters(new Set(["all"]))}
+              >
+                Reset
+              </button>
+
+              <button
+                type="button"
+                className="primaryButton"
+                onClick={() => setShowWorkFilter(false)}
+              >
+                Done
+              </button>
+            </footer>
+          </section>
+        </>
+      )}
 
       {errorMessage && (
         <section className="emptyStateCard">
@@ -755,7 +1547,7 @@ export default function InvoicesPage({
         <section className="emptyStateCard">
           <strong>Loading invoices…</strong>
         </section>
-      ) : filteredInvoices.length === 0 ? (
+      ) : invoices.length === 0 ? (
         <section className="cleanerPropertiesFirstProperty">
           <div className="cleanerPropertiesFirstPropertyIcon">🧾</div>
           <p className="cleanerPropertiesEyebrow">Start here</p>
@@ -774,12 +1566,39 @@ export default function InvoicesPage({
             <span aria-hidden="true">→</span>
           </button>
         </section>
+      ) : filteredInvoices.length === 0 ? (
+        <section className="emptyStateCard cleanerInvoiceFilterEmptyState">
+          <strong>No invoices in this category</strong>
+          <p>
+            There are currently no invoices matching the selected filter.
+          </p>
+          <button
+            className="secondaryButton"
+            type="button"
+            onClick={() => setSelectedStatus("all")}
+          >
+            View All Invoices
+          </button>
+        </section>
       ) : (
         <section className="reservationWorkspaceCard">
-          <div className="operationsCardHeader">
+          <div className="operationsCardHeader cleanerInvoiceHistoryHeader">
             <div>
               <p className="eyebrow">Invoice history</p>
               <h3>{filteredInvoices.length} invoices</h3>
+            </div>
+
+            <div className="cleanerInvoiceWorkFilterWrap">
+              <button
+                type="button"
+                className="secondaryButton cleanerInvoiceWorkFilterButton"
+                aria-haspopup="dialog"
+                aria-expanded={showWorkFilter}
+                onClick={() => setShowWorkFilter(true)}
+              >
+                <span>Filter Work</span>
+                <small>{workFilterLabel} ▾</small>
+              </button>
             </div>
           </div>
 
@@ -796,12 +1615,20 @@ export default function InvoicesPage({
 
             {filteredInvoices.map((invoice) => (
               <article
-                className="cleanerInvoiceLedgerRow"
+                className={`cleanerInvoiceLedgerRow ${
+                  invoice.status === "void" ? "isVoid" : ""
+                }`}
                 key={invoice.id}
                 role="row"
-                tabIndex={0}
-                onClick={() => void openInvoice(invoice)}
+                tabIndex={invoice.status === "void" ? -1 : 0}
+                aria-disabled={invoice.status === "void"}
+                onClick={() => {
+                  if (invoice.status === "void") return;
+                  void openInvoice(invoice);
+                }}
                 onKeyDown={(event) => {
+                  if (invoice.status === "void") return;
+
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     void openInvoice(invoice);
@@ -810,12 +1637,21 @@ export default function InvoicesPage({
               >
                 <div className="cleanerInvoiceLedgerNumber" role="cell">
                   <strong>{invoice.invoice_number}</strong>
-                  <small>Created {formatInvoiceDate(invoice.created_at)}</small>
                 </div>
 
                 <div className="cleanerInvoiceLedgerCustomer" role="cell">
-                  <strong>{invoice.customer_name}</strong>
-                  <small>{invoice.property_name || "Manual invoice"}</small>
+                  <strong>
+                    {invoice.invoice_items
+                      ?.slice()
+                      .sort(
+                        (first, second) =>
+                          Number(first.sort_order ?? 0) -
+                          Number(second.sort_order ?? 0)
+                      )[0]?.description ||
+                      invoice.property_name ||
+                      "Service invoice"}
+                  </strong>
+                  <small>Task date: {getInvoiceTaskDate(invoice)}</small>
                 </div>
 
                 <div className="cleanerInvoiceLedgerDate" role="cell" data-label="Issued">
@@ -830,51 +1666,74 @@ export default function InvoicesPage({
                   <strong>{formatMoney(invoice.total_cents)}</strong>
                 </div>
 
+
                 <div className="cleanerInvoiceLedgerStatus" role="cell">
-                  <span className={`cleanerInvoiceStatusBadge status-${invoice.status}`}>
+                  <span
+                    className={`cleanerInvoiceStatusBadge status-${invoice.status}`}
+                    aria-label={`Invoice status ${invoice.status}`}
+                  >
                     {invoice.status.toUpperCase()}
                   </span>
-                  {invoice.status === "paid" && invoice.payment_source === "manual" && (
-                    <small>{invoice.manual_payment_method || "Manual payment"}</small>
-                  )}
                 </div>
 
                 <div className="cleanerInvoiceLedgerActions" role="cell">
-                  <button
-                    className="secondaryButton"
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void openInvoice(invoice);
-                    }}
-                  >
-                    View
-                  </button>
+                  {invoice.status === "void" ? (
+                    <span className="cleanerInvoiceVoidHistoryNote">
+                      Record only
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        className="secondaryButton cleanerInvoiceViewButton"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void openInvoice(invoice);
+                        }}
+                      >
+                        View
+                      </button>
 
-                  {["sent", "viewed", "overdue"].includes(invoice.status) && (
-                    <button
-                      className="secondaryButton"
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openMarkPaid(invoice);
-                      }}
-                    >
-                      Mark Paid
-                    </button>
-                  )}
+                      {["sent", "viewed", "overdue"].includes(invoice.status) && (
+                        <button
+                          className="secondaryButton cleanerInvoicePaidButton"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openMarkPaid(invoice);
+                          }}
+                        >
+                          Mark Paid
+                        </button>
+                      )}
 
-                  {invoice.status === "draft" && (
-                    <button
-                      className="cleanerPropertyDeleteButton"
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void deleteDraftInvoice(invoice);
-                      }}
-                    >
-                      Delete
-                    </button>
+                      {["sent", "viewed", "overdue"].includes(invoice.status) && (
+                        <button
+                          className="secondaryButton cleanerInvoiceVoidButton"
+                          type="button"
+                          disabled={isVoidingInvoice}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void voidInvoice(invoice);
+                          }}
+                        >
+                          Void
+                        </button>
+                      )}
+
+                      {invoice.status === "draft" && (
+                        <button
+                          className="cleanerPropertyDeleteButton"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void deleteDraftInvoice(invoice);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </article>
@@ -886,7 +1745,9 @@ export default function InvoicesPage({
       {selectedInvoice && (
         <div
           className="modalOverlay"
-          onClick={() => !isSendingInvoice && setSelectedInvoice(null)}
+          onClick={() => {
+            if (!isSendingInvoice) closeInvoiceFlow();
+          }}
         >
           <section
             className="modalCard"
@@ -909,7 +1770,7 @@ export default function InvoicesPage({
                 className="cleanerScheduleClose"
                 type="button"
                 disabled={isSendingInvoice}
-                onClick={() => setSelectedInvoice(null)}
+                onClick={closeInvoiceFlow}
                 aria-label="Close invoice preview"
               >
                 ✕
@@ -951,6 +1812,30 @@ export default function InvoicesPage({
                     </div>
                   </div>
                 )}
+
+              <section
+                className="cleanerInvoiceServiceDetails"
+                aria-label="Service details"
+              >
+                <div>
+                  <span>Service</span>
+                  <strong>
+                    {getInvoiceServiceDetails(selectedInvoice).serviceType}
+                  </strong>
+                </div>
+                <div>
+                  <span>Service date</span>
+                  <strong>
+                    {getInvoiceServiceDetails(selectedInvoice).serviceDate}
+                  </strong>
+                </div>
+                <div>
+                  <span>Property / Customer</span>
+                  <strong>
+                    {getInvoiceServiceDetails(selectedInvoice).propertyOrCustomer}
+                  </strong>
+                </div>
+              </section>
 
               <div className="cleanerInvoiceItems">
                 <div className="cleanerInvoiceItemsHeader">
@@ -1007,6 +1892,19 @@ export default function InvoicesPage({
                 </p>
               )}
 
+              {selectedInvoice.status === "void" && (
+                <div className="cleanerInvoiceVoidedNotice" role="status">
+                  <span aria-hidden="true">⊘</span>
+                  <div>
+                    <strong>Invoice voided</strong>
+                    <p>
+                      This invoice is retained for your records and is no longer
+                      active or payable.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {selectedInvoice.status === "paid" && (
                 <div className="cleanerInvoicePaymentSummary">
                   <strong>Payment recorded</strong>
@@ -1046,7 +1944,19 @@ export default function InvoicesPage({
                 </button>
               )}
 
-              {selectedInvoice.stripe_payment_link && (
+              {["sent", "viewed", "overdue"].includes(selectedInvoice.status) && (
+                <button
+                  className="secondaryButton cleanerInvoiceVoidButton"
+                  type="button"
+                  disabled={isVoidingInvoice}
+                  onClick={() => void voidInvoice(selectedInvoice)}
+                >
+                  {isVoidingInvoice ? "Voiding…" : "Void Invoice"}
+                </button>
+              )}
+
+              {selectedInvoice.status !== "void" &&
+                selectedInvoice.stripe_payment_link && (
                 <>
                   <button
                     className="primaryButton"
@@ -1180,8 +2090,8 @@ export default function InvoicesPage({
           className="modalOverlay"
           onClick={() => {
             if (isSaving) return;
-            setShowCreateInvoice(false);
             onInitialTaskConsumed?.();
+            closeInvoiceFlow();
           }}
         >
           <section
@@ -1199,8 +2109,8 @@ export default function InvoicesPage({
                 type="button"
                 disabled={isSaving}
                 onClick={() => {
-                  setShowCreateInvoice(false);
                   onInitialTaskConsumed?.();
+                  closeInvoiceFlow();
                 }}
               >
                 Close

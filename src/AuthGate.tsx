@@ -3,6 +3,7 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { Navigate } from "react-router-dom";
 import { supabase } from "./utils/supabase";
 import App from "./App";
+import MyGroupsPage from "./pages/MyGroupsPage";
 
 type AppRole = "cleaner" | "owner" | "employee" | "admin";
 
@@ -23,6 +24,22 @@ type Profile = {
 
 type CleanerLaunchPage = "Cleaner Portal" | "Cleaner Properties";
 
+type GroupOption = {
+  id: string;
+  name: string;
+  description?: string | null;
+  logoUrl?: string | null;
+  role: string;
+};
+
+type PendingGroupInvite = {
+  id: string;
+  groupId: string;
+  groupName: string;
+  invitedRole: string;
+  expiresAt: string;
+};
+
 export default function AuthGate() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -37,6 +54,18 @@ export default function AuthGate() {
   const [skipSetupForSession, setSkipSetupForSession] = useState(false);
   const [profileLoadError, setProfileLoadError] = useState("");
   const [profileRetryKey, setProfileRetryKey] = useState(0);
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupLoadError, setGroupLoadError] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [pendingInvites, setPendingInvites] = useState<PendingGroupInvite[]>([]);
+  const [invitesLoading, setInvitesLoading] = useState(false);
+  const [inviteActionId, setInviteActionId] = useState<string | null>(null);
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteLoadError, setInviteLoadError] = useState("");
+  const [accountRefreshKey, setAccountRefreshKey] = useState(0);
+  const [employeeWelcomeDismissed, setEmployeeWelcomeDismissed] =
+    useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -65,12 +94,26 @@ export default function AuthGate() {
             setLaunchPage(null);
             setSkipSetupForSession(false);
             setProfileLoadError("");
+            setGroups([]);
+            setSelectedGroupId(null);
+            setGroupLoadError("");
+            setPendingInvites([]);
+            setInviteMessage("");
+            setInviteLoadError("");
+            setEmployeeWelcomeDismissed(false);
           } else if (event === "SIGNED_IN" && userChanged) {
             setProfile(null);
             setPropertyCount(0);
             setLaunchPage(null);
             setSkipSetupForSession(false);
             setProfileLoadError("");
+            setGroups([]);
+            setSelectedGroupId(null);
+            setGroupLoadError("");
+            setPendingInvites([]);
+            setInviteMessage("");
+            setInviteLoadError("");
+            setEmployeeWelcomeDismissed(false);
           }
 
           /*
@@ -146,7 +189,7 @@ export default function AuthGate() {
       if (lastProfileError) {
         console.error("Unable to load AMR profile", lastProfileError);
         setProfileLoadError(
-          "AMR could not load your workspace. Your account is still signed in."
+          "AMR could not load your team. Your account is still signed in."
         );
         setProfileLoading(false);
         return;
@@ -154,7 +197,7 @@ export default function AuthGate() {
 
       if (!profileData) {
         setProfileLoadError(
-          "No AMR workspace is connected to this login yet."
+          "No AMR team is connected to this login yet."
         );
         setProfileLoading(false);
         return;
@@ -186,7 +229,201 @@ export default function AuthGate() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id, profileRetryKey]);
+  }, [session?.user?.id, profileRetryKey, accountRefreshKey]);
+
+  useEffect(() => {
+    const userEmail = session?.user?.email?.trim().toLowerCase();
+
+    if (!session?.user?.id || !userEmail) {
+      setPendingInvites([]);
+      setInviteLoadError("");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadPendingInvites() {
+      setInvitesLoading(true);
+      setInviteLoadError("");
+
+      const { data, error } = await supabase.rpc(
+        "get_my_pending_group_invites",
+      );
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Unable to load pending group invitations", error);
+        setInviteLoadError(
+          "AMR could not check your pending invitations.",
+        );
+        setInvitesLoading(false);
+        return;
+      }
+
+      setPendingInvites(
+        (data ?? []).map((invite: any) => ({
+          id: String(invite.invite_id),
+          groupId: String(invite.group_id),
+          groupName: invite.group_name ?? "AMR Group",
+          invitedRole: invite.invited_role ?? "member",
+          expiresAt: invite.expires_at,
+        })),
+      );
+      setInvitesLoading(false);
+    }
+
+    void loadPendingInvites();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id, session?.user?.email, accountRefreshKey]);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+
+    if (!userId || !profile) {
+      setGroups([]);
+      setSelectedGroupId(null);
+      setGroupLoadError("");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadGroups() {
+      setGroupsLoading(true);
+      setGroupLoadError("");
+
+      const { data, error } = await supabase
+        .from("group_members")
+        .select(
+          "group_id, role, status, groups(id, name, description, logo_url, status)"
+        )
+        .eq("user_id", userId)
+        .eq("status", "active");
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Unable to load AMR groups", error);
+        setGroupLoadError(
+          "AMR could not load your teams. Your existing team is still safe."
+        );
+        setGroupsLoading(false);
+        return;
+      }
+
+      const mappedGroups: GroupOption[] = (data ?? [])
+        .map((membership: any) => {
+          const relatedGroup = Array.isArray(membership.groups)
+            ? membership.groups[0]
+            : membership.groups;
+
+          if (!relatedGroup || relatedGroup.status !== "active") {
+            return null;
+          }
+
+          return {
+            id: String(relatedGroup.id),
+            name: relatedGroup.name ?? "AMR Group",
+            description: relatedGroup.description ?? null,
+            logoUrl: relatedGroup.logo_url ?? null,
+            role: membership.role ?? "member",
+          };
+        })
+        .filter(Boolean) as GroupOption[];
+
+      setGroups(mappedGroups);
+
+      const storageKey = `amr-selected-group:${userId}`;
+      const savedGroupId = window.localStorage.getItem(storageKey);
+      const savedGroupStillExists = mappedGroups.some(
+        (group) => group.id === savedGroupId
+      );
+
+      if (mappedGroups.length === 1) {
+        setSelectedGroupId(mappedGroups[0].id);
+        window.localStorage.setItem(storageKey, mappedGroups[0].id);
+      } else if (savedGroupStillExists && savedGroupId) {
+        setSelectedGroupId(savedGroupId);
+      } else {
+        setSelectedGroupId(null);
+      }
+
+      setGroupsLoading(false);
+    }
+
+    void loadGroups();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id, profile]);
+
+  async function respondToGroupInvite(
+    inviteId: string,
+    response: "accept" | "decline",
+  ) {
+    setInviteActionId(inviteId);
+    setInviteMessage("");
+    setInviteLoadError("");
+
+    const functionName =
+      response === "accept"
+        ? "accept_my_group_invite"
+        : "decline_my_group_invite";
+
+    const { error } = await supabase.rpc(functionName, {
+      p_invite_id: inviteId,
+    });
+
+    if (error) {
+      console.error(`Unable to ${response} group invitation`, error);
+      setInviteLoadError(error.message);
+      setInviteActionId(null);
+      return;
+    }
+
+    setInviteMessage(
+      response === "accept"
+        ? "Invitation accepted. Opening your new team…"
+        : "Invitation declined.",
+    );
+    setInviteActionId(null);
+    setSelectedGroupId(null);
+    setAccountRefreshKey((current) => current + 1);
+  }
+
+  function formatInviteRole(role: string) {
+    return role
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function selectGroup(groupId: string) {
+    const userId = session?.user?.id;
+
+    setSelectedGroupId(groupId);
+
+    if (userId) {
+      window.localStorage.setItem(
+        `amr-selected-group:${userId}`,
+        groupId
+      );
+    }
+  }
+
+  function returnToGroupPicker() {
+    const userId = session?.user?.id;
+
+    setSelectedGroupId(null);
+
+    if (userId) {
+      window.localStorage.removeItem(`amr-selected-group:${userId}`);
+    }
+  }
 
   const cleanerSetupSteps = useMemo(() => {
     const paymentsReady = Boolean(
@@ -265,14 +502,17 @@ export default function AuthGate() {
     setSavingSetup(false);
   }
 
-  if (loading || (session && profileLoading)) {
+  if (
+    loading ||
+    (session && (profileLoading || groupsLoading || invitesLoading))
+  ) {
     return (
       <div className="authPage">
         <section className="authCard authWorkspaceLoading">
           <div className="brandIcon">AMR</div>
           <p className="eyebrow">AMR Cleaner</p>
-          <h1>Opening your workspace…</h1>
-          <p>Restoring your secure session and loading your account.</p>
+          <h1>Opening your team…</h1>
+          <p>Restoring your secure session and loading your team.</p>
           <div className="authLoadingBar" aria-hidden="true">
             <span />
           </div>
@@ -285,16 +525,102 @@ export default function AuthGate() {
     return <Navigate to="/" replace />;
   }
 
+  if (pendingInvites.length > 0) {
+    return (
+      <div className="authPage">
+        <section className="authCard" style={{ maxWidth: 680 }}>
+          <div className="brandIcon">AMR</div>
+          <p className="eyebrow">Team invitation</p>
+          <h1>You’ve been invited to AMR</h1>
+          <p>
+            Review the team and access level before joining.
+          </p>
+
+          <div style={{ display: "grid", gap: 14, marginTop: 20 }}>
+            {pendingInvites.map((invite) => (
+              <article
+                key={invite.id}
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 16,
+                  padding: 18,
+                }}
+              >
+                <p className="eyebrow">AMR team</p>
+                <h2 style={{ marginBottom: 6 }}>{invite.groupName}</h2>
+                <p className="mutedText">
+                  Role: {formatInviteRole(invite.invitedRole)}
+                </p>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: 10,
+                    marginTop: 16,
+                  }}
+                >
+                  <button
+                    className="primaryButton"
+                    type="button"
+                    disabled={inviteActionId === invite.id}
+                    onClick={() =>
+                      void respondToGroupInvite(invite.id, "accept")
+                    }
+                  >
+                    {inviteActionId === invite.id
+                      ? "Joining…"
+                      : "Accept Invitation"}
+                  </button>
+
+                  <button
+                    className="secondaryButton"
+                    type="button"
+                    disabled={inviteActionId === invite.id}
+                    onClick={() =>
+                      void respondToGroupInvite(invite.id, "decline")
+                    }
+                  >
+                    Decline
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {inviteMessage && <p className="authMessage">{inviteMessage}</p>}
+
+          {inviteLoadError && (
+            <div className="emptyStateCard" role="alert">
+              <strong>Invitation needs attention</strong>
+              <p>{inviteLoadError}</p>
+            </div>
+          )}
+
+          <button
+            className="secondaryButton"
+            type="button"
+            style={{ marginTop: 18 }}
+            onClick={() => void supabase.auth.signOut()}
+          >
+            Sign Out
+          </button>
+        </section>
+      </div>
+    );
+  }
+
   if (!profile) {
     return (
       <div className="authPage">
         <section className="authCard authRecoveryCard">
           <div className="brandIcon">AMR</div>
-          <p className="eyebrow">Workspace connection</p>
-          <h1>We couldn&apos;t load your workspace</h1>
+          <p className="eyebrow">Team connection</p>
+          <h1>We couldn&apos;t load your team</h1>
           <p>
             {profileLoadError ||
-              "Your account is still signed in. Try loading your workspace again."}
+              "Your account is still signed in. Try loading your team again."}
           </p>
 
           <div className="authRecoveryNotice">
@@ -324,6 +650,121 @@ export default function AuthGate() {
               Sign Out
             </button>
           </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (groupLoadError) {
+    return (
+      <div className="authPage">
+        <section className="authCard authRecoveryCard">
+          <div className="brandIcon">AMR</div>
+          <p className="eyebrow">Team connection</p>
+          <h1>We couldn&apos;t load your teams</h1>
+          <p>{groupLoadError}</p>
+
+          <div className="authRecoveryActions">
+            <button
+              className="primaryButton"
+              type="button"
+              onClick={() => setProfileRetryKey((current) => current + 1)}
+            >
+              Try Again
+            </button>
+
+            <button
+              className="secondaryButton"
+              type="button"
+              onClick={() => void supabase.auth.signOut()}
+            >
+              Sign Out
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (groups.length === 0) {
+    return (
+      <div className="authPage">
+        <section className="authCard authRecoveryCard">
+          <div className="brandIcon">AMR</div>
+          <p className="eyebrow">My Teams</p>
+          <h1>No active team was found</h1>
+          <p>
+            {inviteLoadError ||
+              "Your login is working, but it is not connected to an active AMR team yet."}
+          </p>
+
+          <button
+            className="secondaryButton"
+            type="button"
+            onClick={() => void supabase.auth.signOut()}
+          >
+            Sign Out
+          </button>
+        </section>
+      </div>
+    );
+  }
+
+  if (groups.length > 1 && !selectedGroupId) {
+    return (
+      <MyGroupsPage
+        groups={groups}
+        profileName={
+          profile.display_name ??
+          profile.full_name ??
+          profile.business_name ??
+          ""
+        }
+        onSelectGroup={selectGroup}
+        onSignOut={() => void supabase.auth.signOut()}
+      />
+    );
+  }
+
+  const selectedGroupForWelcome =
+    groups.find((group) => group.id === selectedGroupId) ?? groups[0];
+
+  if (
+    profile.role === "employee" &&
+    !employeeWelcomeDismissed &&
+    selectedGroupForWelcome
+  ) {
+    return (
+      <div className="authPage">
+        <section className="authCard" style={{ maxWidth: 640 }}>
+          <div className="brandIcon">AMR</div>
+          <p className="eyebrow">Welcome to your team</p>
+          <h1>You joined {selectedGroupForWelcome.name}</h1>
+          <p>
+            Your invitation was accepted successfully. Your team administrator
+            can now assign properties, cleaning tasks, and team access to
+            you.
+          </p>
+
+          <div className="authRecoveryNotice">
+            <span aria-hidden="true">✓</span>
+            <div>
+              <strong>
+                Role: {formatInviteRole(selectedGroupForWelcome.role)}
+              </strong>
+              <small>
+                An empty Pulse simply means nothing has been assigned to you yet.
+              </small>
+            </div>
+          </div>
+
+          <button
+            className="primaryButton"
+            type="button"
+            onClick={() => setEmployeeWelcomeDismissed(true)}
+          >
+            Open My Team
+          </button>
         </section>
       </div>
     );
@@ -448,12 +889,20 @@ export default function AuthGate() {
   const cleanerMode =
     profile.role === "cleaner" || profile.role === "employee";
 
+  const selectedGroup =
+    groups.find((group) => group.id === selectedGroupId) ?? groups[0];
+
   return (
     <App
       userRole={profile.role}
       initialPage={
         launchPage ?? (cleanerMode ? "Cleaner Portal" : "Pulse")
       }
+      selectedGroupId={selectedGroup.id}
+      selectedGroupName={selectedGroup.name}
+      selectedGroupRole={selectedGroup.role}
+      canSwitchGroups={groups.length > 1}
+      onChangeGroup={returnToGroupPicker}
     />
   );
 }

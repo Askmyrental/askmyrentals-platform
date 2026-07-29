@@ -4717,14 +4717,14 @@ grid-template-columns:1fr;
 .cleanerInvoicesPage .cleanerInvoiceLedgerHeader,
 .cleanerInvoicesPage .cleanerInvoiceLedgerRow {
   grid-template-columns:
-    minmax(138px, 1.05fr)
-    minmax(190px, 1.5fr)
-    108px
-    108px
-    100px
-    90px
-    minmax(170px, auto);
-  gap: 12px;
+    minmax(120px, 0.95fr)
+    minmax(180px, 1.45fr)
+    92px
+    92px
+    88px
+    82px
+    minmax(150px, 1.15fr);
+  gap: 10px;
 }
 
 .cleanerInvoicesPage .cleanerInvoiceLedgerHeader {
@@ -4956,12 +4956,12 @@ grid-template-columns:1fr;
   .cleanerInvoicesPage .cleanerInvoiceLedgerHeader,
   .cleanerInvoicesPage .cleanerInvoiceLedgerRow {
     grid-template-columns:
-      minmax(130px, 1fr)
-      minmax(175px, 1.45fr)
-      100px
-      95px
-      86px
-      minmax(160px, auto);
+      minmax(118px, 0.95fr)
+      minmax(170px, 1.4fr)
+      88px
+      82px
+      78px
+      minmax(145px, 1.1fr);
   }
 
   .cleanerInvoicesPage .cleanerInvoiceLedgerHeader > :nth-child(4),
@@ -6382,9 +6382,546 @@ grid-template-columns:1fr;
     font-size: 0.82rem;
   }
 }
+/* PUBLIC HOMEOWNER INVOICE */
+
+.publicInvoicePage {
+  min-height: 100vh;
+  background: #f4f7fb;
+  padding: 40px 20px;
+  color: #1f2937;
+}
+
+.publicInvoiceShell {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1px solid #dbe3ee;
+  border-radius: 22px;
+  box-shadow: 0 20px 55px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.publicInvoiceHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 38px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
+}
+
+.publicInvoiceBrand {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.publicInvoiceLogo {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  border-radius: 16px;
+  background: #0074d4;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.publicInvoiceBrand h1,
+.publicInvoiceMeta h2,
+.publicInvoiceBillTo h3 {
+  margin: 0;
+  color: #1f2937;
+}
+
+.publicInvoiceBrand p,
+.publicInvoiceMeta p,
+.publicInvoiceBillTo p,
+.publicInvoiceNotes p,
+.publicInvoiceFooter p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.publicInvoiceEyebrow {
+  margin: 0 0 8px;
+  color: #0074d4;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.publicInvoiceMeta {
+  min-width: 220px;
+  text-align: right;
+}
+
+.publicInvoiceMeta h2 {
+  margin-top: 14px;
+  font-size: 24px;
+}
+
+.publicInvoiceStatus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.publicInvoiceStatus.status-draft {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.publicInvoiceStatus.status-sent,
+.publicInvoiceStatus.status-viewed {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.publicInvoiceStatus.status-overdue {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.publicInvoiceStatus.status-paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.publicInvoiceAlert {
+  margin: 28px 38px 0;
+  padding: 16px 18px;
+  border-radius: 14px;
+}
+
+.publicInvoiceAlert strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.publicInvoiceAlert p {
+  margin: 0;
+}
+
+.publicInvoiceAlert.success {
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.publicInvoiceAlert.warning {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+}
+
+.publicInvoiceBillTo {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 34px 38px;
+}
+
+.publicInvoiceBillTo > div:last-child {
+  text-align: right;
+}
+
+.publicInvoiceBillTo > div:last-child strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 30px;
+}
+
+.publicInvoiceItems {
+  margin: 0 38px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.publicInvoiceItemsHeader,
+.publicInvoiceItemRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 120px 120px;
+  gap: 16px;
+  align-items: center;
+}
+
+.publicInvoiceItemsHeader {
+  padding: 14px 18px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.publicInvoiceItemRow {
+  padding: 18px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.publicInvoiceItemRow:first-of-type {
+  border-top: 0;
+}
+
+.publicInvoiceItemRow > span,
+.publicInvoiceItemRow > strong {
+  text-align: right;
+}
+
+.publicInvoiceTotals {
+  width: min(390px, calc(100% - 76px));
+  margin: 28px 38px 0 auto;
+}
+
+.publicInvoiceTotals p {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0;
+  padding: 10px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.publicInvoiceGrandTotal {
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.publicInvoiceGrandTotal strong {
+  font-size: 24px;
+}
+
+.publicInvoiceNotes {
+  display: grid;
+  gap: 18px;
+  margin: 30px 38px 0;
+  padding: 22px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.publicInvoiceFooter {
+  margin-top: 34px;
+  padding: 30px 38px 38px;
+  text-align: center;
+}
+
+.publicInvoiceFooter button {
+  width: min(360px, 100%);
+  min-height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: #0074d4;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.publicInvoiceFooter button:hover:not(:disabled) {
+  background: #005fb3;
+}
+
+.publicInvoiceFooter button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.publicInvoiceFooter p {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.publicInvoiceStateCard {
+  width: min(520px, 100%);
+  margin: 80px auto;
+  padding: 42px;
+  border: 1px solid #dbe3ee;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+  text-align: center;
+}
+
+.publicInvoiceStateCard .publicInvoiceLogo {
+  margin: 0 auto 18px;
+}
+
+@media screen and (max-width: 700px) {
+  .publicInvoicePage {
+    padding: 16px;
+  }
+
+  .publicInvoiceShell {
+    border-radius: 16px;
+  }
+
+  .publicInvoiceHeader {
+    flex-direction: column;
+    padding: 24px;
+  }
+
+  .publicInvoiceMeta {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .publicInvoiceAlert {
+    margin: 20px 24px 0;
+  }
+
+  .publicInvoiceBillTo {
+    flex-direction: column;
+    padding: 26px 24px;
+  }
+
+  .publicInvoiceBillTo > div:last-child {
+    text-align: left;
+  }
+
+  .publicInvoiceItems {
+    margin: 0 24px;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .publicInvoiceItemsHeader {
+    display: none;
+  }
+
+  .publicInvoiceItemRow {
+    display: block;
+    margin-bottom: 14px;
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+  }
+
+  .publicInvoiceItemRow > span,
+  .publicInvoiceItemRow > strong {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 10px;
+    text-align: left;
+  }
+
+  .publicInvoiceItemRow > span::before,
+  .publicInvoiceItemRow > strong::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .publicInvoiceTotals {
+    width: auto;
+    margin: 24px;
+  }
+
+  .publicInvoiceNotes {
+    margin: 24px;
+  }
+
+  .publicInvoiceFooter {
+    padding: 24px;
+  }
+}.publicInvoicePaymentError {
+  margin: 12px auto 0;
+  color: #b91c1c !important;
+  font-weight: 700;
+}
 
 
 
 
 
 
+
+/* =========================================================
+   INVOICE LEDGER — FINAL DESKTOP ALIGNMENT + BUTTON COLORS
+   ========================================================= */
+@media screen and (min-width: 761px) {
+  .cleanerInvoicesPage .reservationWorkspaceCard {
+    overflow: hidden;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedger {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerHeader,
+  .cleanerInvoicesPage .cleanerInvoiceLedgerRow {
+    width: 100%;
+    grid-template-columns:
+      minmax(120px, 0.95fr)
+      minmax(180px, 1.45fr)
+      92px
+      92px
+      88px
+      82px
+      minmax(150px, 1.15fr) !important;
+    gap: 10px !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerHeader > *,
+  .cleanerInvoicesPage .cleanerInvoiceLedgerRow > * {
+    min-width: 0;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerCustomer strong,
+  .cleanerInvoicesPage .cleanerInvoiceLedgerNumber strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerStatus {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerActions button {
+    min-width: 0;
+    min-height: 32px;
+    padding: 6px 9px;
+    border-radius: 10px;
+    font-size: 0.68rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceViewButton {
+    border-color: #334155 !important;
+    background: #334155 !important;
+    color: #ffffff !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceViewButton:hover {
+    background: #1e293b !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoicePaidButton {
+    border-color: #16a34a !important;
+    background: #16a34a !important;
+    color: #ffffff !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoicePaidButton:hover {
+    background: #15803d !important;
+  }
+}
+
+@media screen and (max-width: 1180px) and (min-width: 761px) {
+  .cleanerInvoicesPage .cleanerInvoiceLedgerHeader,
+  .cleanerInvoicesPage .cleanerInvoiceLedgerRow {
+    grid-template-columns:
+      minmax(112px, 0.95fr)
+      minmax(160px, 1.35fr)
+      84px
+      78px
+      74px
+      minmax(140px, 1.05fr) !important;
+    gap: 8px !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerHeader > :nth-child(4),
+  .cleanerInvoicesPage .cleanerInvoiceLedgerRow > :nth-child(4) {
+    display: none !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerActions button {
+    padding-inline: 7px;
+    font-size: 0.64rem;
+  }
+}
+
+
+/* =========================================================
+   INVOICE LEDGER — ENSURE FULL "MARK PAID" BUTTON IS VISIBLE
+   ========================================================= */
+@media screen and (min-width: 761px) {
+  .cleanerInvoicesPage .cleanerInvoiceLedgerActions {
+    min-width: 0;
+    justify-content: flex-start !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerActions button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    padding: 6px 8px !important;
+    font-size: 0.65rem !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoicePaidButton {
+    min-width: 74px !important;
+  }
+}
+
+/* When the desktop workspace is narrower, hide Due first and give Actions more room. */
+@media screen and (max-width: 1400px) and (min-width: 761px) {
+  .cleanerInvoicesPage .cleanerInvoiceLedgerHeader,
+  .cleanerInvoicesPage .cleanerInvoiceLedgerRow {
+    grid-template-columns:
+      minmax(112px, 0.9fr)
+      minmax(155px, 1.25fr)
+      82px
+      82px
+      76px
+      minmax(162px, 1.2fr) !important;
+    gap: 8px !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerHeader > :nth-child(4),
+  .cleanerInvoicesPage .cleanerInvoiceLedgerRow > :nth-child(4) {
+    display: none !important;
+  }
+
+  .cleanerInvoicesPage .cleanerInvoiceLedgerActions {
+    gap: 5px !important;
+  }
+}.cleanerCalendarConnectRow .cleanerCreatePropertySubmitButton{
+    min-width:190px;
+    height:48px;
+    border-radius:14px;
+    font-weight:800;
+}@media (max-width:700px){
+
+  .cleanerInvoiceWorkFilterWrap{
+      width:100%;
+  }
+
+  .cleanerInvoiceWorkFilterButton{
+      width:100%;
+  }
+
+  .cleanerInvoiceWorkFilterWrap{
+      display:flex;
+      justify-content:flex-start;
+  }
+
+}

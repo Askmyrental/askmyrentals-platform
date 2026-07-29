@@ -11408,4 +11408,110 @@ body,
     font-size: 8px;
   }
 }
+/* COMPACT MOBILE INVOICE HISTORY */
 
+@media screen and (max-width: 700px) {
+  .cleanerInvoiceLedger {
+    gap: 8px;
+  }
+
+  .cleanerInvoiceLedgerRow {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 5px 12px !important;
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+    min-height: 0 !important;
+  }
+
+  .cleanerInvoiceLedgerNumber {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .cleanerInvoiceLedgerNumber strong {
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .cleanerInvoiceLedgerNumber small {
+    margin-top: 2px;
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .cleanerInvoiceLedgerAmount {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    text-align: right;
+  }
+
+  .cleanerInvoiceLedgerAmount strong {
+    font-size: 14px;
+  }
+
+  .cleanerInvoiceLedgerCustomer {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .cleanerInvoiceLedgerCustomer strong {
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  .cleanerInvoiceLedgerCustomer small {
+    margin-top: 1px;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .cleanerInvoiceLedgerDate {
+    grid-column: 1;
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .cleanerInvoiceLedgerDate[data-label="Due"] {
+    display: none;
+  }
+
+  .cleanerInvoiceLedgerStatus {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 2px;
+  }
+
+  .cleanerInvoiceStatusBadge {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .cleanerInvoiceLedgerStatus small {
+    font-size: 10px;
+  }
+
+  .cleanerInvoiceLedgerActions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 7px;
+    margin-top: 4px;
+  }
+
+  .cleanerInvoiceLedgerActions button {
+    min-height: 34px !important;
+    padding: 7px 12px !important;
+    font-size: 11px !important;
+  }
+
+  .cleanerInvoiceLedgerHeader {
+    display: none !important;
+  }
+
+  .reservationWorkspaceCard .operationsCardHeader {
+    margin-bottom: 10px;
+  }
+}

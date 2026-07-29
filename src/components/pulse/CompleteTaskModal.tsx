@@ -182,7 +182,6 @@ export default function CompleteTaskModal({
                   checked={guestReady === "no"}
                   onChange={() => {
                     setGuestReady("no");
-                    setMaintenanceChoice("issue");
                   }}
                 />
                 <span>⚠️ No</span>
