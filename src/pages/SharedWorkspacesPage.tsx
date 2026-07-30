@@ -17,6 +17,8 @@ type GroupMember = {
 
 type GroupInvite = {
   id: string;
+  first_name?: string | null;
+  last_name?: string | null;
   email: string | null;
   phone_number: string | null;
   invited_role: string;
@@ -43,6 +45,8 @@ export default function SharedWorkspacesPage({
   const [groupLoading, setGroupLoading] = useState(true);
   const [groupMessage, setGroupMessage] = useState("");
   const [groupError, setGroupError] = useState("");
+  const [inviteFirstName, setInviteFirstName] = useState("");
+  const [inviteLastName, setInviteLastName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("cleaner");
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -79,7 +83,7 @@ export default function SharedWorkspacesPage({
         supabase
           .from("group_invites")
           .select(
-            "id, email, phone_number, invited_role, status, expires_at, created_at",
+            "id, first_name, last_name, email, phone_number, invited_role, status, expires_at, created_at",
           )
           .eq("group_id", selectedGroupId)
           .eq("status", "pending")
@@ -156,7 +160,14 @@ export default function SharedWorkspacesPage({
     setGroupMessage("");
     setGroupError("");
 
+    const normalizedFirstName = inviteFirstName.trim();
+    const normalizedLastName = inviteLastName.trim();
     const normalizedEmail = inviteEmail.trim().toLowerCase();
+
+    if (!normalizedFirstName || !normalizedLastName) {
+      setGroupError("Enter the person’s first and last name.");
+      return;
+    }
 
     if (!normalizedEmail) {
       setGroupError("Enter the person’s email address.");
@@ -197,6 +208,8 @@ export default function SharedWorkspacesPage({
           },
           body: JSON.stringify({
             groupId: selectedGroupId,
+            firstName: normalizedFirstName,
+            lastName: normalizedLastName,
             email: normalizedEmail,
             role: inviteRole,
           }),
@@ -211,6 +224,8 @@ export default function SharedWorkspacesPage({
         );
       }
 
+      setInviteFirstName("");
+      setInviteLastName("");
       setInviteEmail("");
       setInviteRole("cleaner");
       setShowInviteForm(false);
@@ -470,12 +485,35 @@ export default function SharedWorkspacesPage({
                 style={{ marginTop: 14 }}
               >
                 <label>
+                  First name
+                  <input
+                    value={inviteFirstName}
+                    onChange={(event) => setInviteFirstName(event.target.value)}
+                    placeholder="First name"
+                    autoComplete="given-name"
+                    required
+                  />
+                </label>
+
+                <label>
+                  Last name
+                  <input
+                    value={inviteLastName}
+                    onChange={(event) => setInviteLastName(event.target.value)}
+                    placeholder="Last name"
+                    autoComplete="family-name"
+                    required
+                  />
+                </label>
+
+                <label>
                   Invite by email
                   <input
                     type="email"
                     value={inviteEmail}
                     onChange={(event) => setInviteEmail(event.target.value)}
                     placeholder="person@example.com"
+                    autoComplete="email"
                     required
                   />
                 </label>
@@ -675,8 +713,22 @@ export default function SharedWorkspacesPage({
                   >
                     <div>
                       <strong>
-                        {invite.email ?? invite.phone_number ?? "Invite link"}
+                        {[invite.first_name, invite.last_name]
+                          .filter(Boolean)
+                          .join(" ")
+                          .trim() ||
+                          invite.email ||
+                          invite.phone_number ||
+                          "Invite link"}
                       </strong>
+                      {invite.email && (
+                        <p
+                          className="mutedText"
+                          style={{ margin: "4px 0 0" }}
+                        >
+                          {invite.email}
+                        </p>
+                      )}
                       <p
                         className="mutedText"
                         style={{ margin: "4px 0 0" }}

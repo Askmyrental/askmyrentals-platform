@@ -74,6 +74,7 @@ type CleanerProfilePageProps = {
   selectedGroupName: string;
   selectedGroupRole: string;
   onOpenProperties: () => void;
+  onStartBusiness: (businessName: string) => Promise<void>;
 };
 
 const EMPTY_FORM: CleanerProfileForm = {
@@ -93,6 +94,7 @@ export default function CleanerProfilePage({
   selectedGroupName,
   selectedGroupRole,
   onOpenProperties,
+  onStartBusiness,
 }: CleanerProfilePageProps) {
   const [profile, setProfile] = useState<CleanerProfileRow | null>(null);
   const [form, setForm] = useState<CleanerProfileForm>(EMPTY_FORM);
@@ -106,6 +108,8 @@ export default function CleanerProfilePage({
   const [groupLoading, setGroupLoading] = useState(true);
   const [groupMessage, setGroupMessage] = useState("");
   const [groupError, setGroupError] = useState("");
+  const [inviteFirstName, setInviteFirstName] = useState("");
+  const [inviteLastName, setInviteLastName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("cleaner");
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -114,11 +118,32 @@ export default function CleanerProfilePage({
   const [memberSearch, setMemberSearch] = useState("");
   const [showInviteForm, setShowInviteForm] = useState(true);
   const [updatingMemberId, setUpdatingMemberId] = useState<string | null>(null);
+  const [showBusinessCreation, setShowBusinessCreation] = useState(false);
+  const [newBusinessName, setNewBusinessName] = useState("");
+  const [creatingBusiness, setCreatingBusiness] = useState(false);
+  const [businessCreationError, setBusinessCreationError] = useState("");
+
+  const normalizedGroupRole = String(selectedGroupRole ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  const isAssignedTeamMember = [
+    "cleaner",
+    "employee",
+    "team_member",
+    "member",
+  ].includes(normalizedGroupRole);
+
+  const canUseBusinessTools = !isAssignedTeamMember;
 
   useEffect(() => {
     void loadProfile();
-    void refreshStripeStatus();
-  }, []);
+
+    if (canUseBusinessTools) {
+      void refreshStripeStatus();
+    }
+  }, [canUseBusinessTools]);
 
   useEffect(() => {
     void loadGroupAccess();
@@ -262,7 +287,14 @@ export default function CleanerProfilePage({
     setGroupMessage("");
     setGroupError("");
 
+    const normalizedFirstName = inviteFirstName.trim();
+    const normalizedLastName = inviteLastName.trim();
     const normalizedEmail = inviteEmail.trim().toLowerCase();
+
+    if (!normalizedFirstName || !normalizedLastName) {
+      setGroupError("Enter the person’s first and last name.");
+      return;
+    }
 
     if (!normalizedEmail) {
       setGroupError("Enter the person’s email address.");
@@ -314,6 +346,8 @@ export default function CleanerProfilePage({
           },
           body: JSON.stringify({
             groupId: selectedGroupId,
+            firstName: normalizedFirstName,
+            lastName: normalizedLastName,
             email: normalizedEmail,
             role: inviteRole,
           }),
@@ -328,6 +362,8 @@ export default function CleanerProfilePage({
         );
       }
 
+      setInviteFirstName("");
+      setInviteLastName("");
       setInviteEmail("");
       setInviteRole("cleaner");
       setShowInviteForm(false);
@@ -537,7 +573,7 @@ export default function CleanerProfilePage({
       }
 
       setProfile(data as CleanerProfileRow);
-      setMessage("Business profile saved.");
+      setMessage(isAssignedTeamMember ? "Team profile saved." : "Business profile saved.");
     } catch (error) {
       console.error("Unable to save cleaner profile", error);
       setErrorMessage(
@@ -547,6 +583,32 @@ export default function CleanerProfilePage({
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function createBusinessWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const businessName = newBusinessName.trim();
+
+    if (!businessName) {
+      setBusinessCreationError("Enter the name of your cleaning business.");
+      return;
+    }
+
+    setCreatingBusiness(true);
+    setBusinessCreationError("");
+
+    try {
+      await onStartBusiness(businessName);
+    } catch (error) {
+      console.error("Unable to create business workspace", error);
+      setBusinessCreationError(
+        error instanceof Error
+          ? error.message
+          : "AMR could not create your business workspace.",
+      );
+      setCreatingBusiness(false);
     }
   }
 
@@ -799,6 +861,215 @@ export default function CleanerProfilePage({
       <section className="placeholderPage">
         <p className="eyebrow">Cleaner Profile</p>
         <h2>Loading your business profile…</h2>
+      </section>
+    );
+  }
+
+  if (isAssignedTeamMember) {
+    return (
+      <section className="cleanerProfilePage">
+        <header className="pageHeader">
+          <div>
+            <p className="eyebrow">Team profile</p>
+            <h2>My Profile</h2>
+            <p className="headerSubtext">
+              Confirm the information your team uses for assignments and communication.
+            </p>
+          </div>
+        </header>
+
+        {errorMessage && (
+          <div className="emptyStateCard" role="alert">
+            <strong>Profile needs attention</strong>
+            <p>{errorMessage}</p>
+            <button
+              type="button"
+              className="secondaryButton"
+              onClick={() => void loadProfile()}
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        <form
+          className="reservationWorkspaceCard cleanerProfileForm"
+          onSubmit={saveProfile}
+        >
+          <div>
+            <p className="eyebrow">Personal information</p>
+            <h3>Tell your team who you are</h3>
+            <p className="mutedText">
+              This information helps your manager identify and contact you. No
+              payment or business setup is required to receive assignments.
+            </p>
+          </div>
+
+          <div className="dataSourceForm" style={{ marginTop: 18 }}>
+            <label>
+              Full name
+              <input
+                value={form.contactName}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    contactName: event.target.value,
+                  }))
+                }
+                placeholder="Your name"
+                autoComplete="name"
+                required
+              />
+            </label>
+
+            <label>
+              Email
+              <input
+                type="email"
+                value={form.businessEmail}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    businessEmail: event.target.value,
+                  }))
+                }
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
+            </label>
+
+            <label>
+              Phone number
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    phone: event.target.value,
+                  }))
+                }
+                placeholder="Phone number"
+                autoComplete="tel"
+              />
+            </label>
+          </div>
+
+          {message && <p className="authMessage">{message}</p>}
+
+          <div className="cardActions">
+            <button className="primaryButton" type="submit" disabled={saving}>
+              {saving ? "Saving…" : "Save Team Profile"}
+            </button>
+          </div>
+        </form>
+
+        <article className="reservationWorkspaceCard" style={{ marginTop: 18 }}>
+          <p className="eyebrow">Optional</p>
+          <h3>Start Your Own Cleaning Business</h3>
+          <p className="mutedText">
+            Create a separate AMR business workspace while keeping your current
+            team membership and assignments exactly as they are.
+          </p>
+
+          {!showBusinessCreation ? (
+            <button
+              type="button"
+              className="primaryButton"
+              onClick={() => {
+                setBusinessCreationError("");
+                setShowBusinessCreation(true);
+              }}
+            >
+              Create My Business
+            </button>
+          ) : (
+            <form
+              onSubmit={createBusinessWorkspace}
+              style={{ display: "grid", gap: 12, marginTop: 16 }}
+            >
+              <div className="authRecoveryNotice">
+                <span aria-hidden="true">✓</span>
+                <div>
+                  <strong>Your current team access will stay active</strong>
+                  <small>
+                    AMR will create a new workspace where you are the owner. You
+                    can switch between both workspaces at any time.
+                  </small>
+                </div>
+              </div>
+
+              <label>
+                Business name
+                <input
+                  value={newBusinessName}
+                  onChange={(event) => setNewBusinessName(event.target.value)}
+                  placeholder="Example: Londyn Cleaning Services"
+                  autoComplete="organization"
+                  autoFocus
+                  required
+                />
+              </label>
+
+              {businessCreationError && (
+                <div className="emptyStateCard" role="alert">
+                  <strong>Business workspace needs attention</strong>
+                  <p>{businessCreationError}</p>
+                </div>
+              )}
+
+              <div className="cardActions">
+                <button
+                  type="button"
+                  className="secondaryButton"
+                  disabled={creatingBusiness}
+                  onClick={() => {
+                    setShowBusinessCreation(false);
+                    setNewBusinessName("");
+                    setBusinessCreationError("");
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="primaryButton"
+                  disabled={creatingBusiness}
+                >
+                  {creatingBusiness
+                    ? "Creating Business…"
+                    : "Create Business Workspace"}
+                </button>
+              </div>
+            </form>
+          )}
+        </article>
+
+        <article className="reservationWorkspaceCard" style={{ marginTop: 18 }}>
+          <p className="eyebrow">Team access</p>
+          <h3>{selectedGroupName}</h3>
+          <p className="mutedText">
+            You are connected as {formatGroupRole(selectedGroupRole)}.
+          </p>
+        </article>
+
+        <article className="reservationWorkspaceCard" style={{ marginTop: 18 }}>
+          <p className="eyebrow">Account</p>
+          <h3>Cleaner access</h3>
+          <p className="mutedText">
+            Signed in as {profile?.email ?? form.businessEmail ?? "AMR user"}.
+          </p>
+
+          <button
+            type="button"
+            className="logoutButton"
+            onClick={handleLogout}
+          >
+            Log Out
+          </button>
+        </article>
       </section>
     );
   }
@@ -1168,12 +1439,35 @@ export default function CleanerProfilePage({
                   style={{ marginTop: 14 }}
                 >
                   <label>
+                    First name
+                    <input
+                      value={inviteFirstName}
+                      onChange={(event) => setInviteFirstName(event.target.value)}
+                      placeholder="First name"
+                      autoComplete="given-name"
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Last name
+                    <input
+                      value={inviteLastName}
+                      onChange={(event) => setInviteLastName(event.target.value)}
+                      placeholder="Last name"
+                      autoComplete="family-name"
+                      required
+                    />
+                  </label>
+
+                  <label>
                     Member email
                     <input
                       type="email"
                       value={inviteEmail}
                       onChange={(event) => setInviteEmail(event.target.value)}
                       placeholder="person@example.com"
+                      autoComplete="email"
                       required
                     />
                   </label>

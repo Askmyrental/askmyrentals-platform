@@ -124,6 +124,28 @@ export default function CleanerPortalPage({
   const [showInProgressTaskList, setShowInProgressTaskList] = useState(false);
   const [showOnlyUnassignedTasks, setShowOnlyUnassignedTasks] =
     useState(false);
+  const [pulseTaskSort] = useState<
+    | "date"
+    | "property-asc"
+    | "property-desc"
+    | "cleaner-asc"
+    | "cleaner-desc"
+    | "unassigned-first"
+    | "task-asc"
+    | "task-desc"
+  >("date");
+  const [pulseDateRange, setPulseDateRange] = useState<
+    "all" | "today" | "7" | "14" | "30" | "custom"
+  >("all");
+  const [pulseCustomStartDate, setPulseCustomStartDate] = useState("");
+  const [pulseCustomEndDate, setPulseCustomEndDate] = useState("");
+  const [pulsePropertyFilters, setPulsePropertyFilters] = useState<string[]>(["all"]);
+  const [pulseAssignmentFilters, setPulseAssignmentFilters] = useState<string[]>(["all"]);
+  const [showPulseDateFilter, setShowPulseDateFilter] = useState(false);
+  const [showPulsePropertyFilter, setShowPulsePropertyFilter] = useState(false);
+  const [showPulseAssignmentFilter, setShowPulseAssignmentFilter] = useState(false);
+  const [showScheduleShareModal, setShowScheduleShareModal] = useState(false);
+  const [scheduleShareCleanerIds, setScheduleShareCleanerIds] = useState<string[]>([]);
   const [scheduleChangeAlerts, setScheduleChangeAlerts] = useState<
     ScheduleChangeAlert[]
   >([]);
@@ -133,7 +155,7 @@ export default function CleanerPortalPage({
     string | null
   >(null);
   const [taskActionMessage, setTaskActionMessage] = useState("");
-  const [assignmentSaving, setAssignmentSaving] = useState(false);
+  const [assignmentSavingTaskId, setAssignmentSavingTaskId] = useState<string | null>(null);
   const [pulseUserId, setPulseUserId] = useState("");
   const [pulseIdentityName, setPulseIdentityName] = useState("");
   const [showFirstVisitWelcome, setShowFirstVisitWelcome] = useState(false);
@@ -424,6 +446,41 @@ export default function CleanerPortalPage({
         "Team Member",
     ).trim();
 
+  const getCleanerEmail = (cleaner: any) =>
+    String(
+      cleaner?.email ??
+        cleaner?.businessEmail ??
+        cleaner?.business_email ??
+        cleaner?.contactEmail ??
+        cleaner?.contact_email ??
+        "",
+    )
+      .trim()
+      .toLowerCase();
+
+  const sortedUniqueCleaners: any[] = Array.from<any>(
+    cleaners.reduce((unique, cleaner) => {
+      const email = getCleanerEmail(cleaner);
+      const id = String(cleaner?.id ?? "").trim();
+      const key = email ? `email:${email}` : id ? `id:${id}` : `name:${getCleanerDisplayName(cleaner).toLowerCase()}`;
+
+      if (!unique.has(key)) unique.set(key, cleaner);
+      return unique;
+    }, new Map<string, any>()).values(),
+  ).sort((first, second) =>
+    getCleanerDisplayName(first).localeCompare(getCleanerDisplayName(second), undefined, {
+      sensitivity: "base",
+      numeric: true,
+    }),
+  );
+
+  const sortedHomes = [...homes].sort((first, second) =>
+    String(first?.name ?? "").localeCompare(String(second?.name ?? ""), undefined, {
+      sensitivity: "base",
+      numeric: true,
+    }),
+  );
+
   const getAssignedCleaner = (task: any) => {
     const assignedCleanerId = getTaskAssignedCleanerId(task);
     return cleaners.find(
@@ -465,19 +522,6 @@ if (profileError) {
           "",
       ).trim();
 
-      const cleanerFallbackName = isAssignedTeamCleaner
-        ? String(
-            activeCleaner?.contactName ??
-              activeCleaner?.contact_name ??
-              activeCleaner?.fullName ??
-              activeCleaner?.full_name ??
-              activeCleaner?.firstName ??
-              activeCleaner?.first_name ??
-              activeCleaner?.name ??
-              "",
-          ).trim()
-        : "";
-
       const emailName = String(
   profile?.business_email ??
     profile?.email ??
@@ -494,7 +538,6 @@ if (profileError) {
 
       const resolvedName =
         loggedInAccountName ||
-        cleanerFallbackName ||
         (looksLikeUsername ? "" : emailName);
       const welcomeKey = `amr:cleaner-pulse-welcomed:${user.id}`;
       const hintsEnabledKey = `amr:helpful-hints-enabled:${user.id}`;
@@ -536,13 +579,7 @@ if (profileError) {
     return () => {
       cancelled = true;
     };
-  }, [
-    activeCleaner?.id,
-    activeCleaner?.name,
-    activeCleaner?.contactName,
-    activeCleaner?.contact_name,
-    isWorkspaceOwner,
-  ]);
+  }, [isWorkspaceOwner]);
 
   const markPulseWelcomeComplete = () => {
     if (pulseUserId) {
@@ -566,6 +603,14 @@ if (profileError) {
   };
 
   const openCleanerProfile = () => {
+    if (pulseUserId) {
+      window.localStorage.setItem(
+        `amr:onboarding-profile-reviewed:${pulseUserId}`,
+        "true",
+      );
+    }
+
+    setOnboardingProfileReviewed(true);
     onOpenProfile();
   };
 
@@ -592,17 +637,7 @@ if (profileError) {
   };
 
   const pulseFirstName =
-    (
-      pulseIdentityName ||
-      (isAssignedTeamCleaner
-        ? activeCleaner?.contactName ??
-          activeCleaner?.contact_name ??
-          activeCleaner?.name ??
-          ""
-        : "")
-    )
-      .trim()
-      .split(/\s+/)[0] || "";
+    pulseIdentityName.trim().split(/\s+/)[0] || "";
 
   const pulseWorkspaceName = String(
     activeCleaner?.businessName ??
@@ -892,10 +927,347 @@ if (profileError) {
       getCleanerPortalStatus(task) === "Upcoming",
   );
 
-  const displayedCleanerTasks =
-    canManageAssignments && showOnlyUnassignedTasks
+  const getPulseTaskPropertyName = (task: any) => {
+    const home = homes.find(
+      (item) => String(item.id) === String(task.homeId),
+    );
+
+    return String(
+      home?.name ??
+        task?.propertyName ??
+        task?.property_name ??
+        task?.homeName ??
+        task?.home_name ??
+        task?.customerName ??
+        (task?.isCleanerJob ? "Independent Job" : "Property"),
+    );
+  };
+
+  const getPulseTaskAssignmentName = (task: any) => {
+    const assignedCleaner = getAssignedCleaner(task);
+    return assignedCleaner
+      ? getCleanerDisplayName(assignedCleaner)
+      : "Unassigned";
+  };
+
+  const getPulseTaskTypeName = (task: any) =>
+    String(
+      task.jobType ??
+        task.taskType ??
+        "Vacation Rental Turnover",
+    );
+
+  const comparePulseText = (first: string, second: string) =>
+    first.localeCompare(second, undefined, {
+      sensitivity: "base",
+      numeric: true,
+    });
+
+  const comparePulseTaskDates = (first: any, second: any) => {
+    const dateDifference =
+      toLocalDate(first.departure).getTime() -
+      toLocalDate(second.departure).getTime();
+
+    if (dateDifference !== 0) return dateDifference;
+
+    return String(first.scheduledTime ?? "").localeCompare(
+      String(second.scheduledTime ?? ""),
+    );
+  };
+
+
+  const getPulseDateBounds = () => {
+    const start = new Date(today);
+    const end = new Date(today);
+
+    if (pulseDateRange === "all") {
+      const latestTaskDate = cleanerTasks.reduce((latest, task) => {
+        const taskDate = toLocalDate(
+          task.departure ?? task.scheduledDate ?? task.scheduled_date,
+        );
+        return taskDate > latest ? taskDate : latest;
+      }, new Date(today));
+
+      return { start, end: latestTaskDate };
+    }
+
+    if (pulseDateRange === "7") end.setDate(end.getDate() + 6);
+    if (pulseDateRange === "14") end.setDate(end.getDate() + 13);
+    if (pulseDateRange === "30") end.setDate(end.getDate() + 29);
+
+    if (pulseDateRange === "custom") {
+      return {
+        start: pulseCustomStartDate
+          ? toLocalDate(pulseCustomStartDate)
+          : start,
+        end: pulseCustomEndDate ? toLocalDate(pulseCustomEndDate) : end,
+      };
+    }
+
+    return { start, end };
+  };
+
+  const pulseDateFilterSummary =
+    pulseDateRange === "all"
+      ? "Date Range"
+      : pulseDateRange === "today"
+      ? "Today"
+      : pulseDateRange === "7"
+        ? "Next 7 Days"
+        : pulseDateRange === "14"
+          ? "Next 14 Days"
+          : pulseDateRange === "30"
+            ? "Next 30 Days"
+            : pulseCustomStartDate && pulseCustomEndDate
+              ? `${formatCleanDate(pulseCustomStartDate)}–${formatCleanDate(
+                  pulseCustomEndDate,
+                )}`
+              : "Custom Dates";
+
+  const togglePulseMultiFilter = (
+    value: string,
+    setter: Dispatch<SetStateAction<string[]>>,
+  ) => {
+    setter((current) => {
+      const withoutAll = current.filter((item) => item !== "all");
+      const next = withoutAll.includes(value)
+        ? withoutAll.filter((item) => item !== value)
+        : [...withoutAll, value];
+      return next.length === 0 ? ["all"] : next;
+    });
+  };
+
+  const pulsePropertyFilterSummary = pulsePropertyFilters.includes("all")
+    ? "All Properties"
+    : pulsePropertyFilters.length === 1
+      ? pulsePropertyFilters[0] === "manual-jobs"
+        ? "Manual Jobs"
+        : String(
+            sortedHomes.find(
+              (home) => String(home.id) === pulsePropertyFilters[0],
+            )?.name ?? "1 selected",
+          )
+      : `${pulsePropertyFilters.length} selected`;
+
+  const pulseAssignmentFilterSummary = pulseAssignmentFilters.includes("all")
+    ? "All Assignments"
+    : pulseAssignmentFilters.length === 1
+      ? pulseAssignmentFilters[0] === "unassigned"
+        ? "Unassigned"
+        : getCleanerDisplayName(
+            sortedUniqueCleaners.find(
+              (cleaner) => String(cleaner.id) === pulseAssignmentFilters[0],
+            ),
+          )
+      : `${pulseAssignmentFilters.length} selected`;
+
+  const displayedCleanerTasks = [
+    ...(canManageAssignments && showOnlyUnassignedTasks
       ? unassignedTasks
-      : cleanerTasks;
+      : cleanerTasks),
+  ]
+    .filter((task) => {
+      if (pulseDateRange === "all") return true;
+
+      const { start, end } = getPulseDateBounds();
+      const taskDate = toLocalDate(
+        task.departure ?? task.scheduledDate ?? task.scheduled_date,
+      );
+      return taskDate >= start && taskDate <= end;
+    })
+    .filter((task) => {
+      if (pulsePropertyFilters.includes("all")) return true;
+      if (task.isCleanerJob) {
+        return pulsePropertyFilters.includes("manual-jobs");
+      }
+      return pulsePropertyFilters.includes(String(task.homeId));
+    })
+    .filter((task) => {
+      if (pulseAssignmentFilters.includes("all")) return true;
+      const assignedCleanerId = getTaskAssignedCleanerId(task);
+      if (!assignedCleanerId) {
+        return pulseAssignmentFilters.includes("unassigned");
+      }
+      return pulseAssignmentFilters.includes(assignedCleanerId);
+    })
+    .sort((first, second) => {
+    if (pulseTaskSort === "property-asc") {
+      const result = comparePulseText(
+        getPulseTaskPropertyName(first),
+        getPulseTaskPropertyName(second),
+      );
+      return result || comparePulseTaskDates(first, second);
+    }
+
+    if (pulseTaskSort === "property-desc") {
+      const result = comparePulseText(
+        getPulseTaskPropertyName(second),
+        getPulseTaskPropertyName(first),
+      );
+      return result || comparePulseTaskDates(first, second);
+    }
+
+    if (pulseTaskSort === "cleaner-asc") {
+      const result = comparePulseText(
+        getPulseTaskAssignmentName(first),
+        getPulseTaskAssignmentName(second),
+      );
+      return result || comparePulseTaskDates(first, second);
+    }
+
+    if (pulseTaskSort === "cleaner-desc") {
+      const result = comparePulseText(
+        getPulseTaskAssignmentName(second),
+        getPulseTaskAssignmentName(first),
+      );
+      return result || comparePulseTaskDates(first, second);
+    }
+
+    if (pulseTaskSort === "unassigned-first") {
+      const assignmentDifference =
+        Number(Boolean(getTaskAssignedCleanerId(first))) -
+        Number(Boolean(getTaskAssignedCleanerId(second)));
+
+      if (assignmentDifference !== 0) return assignmentDifference;
+
+      const result = comparePulseText(
+        getPulseTaskAssignmentName(first),
+        getPulseTaskAssignmentName(second),
+      );
+      return result || comparePulseTaskDates(first, second);
+    }
+
+    if (pulseTaskSort === "task-asc") {
+      const result = comparePulseText(
+        getPulseTaskTypeName(first),
+        getPulseTaskTypeName(second),
+      );
+      return result || comparePulseTaskDates(first, second);
+    }
+
+    if (pulseTaskSort === "task-desc") {
+      const result = comparePulseText(
+        getPulseTaskTypeName(second),
+        getPulseTaskTypeName(first),
+      );
+      return result || comparePulseTaskDates(first, second);
+    }
+
+    return comparePulseTaskDates(first, second);
+  });
+
+  const createFilteredCleaningScheduleInput = (): WorkPacketInput => {
+    const { start, end } = getPulseDateBounds();
+
+    return {
+      businessName: String(cleanerBusinessName),
+      startDate: start,
+      endDate: end,
+      tasks: displayedCleanerTasks,
+      homes,
+      options: {
+        includePropertyNotes: reportOptions.propertyNotes,
+        includeDoorCodes: reportOptions.doorCodes,
+        includeWifi: reportOptions.wifi,
+      },
+      websiteUrl: "https://www.askmyrental.com",
+    };
+  };
+
+  const printFilteredCleaningSchedule = () => {
+    printWorkPacket(createFilteredCleaningScheduleInput());
+  };
+
+  const getCleanerPhone = (cleaner: any) =>
+    String(
+      cleaner?.phone ??
+        cleaner?.phoneNumber ??
+        cleaner?.phone_number ??
+        cleaner?.contactPhone ??
+        cleaner?.contact_phone ??
+        "",
+    ).trim();
+
+  const getSelectedScheduleShareCleaners = () =>
+    sortedUniqueCleaners.filter((cleaner: any) =>
+      scheduleShareCleanerIds.includes(String(cleaner.id)),
+    );
+
+  const openScheduleShareModal = () => {
+    const explicitlyFilteredCleanerIds = pulseAssignmentFilters.filter(
+      (value) => value !== "all" && value !== "unassigned",
+    );
+    const cleanerIdsInVisibleTasks = Array.from(
+      new Set(
+        displayedCleanerTasks
+          .map((task) => getTaskAssignedCleanerId(task))
+          .filter(Boolean),
+      ),
+    );
+
+    setScheduleShareCleanerIds(
+      explicitlyFilteredCleanerIds.length > 0
+        ? explicitlyFilteredCleanerIds
+        : cleanerIdsInVisibleTasks,
+    );
+    setShowScheduleShareModal(true);
+  };
+
+  const buildScheduleShareMessage = () => {
+    const { start, end } = getPulseDateBounds();
+    const dateLabel = `${start.toLocaleDateString()}–${end.toLocaleDateString()}`;
+    const taskLines = displayedCleanerTasks.slice(0, 12).map((task) => {
+      const home = homes.find(
+        (item) => String(item.id) === String(task.homeId),
+      );
+      return `• ${formatCleanDate(task.departure)} — ${getTaskPropertyName(task, home)} — ${getPulseTaskTypeName(task)}`;
+    });
+    const remaining = displayedCleanerTasks.length - taskLines.length;
+
+    return [
+      `${cleanerBusinessName} cleaning schedule`,
+      dateLabel,
+      "",
+      ...taskLines,
+      remaining > 0 ? `• Plus ${remaining} more task${remaining === 1 ? "" : "s"}` : "",
+      "",
+      "Sent from Ask My Rental",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const emailFilteredCleaningSchedule = () => {
+    const recipients = getSelectedScheduleShareCleaners()
+      .map(getCleanerEmail)
+      .filter(Boolean);
+    if (recipients.length === 0) {
+      window.alert("The selected cleaner does not have an email address saved.");
+      return;
+    }
+    const subject = encodeURIComponent(`${cleanerBusinessName} cleaning schedule`);
+    const body = encodeURIComponent(buildScheduleShareMessage());
+    window.location.href = `mailto:${recipients.join(",")}?subject=${subject}&body=${body}`;
+  };
+
+  const textFilteredCleaningSchedule = () => {
+    const selectedCleaners = getSelectedScheduleShareCleaners();
+    if (selectedCleaners.length !== 1) {
+      window.alert("Select one cleaner to open a text message.");
+      return;
+    }
+    const phone = getCleanerPhone(selectedCleaners[0]);
+    if (!phone) {
+      window.alert("This cleaner does not have a phone number saved.");
+      return;
+    }
+    const body = encodeURIComponent(buildScheduleShareMessage());
+    window.location.href = `sms:${phone}?&body=${body}`;
+  };
+
+  const shareFilteredCleaningSchedule = async () => {
+    await shareWorkPacket(createFilteredCleaningScheduleInput());
+  };
 
   const focusUnassignedTasks = () => {
     setShowOnlyUnassignedTasks(true);
@@ -1055,7 +1427,7 @@ if (profileError) {
   const assignTaskToCleaner = async (task: any, cleanerId: string) => {
     if (!canManageAssignments) return;
 
-    setAssignmentSaving(true);
+    setAssignmentSavingTaskId(String(task.id));
 
     try {
       if (task.isCleanerJob) {
@@ -1118,7 +1490,7 @@ if (profileError) {
         error instanceof Error ? error.message : "Unable to save assignment.",
       );
     } finally {
-      setAssignmentSaving(false);
+      setAssignmentSavingTaskId(null);
     }
   };
 
@@ -1714,12 +2086,11 @@ if (profileError) {
         .cleanerPulseShell .cleanerTaskLedgerHeader,
         .cleanerPulseShell .cleanerTaskLedgerRow {
           grid-template-columns:
-            minmax(64px, 0.72fr)
-            minmax(120px, 1.25fr)
-            minmax(170px, 1.55fr)
-            minmax(105px, 0.9fr)
-            minmax(88px, 0.72fr)
-            minmax(104px, 0.8fr);
+            minmax(118px, 0.95fr)
+            minmax(135px, 1.2fr)
+            minmax(180px, 1.55fr)
+            minmax(118px, 0.95fr)
+            minmax(150px, 1fr);
           width: 100%;
           box-sizing: border-box;
         }
@@ -1743,9 +2114,508 @@ if (profileError) {
           white-space: nowrap;
         }
 
+        .cleanerTaskLedgerSortableHeader {
+          display: grid;
+          gap: 5px;
+          min-width: 0;
+        }
+
+        .cleanerTaskLedgerHeaderSort {
+          width: 100%;
+          min-width: 0;
+          height: 30px;
+          padding: 3px 24px 3px 7px;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          background: #ffffff;
+          color: #334155;
+          font-size: 10px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .cleanerPulseHeaderFilterWrap {
+          position: relative;
+          width: 100%;
+        }
+
+        .cleanerPulseHeaderFilterButton {
+          width: 100%;
+          min-height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 6px;
+          padding: 4px 7px;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          background: #ffffff;
+          color: #334155;
+          font-size: 10px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .cleanerPulseHeaderFilterMenu {
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 0;
+          z-index: 1000004;
+          width: min(280px, calc(100vw - 32px));
+          max-height: 330px;
+          overflow-y: auto;
+          padding: 10px;
+          border: 1px solid #dbe3ee;
+          border-radius: 14px;
+          background: #ffffff;
+          box-shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
+        }
+
+        .cleanerPulseHeaderFilterOption {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          min-height: 38px;
+          padding: 8px;
+          border-radius: 9px;
+          color: #334155;
+          font-size: 12px;
+          font-weight: 750;
+          cursor: pointer;
+        }
+
+        .cleanerPulseHeaderFilterOption:hover {
+          background: #f8fafc;
+        }
+
+        .cleanerPulseDateChoices {
+          display: grid;
+          gap: 4px;
+        }
+
+        .cleanerPulseCustomDates {
+          display: grid;
+          gap: 8px;
+          margin-top: 8px;
+          padding-top: 10px;
+          border-top: 1px solid #e2e8f0;
+        }
+
+        .cleanerPulseCustomDates label {
+          display: grid;
+          gap: 5px;
+          color: #475569;
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .cleanerPulseCustomDates input {
+          width: 100%;
+          min-height: 38px;
+          padding: 7px 8px;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          background: #ffffff;
+        }
+
+        .cleanerPrintScheduleButton {
+          width: 100%;
+          min-height: 40px;
+          padding: 8px 12px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.1;
+          white-space: nowrap;
+        }
+
+        .cleanerPulseHeaderFilterOption input {
+          width: 16px;
+          height: 16px;
+          flex: 0 0 auto;
+        }
+
+        .cleanerPulseHeaderFilterFooter {
+          position: sticky;
+          bottom: -10px;
+          display: flex;
+          gap: 8px;
+          margin-top: 8px;
+          padding-top: 9px;
+          border-top: 1px solid #e2e8f0;
+          background: #ffffff;
+        }
+
+        .cleanerPulseHeaderFilterFooter button {
+          flex: 1;
+          min-height: 36px;
+        }
+
+        .cleanerMobileTaskSort {
+          display: none;
+        }
+
+        .cleanerScheduleHeaderActions {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+          width: 100%;
+        }
+
+        .cleanerScheduleShareOverlay {
+          position: fixed;
+          inset: 0;
+          z-index: 1000015;
+          display: grid;
+          place-items: center;
+          padding: 16px;
+          background: rgba(15, 23, 42, 0.5);
+        }
+
+        .cleanerScheduleShareModal {
+          width: min(560px, 100%);
+          max-height: min(86vh, 720px);
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          border-radius: 22px;
+          background: #ffffff;
+          box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3);
+        }
+
+        .cleanerScheduleShareBody {
+          display: grid;
+          gap: 14px;
+          padding: 16px 18px;
+          overflow-y: auto;
+        }
+
+        .cleanerScheduleShareList {
+          display: grid;
+          gap: 8px;
+          max-height: 250px;
+          overflow-y: auto;
+        }
+
+        .cleanerScheduleSharePerson {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          gap: 10px;
+          align-items: start;
+          padding: 11px 12px;
+          border: 1px solid #dbe3ee;
+          border-radius: 12px;
+        }
+
+        .cleanerScheduleSharePerson strong,
+        .cleanerScheduleSharePerson small { display: block; }
+        .cleanerScheduleSharePerson small { margin-top: 3px; color: #64748b; }
+
+        .cleanerScheduleShareActions {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 9px;
+          padding: 14px 18px 18px;
+          border-top: 1px solid #e2e8f0;
+        }
+
+        .cleanerMobilePrintScheduleButton {
+          display: none;
+        }
+
+        .cleanerUpcomingCard {
+          container-type: inline-size;
+          container-name: upcoming-tasks-card;
+        }
+
+
+        /* Switch the task ledger to its compact card layout before the
+           five-column desktop grid can push Status or Action off screen. */
+        @media screen and (max-width: 980px) {
+          .cleanerPulseShell .cleanerTaskLedgerHeader {
+            display: none !important;
+          }
+
+          .cleanerMobileTaskSort {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+            margin-bottom: 10px !important;
+          }
+
+          .cleanerMobilePrintScheduleButton {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+            width: 100% !important;
+            margin-bottom: 12px !important;
+          }
+
+          .cleanerMobilePrintScheduleButton button {
+            width: 100% !important;
+            min-width: 0 !important;
+            min-height: 44px !important;
+            padding: 9px 10px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 13px !important;
+            font-weight: 800 !important;
+            white-space: nowrap !important;
+          }
+
+          .cleanerScheduleShareActions {
+            grid-template-columns: 1fr !important;
+          }
+
+          .cleanerMobileTaskSort > .cleanerPulseHeaderFilterWrap {
+            min-width: 0 !important;
+          }
+
+          .cleanerMobileTaskSort label {
+            color: #475569 !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+          }
+
+          .cleanerMobileTaskSort .cleanerPulseHeaderFilterButton {
+            min-height: 42px !important;
+            font-size: 12px !important;
+            padding: 8px 10px !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerBody {
+            display: grid !important;
+            gap: 10px !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerRow {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            grid-template-areas:
+              "property date"
+              "task task"
+              "status action" !important;
+            gap: 8px 12px !important;
+            padding: 14px !important;
+            align-items: center !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerDate {
+            grid-area: date !important;
+            text-align: right !important;
+            align-self: start !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerProperty {
+            grid-area: property !important;
+            min-width: 0 !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerTask {
+            grid-area: task !important;
+            min-width: 0 !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerStatus {
+            grid-area: status !important;
+            min-width: 0 !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerAction {
+            grid-area: action !important;
+            display: flex !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            min-width: 0 !important;
+            visibility: visible !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerActionButton {
+            display: inline-flex !important;
+            width: auto !important;
+            min-width: 118px !important;
+            max-width: 100% !important;
+            min-height: 40px !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 9px 12px !important;
+            white-space: nowrap !important;
+            visibility: visible !important;
+          }
+        }
+
+        /* Container-based fallback: the card may become narrow because of the
+           application sidebar or docked developer tools even when the browser
+           viewport is still wider than the media-query breakpoint. */
+        @container upcoming-tasks-card (max-width: 860px) {
+          .cleanerPulseShell .cleanerTaskLedgerHeader {
+            display: none !important;
+          }
+
+          .cleanerMobileTaskSort {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+            margin-bottom: 10px !important;
+          }
+
+          .cleanerMobilePrintScheduleButton {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+            width: 100% !important;
+            margin-bottom: 12px !important;
+          }
+
+          .cleanerMobilePrintScheduleButton button {
+            width: 100% !important;
+            min-width: 0 !important;
+            min-height: 44px !important;
+            padding: 9px 10px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 13px !important;
+            font-weight: 800 !important;
+            white-space: nowrap !important;
+          }
+
+          .cleanerScheduleShareActions {
+            grid-template-columns: 1fr !important;
+          }
+
+          .cleanerMobileTaskSort > .cleanerPulseHeaderFilterWrap {
+            min-width: 0 !important;
+          }
+
+          .cleanerMobileTaskSort label {
+            color: #475569 !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+          }
+
+          .cleanerMobileTaskSort .cleanerPulseHeaderFilterButton {
+            min-height: 42px !important;
+            font-size: 12px !important;
+            padding: 8px 10px !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerBody {
+            display: grid !important;
+            gap: 10px !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerRow {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            grid-template-areas:
+              "property date"
+              "task task"
+              "status action" !important;
+            gap: 8px 12px !important;
+            padding: 14px !important;
+            align-items: center !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerDate {
+            grid-area: date !important;
+            text-align: right !important;
+            align-self: start !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerProperty {
+            grid-area: property !important;
+            min-width: 0 !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerTask {
+            grid-area: task !important;
+            min-width: 0 !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerStatus {
+            grid-area: status !important;
+            min-width: 0 !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerAction {
+            grid-area: action !important;
+            display: flex !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            min-width: 0 !important;
+            visibility: visible !important;
+          }
+
+          .cleanerPulseShell .cleanerTaskLedgerActionButton {
+            display: inline-flex !important;
+            width: auto !important;
+            min-width: 118px !important;
+            max-width: 100% !important;
+            min-height: 40px !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 9px 12px !important;
+            white-space: nowrap !important;
+            visibility: visible !important;
+          }
+        }
+
         @media screen and (max-width: 700px) {
           .cleanerPulseShell .cleanerTaskLedgerHeader {
             display: none !important;
+          }
+
+          .cleanerMobileTaskSort {
+            display: grid !important;
+            gap: 6px !important;
+            margin-bottom: 10px !important;
+          }
+
+          .cleanerMobilePrintScheduleButton {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+            width: 100% !important;
+            margin-bottom: 12px !important;
+          }
+
+          .cleanerMobilePrintScheduleButton button {
+            width: 100% !important;
+            min-width: 0 !important;
+            min-height: 44px !important;
+            padding: 9px 10px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 13px !important;
+            font-weight: 800 !important;
+            white-space: nowrap !important;
+          }
+
+          .cleanerScheduleShareActions {
+            grid-template-columns: 1fr !important;
+          }
+
+          .cleanerMobileTaskSort label {
+            color: #475569 !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+          }
+
+          .cleanerMobileTaskSort select {
+            width: 100% !important;
+            min-height: 42px !important;
+            padding: 8px 34px 8px 10px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 10px !important;
+            background: #ffffff !important;
+            color: #334155 !important;
+            font-weight: 800 !important;
           }
 
           .cleanerPulseShell .cleanerTaskLedgerBody {
@@ -3022,7 +3892,7 @@ if (profileError) {
                       : "Tell your team who you are"}
                   </strong>
                   <small>
-                    Confirm your name and contact information. Open Profile →
+                    Confirm your name and contact information. No payment setup required. Open Profile →
                   </small>
                 </div>
               </button>
@@ -3343,30 +4213,6 @@ if (profileError) {
                 </button>
               </article>
 
-              {canManageAssignments && (
-                <article className="cleanerActionCard cleanerNeedsAssignmentCard">
-                  <div className="cleanerActionIcon">⚠️</div>
-
-                  <div>
-                    <strong>Needs Assignment</strong>
-                    <p>
-                      {unassignedTasks.length}{" "}
-                      {unassignedTasks.length === 1 ? "task is" : "tasks are"}{" "}
-                      waiting for a cleaner.
-                    </p>
-                  </div>
-
-                  <button
-                    className="primaryButton"
-                    type="button"
-                    disabled={unassignedTasks.length === 0}
-                    onClick={focusUnassignedTasks}
-                  >
-                    Review
-                  </button>
-                </article>
-              )}
-
               <article className="cleanerActionCard active">
                 <div className="cleanerActionIcon">⏳</div>
 
@@ -3396,6 +4242,31 @@ if (profileError) {
                   Continue
                 </button>
               </article>
+
+
+              {canManageAssignments && (
+                <article className="cleanerActionCard cleanerNeedsAssignmentCard">
+                  <div className="cleanerActionIcon">⚠️</div>
+
+                  <div>
+                    <strong>Needs Assignment</strong>
+                    <p>
+                      {unassignedTasks.length}{" "}
+                      {unassignedTasks.length === 1 ? "task is" : "tasks are"}{" "}
+                      waiting for a cleaner.
+                    </p>
+                  </div>
+
+                  <button
+                    className="primaryButton"
+                    type="button"
+                    disabled={unassignedTasks.length === 0}
+                    onClick={focusUnassignedTasks}
+                  >
+                    Review
+                  </button>
+                </article>
+              )}
 
               {!isAssignedTeamCleaner && (
               <article className="cleanerActionCard money">
@@ -3463,124 +4334,8 @@ if (profileError) {
             <div className="operationsCardHeader">
               <div>
                 <p className="eyebrow">Tasks</p>
-                <h3>Upcoming Tasks</h3>
+                <h3>Upcoming Tasks &amp; Assignments</h3>
               </div>
-
-              <button
-                className="secondaryButton"
-                type="button"
-                onClick={() => {
-                  markOnboardingScheduleViewed();
-                  setShowCleanerCalendar(true);
-                }}
-              >
-                Open Schedule
-              </button>
-            </div>
-
-            <div className="cleanerWorkFilterWrap">
-              <button
-                className="cleanerWorkFilterButton"
-                type="button"
-                aria-expanded={showTaskFilter}
-                onClick={() => setShowTaskFilter((current) => !current)}
-              >
-                <span>Filter Work</span>
-                <span className="cleanerWorkFilterSummary">
-                  {selectedWorkFilters.includes("all")
-                    ? "All Work"
-                    : `${selectedWorkFilters.length} selected`}
-                </span>
-                <span aria-hidden="true">▾</span>
-              </button>
-
-              {showTaskFilter && (
-                <div className="cleanerWorkFilterMenu">
-                  <label className="cleanerWorkFilterOption">
-                    <input
-                      type="checkbox"
-                      checked={selectedWorkFilters.includes("all")}
-                      onChange={() =>
-                        updateWorkFiltersWithoutJump(() => ["all"])
-                      }
-                    />
-                    <span>All Work</span>
-                  </label>
-
-                  <div className="cleanerWorkFilterDivider" />
-
-                  {homes.map((home) => {
-                    const homeId = String(home.id);
-                    const checked = selectedWorkFilters.includes(homeId);
-
-                    return (
-                      <label className="cleanerWorkFilterOption" key={homeId}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            updateWorkFiltersWithoutJump((current) => {
-                              const withoutAll = current.filter(
-                                (value) => value !== "all",
-                              );
-                              const next = checked
-                                ? withoutAll.filter((value) => value !== homeId)
-                                : [...withoutAll, homeId];
-
-                              return next.length === 0 ? ["all"] : next;
-                            });
-                          }}
-                        />
-                        <span>{home.name}</span>
-                      </label>
-                    );
-                  })}
-
-                  <div className="cleanerWorkFilterDivider" />
-
-                  <label className="cleanerWorkFilterOption">
-                    <input
-                      type="checkbox"
-                      checked={selectedWorkFilters.includes("manual-jobs")}
-                      onChange={() => {
-                        updateWorkFiltersWithoutJump((current) => {
-                          const withoutAll = current.filter(
-                            (value) => value !== "all",
-                          );
-                          const checked = withoutAll.includes("manual-jobs");
-                          const next = checked
-                            ? withoutAll.filter(
-                                (value) => value !== "manual-jobs",
-                              )
-                            : [...withoutAll, "manual-jobs"];
-
-                          return next.length === 0 ? ["all"] : next;
-                        });
-                      }}
-                    />
-                    <span>Manual Jobs</span>
-                  </label>
-
-                  <div className="cleanerWorkFilterFooter">
-                    <button
-                      type="button"
-                      className="secondaryButton"
-                      onClick={() =>
-                        updateWorkFiltersWithoutJump(() => ["all"])
-                      }
-                    >
-                      Reset
-                    </button>
-                    <button
-                      type="button"
-                      className="primaryButton"
-                      onClick={() => setShowTaskFilter(false)}
-                    >
-                      Done
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {canManageAssignments && showOnlyUnassignedTasks && (
@@ -3599,19 +4354,268 @@ if (profileError) {
               </div>
             )}
 
+            <div className="cleanerMobileTaskSort">
+              <div className="cleanerPulseHeaderFilterWrap">
+                <label>Date Range</label>
+                <button
+                  type="button"
+                  className="cleanerPulseHeaderFilterButton"
+                  aria-expanded={showPulseDateFilter}
+                  onClick={() => {
+                    setShowPulseDateFilter((current) => !current);
+                    setShowPulsePropertyFilter(false);
+                    setShowPulseAssignmentFilter(false);
+                  }}
+                >
+                  <span>{pulseDateFilterSummary}</span><span>▾</span>
+                </button>
+                {showPulseDateFilter && (
+                  <div className="cleanerPulseHeaderFilterMenu">
+                    <div className="cleanerPulseDateChoices">
+                      {[
+                        ["all", "All Upcoming Tasks"],
+                        ["today", "Today"],
+                        ["7", "Next 7 Days"],
+                        ["14", "Next 14 Days"],
+                        ["30", "Next 30 Days"],
+                        ["custom", "Custom Dates"],
+                      ].map(([value, label]) => (
+                        <label className="cleanerPulseHeaderFilterOption" key={value}>
+                          <input
+                            type="radio"
+                            name="pulse-mobile-date-range"
+                            checked={pulseDateRange === value}
+                            onChange={() => setPulseDateRange(value as typeof pulseDateRange)}
+                          />
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {pulseDateRange === "custom" && (
+                      <div className="cleanerPulseCustomDates">
+                        <label>Start date<input type="date" value={pulseCustomStartDate} onChange={(event) => setPulseCustomStartDate(event.target.value)} /></label>
+                        <label>End date<input type="date" value={pulseCustomEndDate} onChange={(event) => setPulseCustomEndDate(event.target.value)} /></label>
+                      </div>
+                    )}
+                    <div className="cleanerPulseHeaderFilterFooter">
+                      <button type="button" className="primaryButton" onClick={() => setShowPulseDateFilter(false)}>Done</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="cleanerPulseHeaderFilterWrap">
+                <label>Property</label>
+                <button
+                  type="button"
+                  className="cleanerPulseHeaderFilterButton"
+                  aria-expanded={showPulsePropertyFilter}
+                  onClick={() => {
+                    setShowPulsePropertyFilter((current) => !current);
+                    setShowPulseDateFilter(false);
+                    setShowPulseAssignmentFilter(false);
+                  }}
+                >
+                  <span>{pulsePropertyFilterSummary}</span><span>▾</span>
+                </button>
+                {showPulsePropertyFilter && (
+                  <div className="cleanerPulseHeaderFilterMenu">
+                    <label className="cleanerPulseHeaderFilterOption">
+                      <input type="checkbox" checked={pulsePropertyFilters.includes("all")} onChange={() => setPulsePropertyFilters(["all"])} />
+                      <span>All Properties</span>
+                    </label>
+                    {sortedHomes.map((home) => {
+                      const value = String(home.id);
+                      return (
+                        <label className="cleanerPulseHeaderFilterOption" key={value}>
+                          <input type="checkbox" checked={pulsePropertyFilters.includes(value)} onChange={() => togglePulseMultiFilter(value, setPulsePropertyFilters)} />
+                          <span>{home.name}</span>
+                        </label>
+                      );
+                    })}
+                    <label className="cleanerPulseHeaderFilterOption">
+                      <input type="checkbox" checked={pulsePropertyFilters.includes("manual-jobs")} onChange={() => togglePulseMultiFilter("manual-jobs", setPulsePropertyFilters)} />
+                      <span>Manual Jobs</span>
+                    </label>
+                    <div className="cleanerPulseHeaderFilterFooter">
+                      <button type="button" className="secondaryButton" onClick={() => setPulsePropertyFilters(["all"])}>Reset</button>
+                      <button type="button" className="primaryButton" onClick={() => setShowPulsePropertyFilter(false)}>Done</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="cleanerPulseHeaderFilterWrap">
+                <label>Assignment</label>
+                <button
+                  type="button"
+                  className="cleanerPulseHeaderFilterButton"
+                  aria-expanded={showPulseAssignmentFilter}
+                  onClick={() => {
+                    setShowPulseAssignmentFilter((current) => !current);
+                    setShowPulseDateFilter(false);
+                    setShowPulsePropertyFilter(false);
+                  }}
+                >
+                  <span>{pulseAssignmentFilterSummary}</span><span>▾</span>
+                </button>
+                {showPulseAssignmentFilter && (
+                  <div className="cleanerPulseHeaderFilterMenu">
+                    <label className="cleanerPulseHeaderFilterOption">
+                      <input type="checkbox" checked={pulseAssignmentFilters.includes("all")} onChange={() => setPulseAssignmentFilters(["all"])} />
+                      <span>All Assignments</span>
+                    </label>
+                    <label className="cleanerPulseHeaderFilterOption">
+                      <input type="checkbox" checked={pulseAssignmentFilters.includes("unassigned")} onChange={() => togglePulseMultiFilter("unassigned", setPulseAssignmentFilters)} />
+                      <span>Unassigned</span>
+                    </label>
+                    {sortedUniqueCleaners.map((cleaner: any) => {
+                      const value = String(cleaner.id);
+                      return (
+                        <label className="cleanerPulseHeaderFilterOption" key={value}>
+                          <input type="checkbox" checked={pulseAssignmentFilters.includes(value)} onChange={() => togglePulseMultiFilter(value, setPulseAssignmentFilters)} />
+                          <span>{getCleanerDisplayName(cleaner)}</span>
+                        </label>
+                      );
+                    })}
+                    <div className="cleanerPulseHeaderFilterFooter">
+                      <button type="button" className="secondaryButton" onClick={() => setPulseAssignmentFilters(["all"])}>Reset</button>
+                      <button type="button" className="primaryButton" onClick={() => setShowPulseAssignmentFilter(false)}>Done</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="cleanerScheduleHeaderActions cleanerMobilePrintScheduleButton">
+              <button
+                type="button"
+                className="secondaryButton"
+                disabled={displayedCleanerTasks.length === 0}
+                onClick={printFilteredCleaningSchedule}
+              >
+                🖨 Print
+              </button>
+              <button
+                type="button"
+                className="secondaryButton"
+                disabled={displayedCleanerTasks.length === 0}
+                onClick={openScheduleShareModal}
+              >
+                ↗ Share
+              </button>
+            </div>
+
             <div
               className="cleanerTaskLedger"
               style={{ overflowAnchor: "none" }}
               role="table"
-              aria-label="Upcoming cleaner tasks"
+              aria-label="Upcoming tasks and assignments"
             >
               <div className="cleanerTaskLedgerHeader" role="row">
-                <span role="columnheader">Date</span>
-                <span role="columnheader">Property</span>
-                <span role="columnheader">Task / Assignment</span>
+                <div className="cleanerTaskLedgerSortableHeader" role="columnheader">
+                  <span>Date Range</span>
+                  <div className="cleanerPulseHeaderFilterWrap">
+                    <button
+                      type="button"
+                      className="cleanerPulseHeaderFilterButton"
+                      aria-expanded={showPulseDateFilter}
+                      onClick={() => {
+                        setShowPulseDateFilter((current) => !current);
+                        setShowPulsePropertyFilter(false);
+                        setShowPulseAssignmentFilter(false);
+                      }}
+                    ><span>{pulseDateFilterSummary}</span><span>▾</span></button>
+                    {showPulseDateFilter && (
+                      <div className="cleanerPulseHeaderFilterMenu">
+                        <div className="cleanerPulseDateChoices">
+                          {[
+                            ["all", "All Upcoming Tasks"],
+                            ["today", "Today"],
+                            ["7", "Next 7 Days"],
+                            ["14", "Next 14 Days"],
+                            ["30", "Next 30 Days"],
+                            ["custom", "Custom Dates"],
+                          ].map(([value, label]) => (
+                            <label className="cleanerPulseHeaderFilterOption" key={value}>
+                              <input type="radio" name="pulse-desktop-date-range" checked={pulseDateRange === value} onChange={() => setPulseDateRange(value as typeof pulseDateRange)} />
+                              <span>{label}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {pulseDateRange === "custom" && (
+                          <div className="cleanerPulseCustomDates">
+                            <label>Start date<input type="date" value={pulseCustomStartDate} onChange={(event) => setPulseCustomStartDate(event.target.value)} /></label>
+                            <label>End date<input type="date" value={pulseCustomEndDate} onChange={(event) => setPulseCustomEndDate(event.target.value)} /></label>
+                          </div>
+                        )}
+                        <div className="cleanerPulseHeaderFilterFooter"><button type="button" className="primaryButton" onClick={() => setShowPulseDateFilter(false)}>Done</button></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="cleanerTaskLedgerSortableHeader" role="columnheader">
+                  <span>Property</span>
+                  <div className="cleanerPulseHeaderFilterWrap">
+                    <button
+                      type="button"
+                      className="cleanerPulseHeaderFilterButton"
+                      aria-expanded={showPulsePropertyFilter}
+                      onClick={() => {
+                        setShowPulsePropertyFilter((current) => !current);
+                        setShowPulseDateFilter(false);
+                        setShowPulseAssignmentFilter(false);
+                      }}
+                    ><span>{pulsePropertyFilterSummary}</span><span>▾</span></button>
+                    {showPulsePropertyFilter && (
+                      <div className="cleanerPulseHeaderFilterMenu">
+                        <label className="cleanerPulseHeaderFilterOption"><input type="checkbox" checked={pulsePropertyFilters.includes("all")} onChange={() => setPulsePropertyFilters(["all"])} /><span>All Properties</span></label>
+                        {sortedHomes.map((home) => { const value = String(home.id); return <label className="cleanerPulseHeaderFilterOption" key={value}><input type="checkbox" checked={pulsePropertyFilters.includes(value)} onChange={() => togglePulseMultiFilter(value, setPulsePropertyFilters)} /><span>{home.name}</span></label>; })}
+                        <label className="cleanerPulseHeaderFilterOption"><input type="checkbox" checked={pulsePropertyFilters.includes("manual-jobs")} onChange={() => togglePulseMultiFilter("manual-jobs", setPulsePropertyFilters)} /><span>Manual Jobs</span></label>
+                        <div className="cleanerPulseHeaderFilterFooter"><button type="button" className="secondaryButton" onClick={() => setPulsePropertyFilters(["all"])}>Reset</button><button type="button" className="primaryButton" onClick={() => setShowPulsePropertyFilter(false)}>Done</button></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="cleanerTaskLedgerSortableHeader" role="columnheader">
+                  <span>Assignment</span>
+                  <div className="cleanerPulseHeaderFilterWrap">
+                    <button type="button" className="cleanerPulseHeaderFilterButton" aria-expanded={showPulseAssignmentFilter} onClick={() => { setShowPulseAssignmentFilter((current) => !current); setShowPulseDateFilter(false); setShowPulsePropertyFilter(false); }}><span>{pulseAssignmentFilterSummary}</span><span>▾</span></button>
+                    {showPulseAssignmentFilter && (
+                      <div className="cleanerPulseHeaderFilterMenu">
+                        <label className="cleanerPulseHeaderFilterOption"><input type="checkbox" checked={pulseAssignmentFilters.includes("all")} onChange={() => setPulseAssignmentFilters(["all"])} /><span>All Assignments</span></label>
+                        <label className="cleanerPulseHeaderFilterOption"><input type="checkbox" checked={pulseAssignmentFilters.includes("unassigned")} onChange={() => togglePulseMultiFilter("unassigned", setPulseAssignmentFilters)} /><span>Unassigned</span></label>
+                        {sortedUniqueCleaners.map((cleaner: any) => { const value = String(cleaner.id); return <label className="cleanerPulseHeaderFilterOption" key={value}><input type="checkbox" checked={pulseAssignmentFilters.includes(value)} onChange={() => togglePulseMultiFilter(value, setPulseAssignmentFilters)} /><span>{getCleanerDisplayName(cleaner)}</span></label>; })}
+                        <div className="cleanerPulseHeaderFilterFooter"><button type="button" className="secondaryButton" onClick={() => setPulseAssignmentFilters(["all"])}>Reset</button><button type="button" className="primaryButton" onClick={() => setShowPulseAssignmentFilter(false)}>Done</button></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <span role="columnheader">Status</span>
-                <span role="columnheader">Pay</span>
-                <span role="columnheader">Action</span>
+                <div className="cleanerTaskLedgerSortableHeader" role="columnheader">
+                  <span>Action</span>
+                  <div className="cleanerScheduleHeaderActions">
+                    <button
+                      type="button"
+                      className="secondaryButton cleanerPrintScheduleButton"
+                      disabled={displayedCleanerTasks.length === 0}
+                      onClick={printFilteredCleaningSchedule}
+                    >
+                      Print
+                    </button>
+                    <button
+                      type="button"
+                      className="secondaryButton cleanerPrintScheduleButton"
+                      disabled={displayedCleanerTasks.length === 0}
+                      onClick={openScheduleShareModal}
+                    >
+                      Share
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="cleanerTaskLedgerBody">
@@ -3623,13 +4627,6 @@ if (profileError) {
                   const cleanerStatus = getCleanerPortalStatus(reservation);
                   const privateNote =
                     reservation.cleanerNotes ?? reservation.notes ?? "";
-
-                  const estimatedPay =
-                    reservation.cleaningFee ??
-                    reservation.amount ??
-                    reservation.invoiceAmount ??
-                    reservation.price ??
-                    null;
 
                   return (
                     <article
@@ -3695,7 +4692,7 @@ if (profileError) {
                                 : "unassigned"
                             }`}
                             value={getTaskAssignedCleanerId(reservation)}
-                            disabled={assignmentSaving}
+                            disabled={assignmentSavingTaskId === String(reservation.id)}
                             aria-label={`Assign cleaner for ${getTaskPropertyName(
                               reservation,
                               home,
@@ -3711,7 +4708,12 @@ if (profileError) {
                             }}
                           >
                             <option value="">⚠ Assign Cleaner</option>
-                            {cleaners.map((cleaner) => (
+                            {assignmentSavingTaskId === String(reservation.id) && (
+                              <option value={getTaskAssignedCleanerId(reservation)}>
+                                Saving assignment…
+                              </option>
+                            )}
+                            {sortedUniqueCleaners.map((cleaner) => (
                               <option
                                 key={String(cleaner.id)}
                                 value={String(cleaner.id)}
@@ -3739,19 +4741,6 @@ if (profileError) {
                             {getTaskStatusLabel(cleanerStatus)}
                           </span>
                         </div>
-                      </div>
-
-                      <div className="cleanerTaskLedgerPay" role="cell">
-                        <strong>
-                          {estimatedPay === null || estimatedPay === ""
-                            ? "Set on invoice"
-                            : `$${estimatedPay}`}
-                        </strong>
-                        <small>
-                          {reservation.isCleanerJob
-                            ? "Independent job"
-                            : `${home?.outstandingInvoiceCount ?? 0} outstanding`}
-                        </small>
                       </div>
 
                       <div className="cleanerTaskLedgerAction" role="cell">
@@ -4032,7 +5021,7 @@ if (profileError) {
 
                     <div className="cleanerWorkFilterDivider" />
 
-                    {homes.map((home) => {
+                    {sortedHomes.map((home) => {
                       const homeId = String(home.id);
                       const checked = selectedWorkFilters.includes(homeId);
 
@@ -4216,7 +5205,7 @@ if (profileError) {
                     <span>All Work</span>
                   </label>
 
-                  {homes.map((home) => {
+                  {sortedHomes.map((home) => {
                     const homeId = String(home.id);
                     const checked = reportWorkFilters.includes(homeId);
                     return (
@@ -4313,6 +5302,106 @@ if (profileError) {
                 onClick={() => printWorkPacket(createWorkPacketInput())}
               >
                 Print / Save PDF
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {showScheduleShareModal && (
+        <div
+          className="cleanerScheduleShareOverlay"
+          role="presentation"
+          onClick={() => setShowScheduleShareModal(false)}
+        >
+          <section
+            className="cleanerScheduleShareModal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Share cleaning schedule"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="cleanerTodayTaskHeader">
+              <div>
+                <p className="eyebrow">Share Schedule</p>
+                <h3>Choose who receives this schedule</h3>
+              </div>
+              <button
+                type="button"
+                className="cleanerScheduleClose"
+                aria-label="Close share schedule"
+                onClick={() => setShowScheduleShareModal(false)}
+              >
+                ✕
+              </button>
+            </header>
+
+            <div className="cleanerScheduleShareBody">
+              <p style={{ margin: 0, color: "#475569", lineHeight: 1.5 }}>
+                This uses the date, property, and assignment filters currently
+                shown above the schedule.
+              </p>
+
+              <div className="cleanerScheduleShareList">
+                {sortedUniqueCleaners.map((cleaner: any) => {
+                  const cleanerId = String(cleaner.id);
+                  const checked = scheduleShareCleanerIds.includes(cleanerId);
+                  const email = getCleanerEmail(cleaner);
+                  const phone = getCleanerPhone(cleaner);
+
+                  return (
+                    <label className="cleanerScheduleSharePerson" key={cleanerId}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setScheduleShareCleanerIds((current) =>
+                            current.includes(cleanerId)
+                              ? current.filter((value) => value !== cleanerId)
+                              : [...current, cleanerId],
+                          )
+                        }
+                      />
+                      <span>
+                        <strong>{getCleanerDisplayName(cleaner)}</strong>
+                        <small>
+                          {[email, phone].filter(Boolean).join(" · ") ||
+                            "No email or phone saved"}
+                        </small>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="cleanerQuickReportSummary">
+                {displayedCleanerTasks.length} filtered {displayedCleanerTasks.length === 1 ? "task" : "tasks"} will be included.
+              </div>
+            </div>
+
+            <footer className="cleanerScheduleShareActions">
+              <button
+                type="button"
+                className="secondaryButton"
+                disabled={scheduleShareCleanerIds.length === 0}
+                onClick={emailFilteredCleaningSchedule}
+              >
+                ✉ Email
+              </button>
+              <button
+                type="button"
+                className="secondaryButton"
+                disabled={scheduleShareCleanerIds.length !== 1}
+                onClick={textFilteredCleaningSchedule}
+              >
+                💬 Text
+              </button>
+              <button
+                type="button"
+                className="primaryButton"
+                onClick={() => void shareFilteredCleaningSchedule()}
+              >
+                ↗ More Sharing Options
               </button>
             </footer>
           </section>
@@ -4434,7 +5523,7 @@ if (profileError) {
                 {canManageAssignments ? (
                   <select
                     value={getTaskAssignedCleanerId(selectedCleanerTask)}
-                    disabled={assignmentSaving}
+                    disabled={assignmentSavingTaskId === String(selectedCleanerTask.id)}
                     onChange={(event) =>
                       void assignTaskToCleaner(
                         selectedCleanerTask,
@@ -4451,7 +5540,7 @@ if (profileError) {
                     }}
                   >
                     <option value="">Unassigned</option>
-                    {cleaners.map((cleaner) => (
+                    {sortedUniqueCleaners.map((cleaner) => (
                       <option key={String(cleaner.id)} value={String(cleaner.id)}>
                         {getCleanerDisplayName(cleaner)}
                       </option>

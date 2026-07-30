@@ -899,6 +899,7 @@ type AppProps = {
   selectedGroupRole: string;
   canSwitchGroups?: boolean;
   onChangeGroup?: () => void;
+  onCreateBusinessWorkspace: (businessName: string) => Promise<void>;
 };
 
 export default function App({
@@ -909,6 +910,7 @@ export default function App({
   selectedGroupRole,
   canSwitchGroups = false,
   onChangeGroup,
+  onCreateBusinessWorkspace,
 }: AppProps) {
   const isAuthenticatedCleaner =
     userRole === "cleaner" || userRole === "employee";
@@ -3636,7 +3638,7 @@ console.log("TEAM MEMBERS", mappedMembers);
                   fontSize: 12,
                 }}
               >
-                Switch Group
+                My Workspaces
               </button>
             )}
           </div>
@@ -4044,6 +4046,7 @@ console.log("TEAM MEMBERS", mappedMembers);
             selectedGroupName={selectedGroupName}
             selectedGroupRole={selectedGroupRole}
             onOpenProperties={() => setActivePage("Cleaner Properties")}
+            onStartBusiness={onCreateBusinessWorkspace}
           />
         )}
         {activePage === "Shared Workspaces" && (

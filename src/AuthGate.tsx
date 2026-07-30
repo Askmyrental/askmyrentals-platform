@@ -40,6 +40,13 @@ type PendingGroupInvite = {
   expiresAt: string;
 };
 
+type BusinessCreationSuccess = {
+  newGroupId: string;
+  newGroupName: string;
+  previousGroupId: string | null;
+  previousGroupName: string;
+};
+
 export default function AuthGate() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -66,6 +73,8 @@ export default function AuthGate() {
   const [accountRefreshKey, setAccountRefreshKey] = useState(0);
   const [employeeWelcomeDismissed, setEmployeeWelcomeDismissed] =
     useState(false);
+  const [businessCreationSuccess, setBusinessCreationSuccess] =
+    useState<BusinessCreationSuccess | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -101,6 +110,7 @@ export default function AuthGate() {
             setInviteMessage("");
             setInviteLoadError("");
             setEmployeeWelcomeDismissed(false);
+            setBusinessCreationSuccess(null);
           } else if (event === "SIGNED_IN" && userChanged) {
             setProfile(null);
             setPropertyCount(0);
@@ -114,6 +124,7 @@ export default function AuthGate() {
             setInviteMessage("");
             setInviteLoadError("");
             setEmployeeWelcomeDismissed(false);
+            setBusinessCreationSuccess(null);
           }
 
           /*
@@ -360,7 +371,7 @@ export default function AuthGate() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id, profile]);
+  }, [session?.user?.id, profile, accountRefreshKey]);
 
   async function respondToGroupInvite(
     inviteId: string,
@@ -400,6 +411,71 @@ export default function AuthGate() {
     return role
       .replace(/_/g, " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  async function createBusinessWorkspace(businessName: string) {
+    const userId = session?.user?.id;
+    const normalizedName = businessName.trim();
+
+    if (!userId) {
+      throw new Error("Your login session has expired. Please log in again.");
+    }
+
+    if (!normalizedName) {
+      throw new Error("Enter the name of your cleaning business.");
+    }
+
+    const { data, error } = await supabase.rpc(
+      "create_my_business_workspace",
+      {
+        p_name: normalizedName,
+      },
+    );
+
+    if (error) {
+      console.error("Unable to create business workspace", error);
+      throw new Error(error.message);
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+    const createdGroupId = String(
+      result?.group_id ?? result?.id ?? data ?? "",
+    );
+
+    if (!createdGroupId) {
+      throw new Error(
+        "AMR created the workspace but did not return its ID. Refresh and check My Groups.",
+      );
+    }
+
+    const createdGroup: GroupOption = {
+      id: createdGroupId,
+      name: String(result?.group_name ?? normalizedName),
+      description: "My cleaning business workspace",
+      logoUrl: null,
+      role: "owner",
+    };
+
+    setGroups((current) => {
+      const withoutDuplicate = current.filter(
+        (group) => group.id !== createdGroupId,
+      );
+      return [...withoutDuplicate, createdGroup];
+    });
+
+    const previousGroup =
+      groups.find((group) => group.id === selectedGroupId) ?? null;
+
+    setSkipSetupForSession(true);
+    setLaunchPage(null);
+    setEmployeeWelcomeDismissed(true);
+    setBusinessCreationSuccess({
+      newGroupId: createdGroupId,
+      newGroupName: createdGroup.name,
+      previousGroupId: previousGroup?.id ?? null,
+      previousGroupName: previousGroup?.name ?? "your current team",
+    });
+    setAccountRefreshKey((current) => current + 1);
   }
 
   function selectGroup(groupId: string) {
@@ -511,8 +587,8 @@ export default function AuthGate() {
         <section className="authCard authWorkspaceLoading">
           <div className="brandIcon">AMR</div>
           <p className="eyebrow">AMR Cleaner</p>
-          <h1>Opening your team…</h1>
-          <p>Restoring your secure session and loading your team.</p>
+          <h1>Opening your workspace…</h1>
+          <p>Restoring your secure session and loading your workspace.</p>
           <div className="authLoadingBar" aria-hidden="true">
             <span />
           </div>
@@ -691,11 +767,11 @@ export default function AuthGate() {
       <div className="authPage">
         <section className="authCard authRecoveryCard">
           <div className="brandIcon">AMR</div>
-          <p className="eyebrow">My Teams</p>
-          <h1>No active team was found</h1>
+          <p className="eyebrow">My Workspaces</p>
+          <h1>No active workspace was found</h1>
           <p>
             {inviteLoadError ||
-              "Your login is working, but it is not connected to an active AMR team yet."}
+              "Your login is working, but it is not connected to an active AMR workspace yet."}
           </p>
 
           <button
@@ -705,6 +781,110 @@ export default function AuthGate() {
           >
             Sign Out
           </button>
+        </section>
+      </div>
+    );
+  }
+
+  if (businessCreationSuccess) {
+    const newWorkspace =
+      groups.find(
+        (group) => group.id === businessCreationSuccess.newGroupId,
+      ) ?? {
+        id: businessCreationSuccess.newGroupId,
+        name: businessCreationSuccess.newGroupName,
+        role: "owner",
+      };
+
+    return (
+      <div className="authPage">
+        <section className="authCard" style={{ maxWidth: 700 }}>
+          <div className="brandIcon">AMR</div>
+          <p className="eyebrow">Business workspace created</p>
+          <h1>Your business is ready 🎉</h1>
+          <p>
+            You now have two separate AMR workspaces. Your current team access
+            and assignments have not changed.
+          </p>
+
+          <div style={{ display: "grid", gap: 12, marginTop: 20 }}>
+            <article
+              style={{
+                border: "1px solid #dbe2ea",
+                borderRadius: 16,
+                padding: 16,
+              }}
+            >
+              <p className="eyebrow">Cleaner workspace</p>
+              <h2 style={{ marginBottom: 6 }}>
+                {businessCreationSuccess.previousGroupName}
+              </h2>
+              <p className="mutedText">
+                Receive assignments, view your schedule, and complete work for
+                this team.
+              </p>
+            </article>
+
+            <article
+              style={{
+                border: "1px solid #bfdbfe",
+                borderRadius: 16,
+                padding: 16,
+                background: "#f8fbff",
+              }}
+            >
+              <p className="eyebrow">Owner workspace</p>
+              <h2 style={{ marginBottom: 6 }}>{newWorkspace.name}</h2>
+              <p className="mutedText">
+                Add properties, invite team members, send invoices, connect
+                payments, and manage your own business.
+              </p>
+            </article>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+              gap: 10,
+              marginTop: 20,
+            }}
+          >
+            <button
+              className="primaryButton"
+              type="button"
+              onClick={() => {
+                selectGroup(businessCreationSuccess.newGroupId);
+                setBusinessCreationSuccess(null);
+              }}
+            >
+              Open My Business
+            </button>
+
+            {businessCreationSuccess.previousGroupId && (
+              <button
+                className="secondaryButton"
+                type="button"
+                onClick={() => {
+                  selectGroup(businessCreationSuccess.previousGroupId!);
+                  setBusinessCreationSuccess(null);
+                }}
+              >
+                Stay With My Team
+              </button>
+            )}
+
+            <button
+              className="secondaryButton"
+              type="button"
+              onClick={() => {
+                returnToGroupPicker();
+                setBusinessCreationSuccess(null);
+              }}
+            >
+              Open My Workspaces
+            </button>
+          </div>
         </section>
       </div>
     );
@@ -721,6 +901,7 @@ export default function AuthGate() {
           ""
         }
         onSelectGroup={selectGroup}
+        onCreateBusinessWorkspace={createBusinessWorkspace}
         onSignOut={() => void supabase.auth.signOut()}
       />
     );
@@ -734,26 +915,44 @@ export default function AuthGate() {
     !employeeWelcomeDismissed &&
     selectedGroupForWelcome
   ) {
+    const hasMultipleWorkspaces = groups.length > 1;
+
     return (
       <div className="authPage">
         <section className="authCard" style={{ maxWidth: 640 }}>
           <div className="brandIcon">AMR</div>
-          <p className="eyebrow">Welcome to your team</p>
-          <h1>You joined {selectedGroupForWelcome.name}</h1>
+          <p className="eyebrow">
+            {hasMultipleWorkspaces
+              ? "Welcome back"
+              : "Welcome to your team"}
+          </p>
+          <h1>
+            {hasMultipleWorkspaces
+              ? `Welcome back${
+                  profile.display_name || profile.full_name
+                    ? `, ${profile.display_name ?? profile.full_name}`
+                    : ""
+                }`
+              : `You joined ${selectedGroupForWelcome.name}`}
+          </h1>
           <p>
-            Your invitation was accepted successfully. Your team administrator
-            can now assign properties, cleaning tasks, and team access to
-            you.
+            {hasMultipleWorkspaces
+              ? "You have access to multiple AMR workspaces. Choose where you would like to work today."
+              : "Your invitation was accepted successfully. Your team administrator can now assign properties, cleaning tasks, and team access to you."}
           </p>
 
           <div className="authRecoveryNotice">
             <span aria-hidden="true">✓</span>
             <div>
               <strong>
-                Role: {formatInviteRole(selectedGroupForWelcome.role)}
+                {hasMultipleWorkspaces
+                  ? `${groups.length} active workspaces`
+                  : `Role: ${formatInviteRole(selectedGroupForWelcome.role)}`}
               </strong>
               <small>
-                An empty Pulse simply means nothing has been assigned to you yet.
+                {hasMultipleWorkspaces
+                  ? "Your jobs, properties, invoices, and payments stay separate between workspaces."
+                  : "An empty Pulse simply means nothing has been assigned to you yet."}
               </small>
             </div>
           </div>
@@ -761,9 +960,14 @@ export default function AuthGate() {
           <button
             className="primaryButton"
             type="button"
-            onClick={() => setEmployeeWelcomeDismissed(true)}
+            onClick={() => {
+              if (hasMultipleWorkspaces) {
+                returnToGroupPicker();
+              }
+              setEmployeeWelcomeDismissed(true);
+            }}
           >
-            Open My Team
+            {hasMultipleWorkspaces ? "Open My Workspaces" : "Open My Team"}
           </button>
         </section>
       </div>
@@ -903,6 +1107,7 @@ export default function AuthGate() {
       selectedGroupRole={selectedGroup.role}
       canSwitchGroups={groups.length > 1}
       onChangeGroup={returnToGroupPicker}
+      onCreateBusinessWorkspace={createBusinessWorkspace}
     />
   );
 }
