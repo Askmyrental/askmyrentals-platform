@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
+      "destination": "/api/index"
     },
     {
       "source": "/(.*)",
@@ -10,7 +10,7 @@
     }
   ],
   "functions": {
-    "api/index.cjs": {
+    "api/index.js": {
       "maxDuration": 30
     }
   }
