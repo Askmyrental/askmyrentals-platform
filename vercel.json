@@ -1,8 +1,17 @@
 {
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.cjs": {
+      "maxDuration": 30
+    }
+  }
 }

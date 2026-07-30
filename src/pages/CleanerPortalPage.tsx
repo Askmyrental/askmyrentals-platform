@@ -420,11 +420,10 @@ export default function CleanerPortalPage({
           throw new Error("Your login session has expired.");
         }
 
-        const apiBase =
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1"
-            ? "http://localhost:4000"
-            : "";
+        const apiBase = String(import.meta.env.VITE_API_URL ?? "")
+          .trim()
+          .replace(/\/$/, "") ||
+          (import.meta.env.DEV ? "http://localhost:4000" : "");
 
         const response = await fetch(
           `${apiBase}/api/groups/${encodeURIComponent(groupId)}/members`,

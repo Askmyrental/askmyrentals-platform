@@ -30,6 +30,11 @@ import RecordsPage from "./pages/RecordsPage";
 import DashboardPage from "./pages/DashboardPage";
 import PropertyOperationsHub from "./components/PropertyOperationsHub";
 import { supabase } from "./utils/supabase";
+
+const API_URL = String(import.meta.env.VITE_API_URL ?? "")
+  .trim()
+  .replace(/\/$/, "") ||
+  (import.meta.env.DEV ? "http://localhost:4000" : "");
 type ReservationStatus =
   | "Unassigned"
   | "Assigned"
@@ -1953,7 +1958,7 @@ export default function App({
       const currentUserId = String(session.user.id);
 
       const response = await fetch(
-        `http://localhost:4000/api/groups/${encodeURIComponent(normalizedGroupId)}/members`,
+        `${API_URL}/api/groups/${encodeURIComponent(normalizedGroupId)}/members`,
         {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
@@ -2554,7 +2559,7 @@ console.log("TEAM MEMBERS", mappedMembers);
       const successfullySyncedSources = new Set<string>();
 
       async function fetchCalendar(url: string, source: "VRBO" | "Airbnb") {
-        const response = await fetch("http://localhost:4000/api/fetch-ical", {
+        const response = await fetch(`${API_URL}/api/fetch-ical`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -9,8 +9,15 @@ const Stripe = require("stripe");
 const { createClient } = require("@supabase/supabase-js");
 const app = express();
 const PORT = process.env.PORT || 4000;
+const VERCEL_APP_URL = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}`
+  : "";
+
 const CLIENT_URL =
-  process.env.CLIENT_URL || "http://localhost:5189";
+  process.env.CLIENT_URL ||
+  process.env.PUBLIC_APP_URL ||
+  VERCEL_APP_URL ||
+  "http://localhost:5189";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET =
@@ -1939,6 +1946,12 @@ app.get("/api/public/invoices/:publicToken", async (req, res) => {
     });
   }
 });
-app.listen(PORT, () => {
-  console.log(`Ask My Rentals backend server running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(
+      `Ask My Rentals backend server running on http://localhost:${PORT}`,
+    );
+  });
+}
+
+module.exports = app;
