@@ -49,6 +49,7 @@ type CleanerPortalPageProps = {
   homes: any[];
   reservations: any[];
   cleanerPortalId: string;
+  selectedGroupId: string;
   selectedGroupRole?: string;
   cleanerIssueForm: any;
   openCleanerScheduleOnLoad: boolean;
@@ -84,6 +85,7 @@ export default function CleanerPortalPage({
   homes,
   reservations,
   cleanerPortalId,
+  selectedGroupId,
   selectedGroupRole,
   cleanerIssueForm,
   setCleanerIssueForm,
@@ -114,6 +116,8 @@ export default function CleanerPortalPage({
     "schedule",
   );
   const [cleanerJobs, setCleanerJobs] = useState<any[]>([]);
+  const [manualTeamContacts, setManualTeamContacts] = useState<any[]>([]);
+  const [manualContactsLoadingError, setManualContactsLoadingError] = useState("");
   const [jobsLoadingError, setJobsLoadingError] = useState("");
   const [invoicedReservationIds, setInvoicedReservationIds] = useState<
     Set<string>
@@ -393,6 +397,100 @@ export default function CleanerPortalPage({
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadManualTeamContacts() {
+      const groupId = String(selectedGroupId ?? "").trim();
+
+      if (!groupId) {
+        setManualTeamContacts([]);
+        setManualContactsLoadingError("");
+        return;
+      }
+
+      try {
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) throw sessionError;
+        if (!session?.access_token) {
+          throw new Error("Your login session has expired.");
+        }
+
+        const apiBase =
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1"
+            ? "http://localhost:4000"
+            : "";
+
+        const response = await fetch(
+          `${apiBase}/api/groups/${encodeURIComponent(groupId)}/members`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          },
+        );
+
+        const result = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(
+            result?.error ??
+              `Unable to load manual team contacts (${response.status}).`,
+          );
+        }
+
+        if (cancelled) return;
+
+        const contacts = Array.isArray(result?.contacts)
+          ? result.contacts
+          : [];
+
+        setManualTeamContacts(
+          contacts.filter(
+            (contact: any) =>
+              !contact?.linked_user_id &&
+              ["manual", "invitation_pending"].includes(
+                String(contact?.status ?? "manual").toLowerCase(),
+              ),
+          ),
+        );
+        setManualContactsLoadingError("");
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Manual team contact load failed", error);
+        setManualTeamContacts([]);
+        setManualContactsLoadingError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load manual team contacts.",
+        );
+      }
+    }
+
+    void loadManualTeamContacts();
+
+    const refreshManualContacts = () => {
+      void loadManualTeamContacts();
+    };
+
+    window.addEventListener("focus", refreshManualContacts);
+    window.addEventListener("amr:team-contacts-updated", refreshManualContacts);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshManualContacts);
+      window.removeEventListener(
+        "amr:team-contacts-updated",
+        refreshManualContacts,
+      );
+    };
+  }, [selectedGroupId]);
+
   const activeCleaner =
     cleaners.find(
       (cleaner) => String(cleaner.id) === String(cleanerPortalId),
@@ -424,14 +522,29 @@ export default function CleanerPortalPage({
     "member",
   ].includes(normalizedGroupRole);
 
-  const getTaskAssignedCleanerId = (task: any) =>
+  const getTaskAssignedUserId = (task: any) =>
     String(
       task?.assignedUserId ??
         task?.assigned_user_id ??
         task?.assignedTo ??
         task?.assigned_to ??
         "",
-    );
+    ).trim();
+
+  const getTaskAssignedContactId = (task: any) =>
+    String(
+      task?.assignedContactId ??
+        task?.assigned_contact_id ??
+        "",
+    ).trim();
+
+  const getTaskAssignedCleanerId = (task: any) => {
+    const contactId = getTaskAssignedContactId(task);
+    if (contactId) return `contact:${contactId}`;
+
+    const userId = getTaskAssignedUserId(task);
+    return userId ? `user:${userId}` : "";
+  };
 
   const getCleanerDisplayName = (cleaner: any) =>
     String(
@@ -442,6 +555,7 @@ export default function CleanerPortalPage({
         cleaner?.name ??
         cleaner?.businessName ??
         cleaner?.business_name ??
+        [cleaner?.first_name, cleaner?.last_name].filter(Boolean).join(" ") ??
         cleaner?.email ??
         "Team Member",
     ).trim();
@@ -458,20 +572,48 @@ export default function CleanerPortalPage({
       .trim()
       .toLowerCase();
 
-  const sortedUniqueCleaners: any[] = Array.from<any>(
-    cleaners.reduce((unique, cleaner) => {
-      const email = getCleanerEmail(cleaner);
-      const id = String(cleaner?.id ?? "").trim();
-      const key = email ? `email:${email}` : id ? `id:${id}` : `name:${getCleanerDisplayName(cleaner).toLowerCase()}`;
+  const activeAssignableCleaners = cleaners.map((cleaner) => ({
+    ...cleaner,
+    assignmentKey: `user:${String(cleaner?.id ?? "")}`,
+    assignmentType: "user",
+    rawAssignmentId: String(cleaner?.id ?? ""),
+    isManualContact: false,
+  }));
 
-      if (!unique.has(key)) unique.set(key, cleaner);
-      return unique;
-    }, new Map<string, any>()).values(),
+  const manualAssignableCleaners = manualTeamContacts.map((contact) => ({
+    ...contact,
+    id: `contact:${String(contact?.id ?? "")}`,
+    assignmentKey: `contact:${String(contact?.id ?? "")}`,
+    assignmentType: "contact",
+    rawAssignmentId: String(contact?.id ?? ""),
+    contactName:
+      [contact?.first_name, contact?.last_name].filter(Boolean).join(" ") ||
+      contact?.email ||
+      "Manual Team Member",
+    phone: contact?.phone ?? contact?.phone_number ?? "",
+    isManualContact: true,
+  }));
+
+  const sortedUniqueCleaners: any[] = Array.from<any>(
+    [...activeAssignableCleaners, ...manualAssignableCleaners]
+      .reduce((unique, cleaner) => {
+        const assignmentKey = String(cleaner?.assignmentKey ?? "").trim();
+        const email = getCleanerEmail(cleaner);
+        const key = assignmentKey || (email ? `email:${email}` : "");
+
+        if (key && !unique.has(key)) unique.set(key, cleaner);
+        return unique;
+      }, new Map<string, any>())
+      .values(),
   ).sort((first, second) =>
-    getCleanerDisplayName(first).localeCompare(getCleanerDisplayName(second), undefined, {
-      sensitivity: "base",
-      numeric: true,
-    }),
+    getCleanerDisplayName(first).localeCompare(
+      getCleanerDisplayName(second),
+      undefined,
+      {
+        sensitivity: "base",
+        numeric: true,
+      },
+    ),
   );
 
   const sortedHomes = [...homes].sort((first, second) =>
@@ -482,9 +624,9 @@ export default function CleanerPortalPage({
   );
 
   const getAssignedCleaner = (task: any) => {
-    const assignedCleanerId = getTaskAssignedCleanerId(task);
-    return cleaners.find(
-      (cleaner) => String(cleaner.id) === assignedCleanerId,
+    const assignmentKey = getTaskAssignedCleanerId(task);
+    return sortedUniqueCleaners.find(
+      (cleaner) => String(cleaner.assignmentKey) === assignmentKey,
     );
   };
 
@@ -802,6 +944,8 @@ if (profileError) {
         cleaner_id: job.assigned_user_id ?? "",
         assignedUserId: job.assigned_user_id ?? "",
         assigned_user_id: job.assigned_user_id ?? "",
+        assignedContactId: job.assigned_contact_id ?? "",
+        assigned_contact_id: job.assigned_contact_id ?? "",
         homeId: job.property_id ?? "",
         arrival: job.scheduled_date,
         departure: job.scheduled_date,
@@ -889,11 +1033,11 @@ if (profileError) {
 
   const cleanerTasks = filteredCalendarTasks.filter((task) => {
     const taskDate = toLocalDate(task.departure);
-    const assignedCleanerId = getTaskAssignedCleanerId(task);
+    const assignedCleanerUserId = getTaskAssignedUserId(task);
     const currentCleanerUserId = String(pulseUserId || cleanerPortalId || "");
     const visibleToCurrentCleaner =
       !isAssignedTeamCleaner ||
-      assignedCleanerId === currentCleanerUserId ||
+      assignedCleanerUserId === currentCleanerUserId ||
       (task.isCleanerJob &&
         String(task.cleanerOwnerId ?? task.cleaner_id ?? "") ===
           currentCleanerUserId);
@@ -1056,7 +1200,7 @@ if (profileError) {
         ? "Unassigned"
         : getCleanerDisplayName(
             sortedUniqueCleaners.find(
-              (cleaner) => String(cleaner.id) === pulseAssignmentFilters[0],
+              (cleaner) => String(cleaner.assignmentKey) === pulseAssignmentFilters[0],
             ),
           )
       : `${pulseAssignmentFilters.length} selected`;
@@ -1159,11 +1303,28 @@ if (profileError) {
   const createFilteredCleaningScheduleInput = (): WorkPacketInput => {
     const { start, end } = getPulseDateBounds();
 
+    const scheduleTasks = displayedCleanerTasks.map((task) => {
+      const assignedCleaner = getAssignedCleaner(task);
+      return {
+        ...task,
+        assignedCleanerName: assignedCleaner
+          ? getCleanerDisplayName(assignedCleaner)
+          : "",
+        cleanerName: assignedCleaner
+          ? getCleanerDisplayName(assignedCleaner)
+          : "",
+        assignedContactName:
+          assignedCleaner?.isManualContact
+            ? getCleanerDisplayName(assignedCleaner)
+            : "",
+      };
+    });
+
     return {
       businessName: String(cleanerBusinessName),
       startDate: start,
       endDate: end,
-      tasks: displayedCleanerTasks,
+      tasks: scheduleTasks,
       homes,
       options: {
         includePropertyNotes: reportOptions.propertyNotes,
@@ -1424,17 +1585,30 @@ if (profileError) {
     };
   }
 
-  const assignTaskToCleaner = async (task: any, cleanerId: string) => {
+  const assignTaskToCleaner = async (
+    task: any,
+    assignmentKey: string,
+  ) => {
     if (!canManageAssignments) return;
 
     setAssignmentSavingTaskId(String(task.id));
+
+    const isManualAssignment = assignmentKey.startsWith("contact:");
+    const isUserAssignment = assignmentKey.startsWith("user:");
+    const assignedContactId = isManualAssignment
+      ? assignmentKey.slice("contact:".length)
+      : "";
+    const assignedUserId = isUserAssignment
+      ? assignmentKey.slice("user:".length)
+      : "";
 
     try {
       if (task.isCleanerJob) {
         const { data, error } = await supabase
           .from("cleaner_jobs")
           .update({
-            assigned_user_id: cleanerId || null,
+            assigned_user_id: assignedUserId || null,
+            assigned_contact_id: assignedContactId || null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", task.cleanerJobId)
@@ -1451,11 +1625,13 @@ if (profileError) {
       } else {
         await Promise.resolve(
           updateReservation(String(task.id), {
-            assignedUserId: cleanerId || null,
-            assigned_user_id: cleanerId || null,
+            assignedUserId: assignedUserId || null,
+            assigned_user_id: assignedUserId || null,
+            assignedContactId: assignedContactId || null,
+            assigned_contact_id: assignedContactId || null,
             status:
               getCleanerPortalStatus(task) === "Upcoming"
-                ? cleanerId
+                ? assignmentKey
                   ? "Accepted"
                   : "Unassigned"
                 : task.status,
@@ -1463,25 +1639,29 @@ if (profileError) {
         );
       }
 
-      const assignedCleaner = cleaners.find(
-        (cleaner) => String(cleaner.id) === String(cleanerId),
+      const assignedCleaner = sortedUniqueCleaners.find(
+        (cleaner) => String(cleaner.assignmentKey) === assignmentKey,
       );
 
       setSelectedCleanerTask((current: any) =>
         current && String(current.id) === String(task.id)
           ? {
               ...current,
-              cleanerId: cleanerId || null,
-              cleaner_id: cleanerId || null,
-              assignedUserId: cleanerId || null,
-              assigned_user_id: cleanerId || null,
+              cleanerId: assignedUserId || null,
+              cleaner_id: assignedUserId || null,
+              assignedUserId: assignedUserId || null,
+              assigned_user_id: assignedUserId || null,
+              assignedContactId: assignedContactId || null,
+              assigned_contact_id: assignedContactId || null,
             }
           : current,
       );
 
       setTaskActionMessage(
-        cleanerId
-          ? `Task assigned to ${getCleanerDisplayName(assignedCleaner)}.`
+        assignmentKey
+          ? `Task assigned to ${getCleanerDisplayName(assignedCleaner)}${
+              assignedCleaner?.isManualContact ? " (Manual)" : ""
+            }.`
           : "Task returned to the unassigned queue.",
       );
     } catch (error) {
@@ -3976,6 +4156,13 @@ if (profileError) {
             </aside>
           )}
 
+        {manualContactsLoadingError && canManageAssignments && (
+          <section className="emptyStateCard">
+            <strong>Manual team contacts could not be loaded</strong>
+            <p>{manualContactsLoadingError}</p>
+          </section>
+        )}
+
         {jobsLoadingError && (
           <section className="emptyStateCard">
             <strong>Independent jobs could not be loaded</strong>
@@ -4470,7 +4657,7 @@ if (profileError) {
                       <span>Unassigned</span>
                     </label>
                     {sortedUniqueCleaners.map((cleaner: any) => {
-                      const value = String(cleaner.id);
+                      const value = String(cleaner.assignmentKey);
                       return (
                         <label className="cleanerPulseHeaderFilterOption" key={value}>
                           <input type="checkbox" checked={pulseAssignmentFilters.includes(value)} onChange={() => togglePulseMultiFilter(value, setPulseAssignmentFilters)} />
@@ -4587,7 +4774,7 @@ if (profileError) {
                       <div className="cleanerPulseHeaderFilterMenu">
                         <label className="cleanerPulseHeaderFilterOption"><input type="checkbox" checked={pulseAssignmentFilters.includes("all")} onChange={() => setPulseAssignmentFilters(["all"])} /><span>All Assignments</span></label>
                         <label className="cleanerPulseHeaderFilterOption"><input type="checkbox" checked={pulseAssignmentFilters.includes("unassigned")} onChange={() => togglePulseMultiFilter("unassigned", setPulseAssignmentFilters)} /><span>Unassigned</span></label>
-                        {sortedUniqueCleaners.map((cleaner: any) => { const value = String(cleaner.id); return <label className="cleanerPulseHeaderFilterOption" key={value}><input type="checkbox" checked={pulseAssignmentFilters.includes(value)} onChange={() => togglePulseMultiFilter(value, setPulseAssignmentFilters)} /><span>{getCleanerDisplayName(cleaner)}</span></label>; })}
+                        {sortedUniqueCleaners.map((cleaner: any) => { const value = String(cleaner.assignmentKey); return <label className="cleanerPulseHeaderFilterOption" key={value}><input type="checkbox" checked={pulseAssignmentFilters.includes(value)} onChange={() => togglePulseMultiFilter(value, setPulseAssignmentFilters)} /><span>{getCleanerDisplayName(cleaner)}</span></label>; })}
                         <div className="cleanerPulseHeaderFilterFooter"><button type="button" className="secondaryButton" onClick={() => setPulseAssignmentFilters(["all"])}>Reset</button><button type="button" className="primaryButton" onClick={() => setShowPulseAssignmentFilter(false)}>Done</button></div>
                       </div>
                     )}
@@ -4715,10 +4902,12 @@ if (profileError) {
                             )}
                             {sortedUniqueCleaners.map((cleaner) => (
                               <option
-                                key={String(cleaner.id)}
-                                value={String(cleaner.id)}
+                                key={String(cleaner.assignmentKey)}
+                                value={String(cleaner.assignmentKey)}
                               >
-                                👤 {getCleanerDisplayName(cleaner)}
+                                {cleaner.isManualContact ? "📋" : "👤"}{" "}
+                                {getCleanerDisplayName(cleaner)}
+                                {cleaner.isManualContact ? " (Manual)" : ""}
                               </option>
                             ))}
                           </select>
@@ -5344,7 +5533,7 @@ if (profileError) {
 
               <div className="cleanerScheduleShareList">
                 {sortedUniqueCleaners.map((cleaner: any) => {
-                  const cleanerId = String(cleaner.id);
+                  const cleanerId = String(cleaner.assignmentKey);
                   const checked = scheduleShareCleanerIds.includes(cleanerId);
                   const email = getCleanerEmail(cleaner);
                   const phone = getCleanerPhone(cleaner);
@@ -5363,7 +5552,10 @@ if (profileError) {
                         }
                       />
                       <span>
-                        <strong>{getCleanerDisplayName(cleaner)}</strong>
+                        <strong>
+                          {getCleanerDisplayName(cleaner)}
+                          {cleaner.isManualContact ? " · Manual" : ""}
+                        </strong>
                         <small>
                           {[email, phone].filter(Boolean).join(" · ") ||
                             "No email or phone saved"}
@@ -5541,8 +5733,13 @@ if (profileError) {
                   >
                     <option value="">Unassigned</option>
                     {sortedUniqueCleaners.map((cleaner) => (
-                      <option key={String(cleaner.id)} value={String(cleaner.id)}>
+                      <option
+                        key={String(cleaner.assignmentKey)}
+                        value={String(cleaner.assignmentKey)}
+                      >
+                        {cleaner.isManualContact ? "📋 " : ""}
                         {getCleanerDisplayName(cleaner)}
+                        {cleaner.isManualContact ? " (Manual)" : ""}
                       </option>
                     ))}
                   </select>

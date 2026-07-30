@@ -143,6 +143,7 @@ type Reservation = {
   status: ReservationStatus;
   cleanerId?: string;
   assignedUserId?: string;
+  assignedContactId?: string;
 
   propertyName?: string;
   propertyAddress?: string;
@@ -429,7 +430,8 @@ function needsCleanerAssignment(reservation: Reservation) {
     reservation.status !== "Completed" &&
     reservation.status !== "No Clean Needed" &&
     !reservation.cleanerId &&
-    !reservation.assignedUserId
+    !reservation.assignedUserId &&
+    !reservation.assignedContactId
   );
 }
 
@@ -1199,8 +1201,18 @@ export default function App({
                 (updates.cleanerId ? reservation.assignedUserId : undefined)
               : reservation.assignedUserId;
 
+        const nextAssignedContact =
+          "assignedContactId" in updates
+            ? updates.assignedContactId
+            : reservation.assignedContactId;
+
         const assignmentWasCleared =
-          ("assignedUserId" in updates && !updates.assignedUserId) ||
+          ("assignedUserId" in updates &&
+            !updates.assignedUserId &&
+            !updates.assignedContactId) ||
+          ("assignedContactId" in updates &&
+            !updates.assignedContactId &&
+            !updates.assignedUserId) ||
           ("cleanerId" in updates && !updates.cleanerId);
 
         const nextStatus = assignmentWasCleared
@@ -1210,13 +1222,15 @@ export default function App({
         const shouldAddTimeline =
           updates.status !== undefined ||
           "cleanerId" in updates ||
-          "assignedUserId" in updates;
+          "assignedUserId" in updates ||
+          "assignedContactId" in updates;
 
         updatedReservation = {
           ...reservation,
           ...updates,
           cleanerId: nextCleaner,
           assignedUserId: nextAssignedUser,
+          assignedContactId: nextAssignedContact,
           timeline: shouldAddTimeline
             ? [
                 ...reservation.timeline,
@@ -1259,6 +1273,20 @@ export default function App({
 
       if ("assignedUserId" in updates) {
         supabaseUpdates.assigned_user_id = updates.assignedUserId ?? null;
+
+        if (updates.assignedUserId) {
+          supabaseUpdates.assigned_contact_id = null;
+        }
+      }
+
+      if ("assignedContactId" in updates) {
+        supabaseUpdates.assigned_contact_id =
+          updates.assignedContactId ?? null;
+
+        if (updates.assignedContactId) {
+          supabaseUpdates.assigned_user_id = null;
+          supabaseUpdates.cleaner_id = null;
+        }
       }
 
       if (updates.status !== undefined) {
@@ -1848,6 +1876,9 @@ export default function App({
 
   assignedUserId:
     item.assigned_user_id ?? undefined,
+
+  assignedContactId:
+    item.assigned_contact_id ?? undefined,
 
   propertyName:
     item.property?.property_name ?? undefined,
@@ -2594,7 +2625,7 @@ console.log("TEAM MEMBERS", mappedMembers);
         await supabase
           .from("reservations")
           .select(
-            "id, owner_id, property_id, source, ical_uid, guest_name, arrival, departure, cleaner_id, assigned_user_id, status, notes, timeline, calendar_event_active, calendar_removed_at",
+            "id, owner_id, property_id, source, ical_uid, guest_name, arrival, departure, cleaner_id, assigned_user_id, assigned_contact_id, status, notes, timeline, calendar_event_active, calendar_removed_at",
           )
           .eq("owner_id", user.id)
           .eq("property_id", selectedProperty.id)
@@ -2872,6 +2903,8 @@ console.log("TEAM MEMBERS", mappedMembers);
         const existingCleanerId = existingReservation?.cleaner_id ?? null;
         const existingAssignedUserId =
           existingReservation?.assigned_user_id ?? null;
+        const existingAssignedContactId =
+          existingReservation?.assigned_contact_id ?? null;
         const existingStatus = existingReservation?.status ?? null;
         const isImportedBlock = reservation.status === "Blocked";
 
@@ -2893,6 +2926,7 @@ console.log("TEAM MEMBERS", mappedMembers);
           departure: reservation.departure,
           cleaner_id: cleanerId,
           assigned_user_id: existingAssignedUserId,
+          assigned_contact_id: existingAssignedContactId,
           status,
           calendar_event_active: true,
           calendar_removed_at: null,
@@ -4021,6 +4055,7 @@ console.log("TEAM MEMBERS", mappedMembers);
             homes={homes}
             reservations={reservations}
             cleanerPortalId={cleanerPortalId}
+            selectedGroupId={selectedGroupId}
             selectedGroupRole={selectedGroupRole}
             cleanerIssueForm={cleanerIssueForm}
             setCleanerIssueForm={setCleanerIssueForm}
@@ -4067,6 +4102,7 @@ console.log("TEAM MEMBERS", mappedMembers);
             homes={homes}
             reservations={reservations}
             cleanerPortalId={cleanerPortalId}
+            selectedGroupId={selectedGroupId}
             selectedGroupRole={selectedGroupRole}
             cleanerIssueForm={cleanerIssueForm}
             setCleanerIssueForm={setCleanerIssueForm}

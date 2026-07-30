@@ -362,11 +362,25 @@ app.get(
         );
       }
 
+      const { data: contacts, error: contactsError } = await supabaseAdmin
+        .from("group_contacts")
+        .select(
+          "id, group_id, linked_user_id, first_name, last_name, email, phone, role, status, invited_at, linked_at, created_at, updated_at"
+        )
+        .eq("group_id", groupId)
+        .neq("status", "removed")
+        .order("created_at", { ascending: true });
+
+      if (contactsError) {
+        throw new Error(contactsError.message);
+      }
+
       res.json({
         members: (members || []).map((member) => ({
           ...member,
           profile: profilesById.get(String(member.user_id)) || null,
         })),
+        contacts: contacts || [],
       });
     } catch (error) {
       console.error("Unable to load group members", error);
@@ -381,6 +395,328 @@ app.get(
   }
 );
 
+
+async function requireGroupManager(groupId, userId) {
+  const { data: membership, error } = await supabaseAdmin
+    .from("group_members")
+    .select("id, role, status")
+    .eq("group_id", groupId)
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+
+  if (
+    !membership ||
+    !["owner", "administrator", "manager"].includes(membership.role)
+  ) {
+    const permissionError = new Error(
+      "You do not have permission to manage this team."
+    );
+    permissionError.statusCode = 403;
+    throw permissionError;
+  }
+
+  return membership;
+}
+
+app.post(
+  "/api/group-contacts",
+  requireAuthenticatedUser,
+  async (req, res) => {
+    try {
+      const groupId = String(req.body?.groupId || "").trim();
+      const firstName = String(req.body?.firstName || "").trim();
+      const lastName = String(req.body?.lastName || "").trim();
+      const email = String(req.body?.email || "").trim().toLowerCase() || null;
+      const phone = String(req.body?.phone || "").trim() || null;
+      const role = String(req.body?.role || "cleaner").trim();
+
+      const allowedRoles = new Set([
+        "cleaner",
+        "team_member",
+        "manager",
+        "administrator",
+        "homeowner",
+        "maintenance",
+        "inspector",
+      ]);
+
+      if (!groupId || !firstName || !lastName) {
+        return res.status(400).json({
+          error: "Group, first name, and last name are required.",
+        });
+      }
+
+      if (!email && !phone) {
+        return res.status(400).json({
+          error: "Enter an email address or phone number.",
+        });
+      }
+
+      if (!allowedRoles.has(role)) {
+        return res.status(400).json({ error: "That team role is not supported." });
+      }
+
+      await requireGroupManager(groupId, req.amrUser.id);
+
+      if (email) {
+        const { data: existingContact, error: existingContactError } =
+          await supabaseAdmin
+            .from("group_contacts")
+            .select("id, status")
+            .eq("group_id", groupId)
+            .ilike("email", email)
+            .neq("status", "removed")
+            .maybeSingle();
+
+        if (existingContactError) {
+          throw new Error(existingContactError.message);
+        }
+
+        if (existingContact) {
+          return res.status(409).json({
+            error: "A manual team contact already exists for this email.",
+          });
+        }
+      }
+
+      const { data: contact, error: contactError } = await supabaseAdmin
+        .from("group_contacts")
+        .insert({
+          group_id: groupId,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone,
+          role,
+          status: "manual",
+          created_by: req.amrUser.id,
+        })
+        .select(
+          "id, group_id, linked_user_id, first_name, last_name, email, phone, role, status, invited_at, linked_at, created_at, updated_at"
+        )
+        .single();
+
+      if (contactError) throw new Error(contactError.message);
+
+      res.json({ ok: true, contact });
+    } catch (error) {
+      console.error("Unable to create manual team contact", error);
+      res.status(error?.statusCode || 500).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to create the manual team contact.",
+      });
+    }
+  }
+);
+
+app.patch(
+  "/api/group-contacts/:contactId",
+  requireAuthenticatedUser,
+  async (req, res) => {
+    try {
+      const contactId = String(req.params.contactId || "").trim();
+      const groupId = String(req.body?.groupId || "").trim();
+      const role = req.body?.role ? String(req.body.role).trim() : null;
+      const status = req.body?.status ? String(req.body.status).trim() : null;
+
+      if (!contactId || !groupId) {
+        return res.status(400).json({ error: "Contact and group are required." });
+      }
+
+      await requireGroupManager(groupId, req.amrUser.id);
+
+      const updates = { updated_at: new Date().toISOString() };
+
+      if (role) updates.role = role;
+      if (status) updates.status = status;
+
+      const { data: contact, error } = await supabaseAdmin
+        .from("group_contacts")
+        .update(updates)
+        .eq("id", contactId)
+        .eq("group_id", groupId)
+        .select(
+          "id, group_id, linked_user_id, first_name, last_name, email, phone, role, status, invited_at, linked_at, created_at, updated_at"
+        )
+        .single();
+
+      if (error) throw new Error(error.message);
+
+      res.json({ ok: true, contact });
+    } catch (error) {
+      console.error("Unable to update manual team contact", error);
+      res.status(error?.statusCode || 500).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to update the manual team contact.",
+      });
+    }
+  }
+);
+
+app.delete(
+  "/api/group-contacts/:contactId",
+  requireAuthenticatedUser,
+  async (req, res) => {
+    try {
+      const contactId = String(req.params.contactId || "").trim();
+      const groupId = String(req.query?.groupId || "").trim();
+
+      if (!contactId || !groupId) {
+        return res.status(400).json({ error: "Contact and group are required." });
+      }
+
+      await requireGroupManager(groupId, req.amrUser.id);
+
+      const { error } = await supabaseAdmin
+        .from("group_contacts")
+        .update({
+          status: "removed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", contactId)
+        .eq("group_id", groupId);
+
+      if (error) throw new Error(error.message);
+
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Unable to remove manual team contact", error);
+      res.status(error?.statusCode || 500).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to remove the manual team contact.",
+      });
+    }
+  }
+);
+
+app.post(
+  "/api/group-contacts/:contactId/invite",
+  requireAuthenticatedUser,
+  async (req, res) => {
+    let createdInviteId = null;
+
+    try {
+      const contactId = String(req.params.contactId || "").trim();
+      const groupId = String(req.body?.groupId || "").trim();
+
+      if (!contactId || !groupId) {
+        return res.status(400).json({ error: "Contact and group are required." });
+      }
+
+      await requireGroupManager(groupId, req.amrUser.id);
+
+      const { data: contact, error: contactError } = await supabaseAdmin
+        .from("group_contacts")
+        .select("id, first_name, last_name, email, phone, role, status")
+        .eq("id", contactId)
+        .eq("group_id", groupId)
+        .maybeSingle();
+
+      if (contactError) throw new Error(contactError.message);
+      if (!contact) return res.status(404).json({ error: "Manual contact not found." });
+      if (!contact.email) {
+        return res.status(400).json({
+          error: "Add an email address before inviting this cleaner to AMR.",
+        });
+      }
+
+      const { data: group, error: groupError } = await supabaseAdmin
+        .from("groups")
+        .select("id, name, status")
+        .eq("id", groupId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (groupError) throw new Error(groupError.message);
+      if (!group) return res.status(404).json({ error: "Workspace not found." });
+
+      const { data: existingInvite, error: existingInviteError } =
+        await supabaseAdmin
+          .from("group_invites")
+          .select("id")
+          .eq("group_id", groupId)
+          .eq("email", contact.email.toLowerCase())
+          .eq("status", "pending")
+          .maybeSingle();
+
+      if (existingInviteError) throw new Error(existingInviteError.message);
+      if (existingInvite) {
+        return res.status(409).json({
+          error: "A pending invitation already exists for this email.",
+        });
+      }
+
+      const { data: invite, error: inviteError } = await supabaseAdmin
+        .from("group_invites")
+        .insert({
+          group_id: groupId,
+          group_contact_id: contact.id,
+          first_name: contact.first_name,
+          last_name: contact.last_name,
+          email: contact.email.toLowerCase(),
+          phone_number: contact.phone,
+          invited_role: contact.role || "cleaner",
+          invited_by: req.amrUser.id,
+          status: "pending",
+        })
+        .select("id")
+        .single();
+
+      if (inviteError) throw new Error(inviteError.message);
+      createdInviteId = invite.id;
+
+      const emailResult = await sendGroupInvitationEmail({
+        to: contact.email.toLowerCase(),
+        groupName: group.name,
+        role: contact.role || "cleaner",
+      });
+
+      const { error: updateContactError } = await supabaseAdmin
+        .from("group_contacts")
+        .update({
+          status: "invitation_pending",
+          invited_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", contact.id)
+        .eq("group_id", groupId);
+
+      if (updateContactError) throw new Error(updateContactError.message);
+
+      res.json({
+        ok: true,
+        inviteId: invite.id,
+        emailId: emailResult.id || null,
+      });
+    } catch (error) {
+      console.error("Unable to invite manual team contact", error);
+
+      if (createdInviteId) {
+        await supabaseAdmin
+          .from("group_invites")
+          .delete()
+          .eq("id", createdInviteId);
+      }
+
+      res.status(error?.statusCode || 500).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to invite the manual team contact.",
+      });
+    }
+  }
+);
+
 app.post(
   "/api/group-invites/send",
   requireAuthenticatedUser,
@@ -389,6 +725,10 @@ app.post(
 
     try {
       const groupId = String(req.body?.groupId || "").trim();
+      const firstName = String(req.body?.firstName || "").trim() || null;
+      const lastName = String(req.body?.lastName || "").trim() || null;
+      const phoneNumber = String(req.body?.phoneNumber || "").trim() || null;
+      const groupContactId = String(req.body?.groupContactId || "").trim() || null;
       const email = String(req.body?.email || "").trim().toLowerCase();
       const role = String(req.body?.role || "cleaner").trim();
 
@@ -474,7 +814,11 @@ app.post(
           .from("group_invites")
           .insert({
             group_id: groupId,
+            group_contact_id: groupContactId,
+            first_name: firstName,
+            last_name: lastName,
             email,
+            phone_number: phoneNumber,
             invited_role: role,
             invited_by: req.amrUser.id,
             status: "pending",
