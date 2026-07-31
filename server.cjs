@@ -708,10 +708,40 @@ app.post(
       console.error("Unable to invite manual team contact", error);
 
       if (createdInviteId) {
-        await supabaseAdmin
+        const { error: cleanupError } = await supabaseAdmin
           .from("group_invites")
           .delete()
           .eq("id", createdInviteId);
+
+        if (cleanupError) {
+          console.error(
+            "Unable to clean up failed manual contact invitation",
+            cleanupError
+          );
+        }
+      }
+
+      const failedContactId = String(req.params.contactId || "").trim();
+      const failedGroupId = String(req.body?.groupId || "").trim();
+
+      if (failedContactId && failedGroupId) {
+        const { error: contactResetError } = await supabaseAdmin
+          .from("group_contacts")
+          .update({
+            status: "manual",
+            invited_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", failedContactId)
+          .eq("group_id", failedGroupId)
+          .is("linked_user_id", null);
+
+        if (contactResetError) {
+          console.error(
+            "Unable to reset manual contact after failed invitation",
+            contactResetError
+          );
+        }
       }
 
       res.status(error?.statusCode || 500).json({
@@ -719,6 +749,227 @@ app.post(
           error instanceof Error
             ? error.message
             : "Unable to invite the manual team contact.",
+      });
+    }
+  }
+);
+
+
+app.post(
+  "/api/group-contacts/:contactId/resend-invite",
+  requireAuthenticatedUser,
+  async (req, res) => {
+    try {
+      const contactId = String(req.params.contactId || "").trim();
+      const groupId = String(req.body?.groupId || "").trim();
+
+      if (!contactId || !groupId) {
+        return res.status(400).json({
+          error: "Contact and group are required.",
+        });
+      }
+
+      await requireGroupManager(groupId, req.amrUser.id);
+
+      const { data: contact, error: contactError } = await supabaseAdmin
+        .from("group_contacts")
+        .select(
+          "id, group_id, first_name, last_name, email, phone, role, status"
+        )
+        .eq("id", contactId)
+        .eq("group_id", groupId)
+        .maybeSingle();
+
+      if (contactError) throw new Error(contactError.message);
+
+      if (!contact) {
+        return res.status(404).json({
+          error: "Manual contact not found.",
+        });
+      }
+
+      if (!contact.email) {
+        return res.status(400).json({
+          error: "Add an email address before resending this invitation.",
+        });
+      }
+
+      const { data: group, error: groupError } = await supabaseAdmin
+        .from("groups")
+        .select("id, name, status")
+        .eq("id", groupId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (groupError) throw new Error(groupError.message);
+
+      if (!group) {
+        return res.status(404).json({
+          error: "Workspace not found.",
+        });
+      }
+
+      const { data: pendingInvite, error: pendingInviteError } =
+        await supabaseAdmin
+          .from("group_invites")
+          .select("id, status")
+          .eq("group_id", groupId)
+          .eq("group_contact_id", contactId)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+      if (pendingInviteError) {
+        throw new Error(pendingInviteError.message);
+      }
+
+      if (!pendingInvite) {
+        return res.status(404).json({
+          error:
+            "No pending invitation was found. Revoke the stale state or send a new invitation.",
+        });
+      }
+
+      const emailResult = await sendGroupInvitationEmail({
+        to: contact.email.toLowerCase(),
+        groupName: group.name,
+        role: contact.role || "cleaner",
+      });
+
+      const now = new Date().toISOString();
+
+      const { error: inviteUpdateError } = await supabaseAdmin
+        .from("group_invites")
+        .update({
+          updated_at: now,
+        })
+        .eq("id", pendingInvite.id)
+        .eq("group_id", groupId);
+
+      if (inviteUpdateError) {
+        throw new Error(inviteUpdateError.message);
+      }
+
+      const { data: updatedContact, error: contactUpdateError } =
+        await supabaseAdmin
+          .from("group_contacts")
+          .update({
+            status: "invitation_pending",
+            invited_at: now,
+            updated_at: now,
+          })
+          .eq("id", contactId)
+          .eq("group_id", groupId)
+          .select(
+            "id, group_id, linked_user_id, first_name, last_name, email, phone, role, status, invited_at, linked_at, created_at, updated_at"
+          )
+          .single();
+
+      if (contactUpdateError) {
+        throw new Error(contactUpdateError.message);
+      }
+
+      res.json({
+        ok: true,
+        inviteId: pendingInvite.id,
+        emailId: emailResult.id || null,
+        contact: updatedContact,
+      });
+    } catch (error) {
+      console.error("Unable to resend manual team invitation", error);
+
+      res.status(error?.statusCode || 500).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to resend the invitation.",
+      });
+    }
+  }
+);
+
+app.post(
+  "/api/group-contacts/:contactId/revoke-invite",
+  requireAuthenticatedUser,
+  async (req, res) => {
+    try {
+      const contactId = String(req.params.contactId || "").trim();
+      const groupId = String(req.body?.groupId || "").trim();
+
+      if (!contactId || !groupId) {
+        return res.status(400).json({
+          error: "Contact and group are required.",
+        });
+      }
+
+      await requireGroupManager(groupId, req.amrUser.id);
+
+      const { data: contact, error: contactError } = await supabaseAdmin
+        .from("group_contacts")
+        .select(
+          "id, group_id, first_name, last_name, email, role, status"
+        )
+        .eq("id", contactId)
+        .eq("group_id", groupId)
+        .maybeSingle();
+
+      if (contactError) throw new Error(contactError.message);
+
+      if (!contact) {
+        return res.status(404).json({
+          error: "Manual contact not found.",
+        });
+      }
+
+      const now = new Date().toISOString();
+
+      const { error: inviteRevokeError } = await supabaseAdmin
+        .from("group_invites")
+        .update({
+          status: "revoked",
+          revoked_at: now,
+          updated_at: now,
+        })
+        .eq("group_id", groupId)
+        .eq("group_contact_id", contactId)
+        .eq("status", "pending");
+
+      if (inviteRevokeError) {
+        throw new Error(inviteRevokeError.message);
+      }
+
+      const { data: updatedContact, error: contactUpdateError } =
+        await supabaseAdmin
+          .from("group_contacts")
+          .update({
+            status: "manual",
+            invited_at: null,
+            updated_at: now,
+          })
+          .eq("id", contactId)
+          .eq("group_id", groupId)
+          .select(
+            "id, group_id, linked_user_id, first_name, last_name, email, phone, role, status, invited_at, linked_at, created_at, updated_at"
+          )
+          .single();
+
+      if (contactUpdateError) {
+        throw new Error(contactUpdateError.message);
+      }
+
+      res.json({
+        ok: true,
+        contact: updatedContact,
+      });
+    } catch (error) {
+      console.error("Unable to revoke manual team invitation", error);
+
+      res.status(error?.statusCode || 500).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to revoke the invitation.",
       });
     }
   }

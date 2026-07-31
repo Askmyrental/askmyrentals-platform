@@ -30,6 +30,7 @@ type GroupContact = {
 
 type GroupInvite = {
   id: string;
+  group_contact_id?: string | null;
   first_name?: string | null;
   last_name?: string | null;
   email: string | null;
@@ -114,7 +115,7 @@ export default function SharedWorkspacesPage({
         supabase
           .from("group_invites")
           .select(
-            "id, first_name, last_name, email, phone_number, invited_role, status, expires_at, created_at",
+            "id, group_contact_id, first_name, last_name, email, phone_number, invited_role, status, expires_at, created_at",
           )
           .eq("group_id", selectedGroupId)
           .eq("status", "pending")
@@ -380,6 +381,99 @@ export default function SharedWorkspacesPage({
     }
   }
 
+  async function resendManualContactInvitation(contact: GroupContact) {
+    setUpdatingMemberId(contact.id);
+    setGroupMessage("");
+    setGroupError("");
+
+    try {
+      const accessToken = await getAccessToken();
+
+      const response = await fetch(
+        `${API_URL}/api/group-contacts/${contact.id}/resend-invite`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ groupId: selectedGroupId }),
+        },
+      );
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(result?.error ?? "Unable to resend the invitation.");
+      }
+
+      setGroupMessage(
+        `Invitation resent to ${contact.first_name} ${contact.last_name}.`,
+      );
+
+      await loadGroupAccess();
+    } catch (error) {
+      setGroupError(
+        error instanceof Error
+          ? error.message
+          : "Unable to resend the invitation.",
+      );
+    } finally {
+      setUpdatingMemberId(null);
+    }
+  }
+
+  async function revokeManualContactInvitation(contact: GroupContact) {
+    if (
+      !window.confirm(
+        `Revoke the invitation for ${contact.first_name} ${contact.last_name}?`,
+      )
+    ) {
+      return;
+    }
+
+    setUpdatingMemberId(contact.id);
+    setGroupMessage("");
+    setGroupError("");
+
+    try {
+      const accessToken = await getAccessToken();
+
+      const response = await fetch(
+        `${API_URL}/api/group-contacts/${contact.id}/revoke-invite`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ groupId: selectedGroupId }),
+        },
+      );
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(result?.error ?? "Unable to revoke the invitation.");
+      }
+
+      setGroupMessage(
+        `Invitation revoked. ${contact.first_name} ${contact.last_name} is still available as a manual contact.`,
+      );
+
+      window.dispatchEvent(new Event("amr:team-contacts-updated"));
+      await loadGroupAccess();
+    } catch (error) {
+      setGroupError(
+        error instanceof Error
+          ? error.message
+          : "Unable to revoke the invitation.",
+      );
+    } finally {
+      setUpdatingMemberId(null);
+    }
+  }
+
   async function removeManualContact(contact: GroupContact) {
     if (
       !window.confirm(
@@ -426,23 +520,45 @@ export default function SharedWorkspacesPage({
   async function revokeGroupInvite(invite: GroupInvite) {
     if (!window.confirm(`Revoke the invitation for ${invite.email}?`)) return;
 
-    const { error } = await supabase
-      .from("group_invites")
-      .update({
-        status: "revoked",
-        revoked_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", invite.id)
-      .eq("group_id", selectedGroupId);
+    setUpdatingMemberId(invite.id);
+    setGroupMessage("");
+    setGroupError("");
 
-    if (error) {
-      setGroupError(error.message);
-      return;
+    try {
+      if (invite.group_contact_id) {
+        const matchingContact = groupContacts.find(
+          (contact) => contact.id === invite.group_contact_id,
+        );
+
+        if (matchingContact) {
+          await revokeManualContactInvitation(matchingContact);
+          return;
+        }
+      }
+
+      const { error } = await supabase
+        .from("group_invites")
+        .update({
+          status: "revoked",
+          revoked_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", invite.id)
+        .eq("group_id", selectedGroupId);
+
+      if (error) throw error;
+
+      setGroupMessage("Invitation revoked.");
+      await loadGroupAccess();
+    } catch (error) {
+      setGroupError(
+        error instanceof Error
+          ? error.message
+          : "Unable to revoke the invitation.",
+      );
+    } finally {
+      setUpdatingMemberId(null);
     }
-
-    setGroupMessage("Invitation revoked.");
-    await loadGroupAccess();
   }
 
   function formatGroupRole(value: string) {
@@ -861,19 +977,42 @@ export default function SharedWorkspacesPage({
                         )
                       ) : (
                         <>
-                          <button
-                            type="button"
-                            className="primaryButton"
-                            disabled={
-                              updatingMemberId === person.contact.id ||
-                              person.contact.status === "invitation_pending"
-                            }
-                            onClick={() => void inviteManualContact(person.contact)}
-                          >
-                            {person.contact.status === "invitation_pending"
-                              ? "Invitation Pending"
-                              : "Invite to AMR for Live Scheduling"}
-                          </button>
+                          {person.contact.status === "invitation_pending" ? (
+                            <>
+                              <button
+                                type="button"
+                                className="primaryButton"
+                                disabled={updatingMemberId === person.contact.id}
+                                onClick={() =>
+                                  void resendManualContactInvitation(person.contact)
+                                }
+                              >
+                                {updatingMemberId === person.contact.id
+                                  ? "Sending…"
+                                  : "Resend Invitation"}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="secondaryButton"
+                                disabled={updatingMemberId === person.contact.id}
+                                onClick={() =>
+                                  void revokeManualContactInvitation(person.contact)
+                                }
+                              >
+                                Revoke Invitation
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              className="primaryButton"
+                              disabled={updatingMemberId === person.contact.id}
+                              onClick={() => void inviteManualContact(person.contact)}
+                            >
+                              Invite to AMR for Live Scheduling
+                            </button>
+                          )}
 
                           <select
                             value={person.contact.role || "cleaner"}
@@ -969,13 +1108,44 @@ export default function SharedWorkspacesPage({
                     </p>
                   </div>
                   {canManageGroup && (
-                    <button
-                      type="button"
-                      className="secondaryButton"
-                      onClick={() => void revokeGroupInvite(invite)}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                      }}
                     >
-                      Revoke
-                    </button>
+                      {invite.group_contact_id &&
+                        groupContacts
+                          .filter(
+                            (contact) =>
+                              contact.id === invite.group_contact_id,
+                          )
+                          .map((contact) => (
+                            <button
+                              key={`resend-${invite.id}`}
+                              type="button"
+                              className="primaryButton"
+                              disabled={updatingMemberId === contact.id}
+                              onClick={() =>
+                                void resendManualContactInvitation(contact)
+                              }
+                            >
+                              Resend
+                            </button>
+                          ))}
+
+                      <button
+                        type="button"
+                        className="secondaryButton"
+                        disabled={updatingMemberId === invite.id}
+                        onClick={() => void revokeGroupInvite(invite)}
+                      >
+                        Revoke
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
