@@ -11,6 +11,9 @@ export default function SignupPage({
 }: SignupPageProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -22,16 +25,23 @@ export default function SignupPage({
   const isInvitation = searchParams.get("invited") === "1";
   const groupName = searchParams.get("group")?.trim() ?? "";
   const role = searchParams.get("role")?.trim() ?? "cleaner";
-  const firstName = searchParams.get("firstName")?.trim() ?? "";
 
   const roleLabel = useMemo(
-    () => role.replace(/_/g, " "),
+    () =>
+      role
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase()),
     [role],
   );
 
   useEffect(() => {
     const invitedEmail = searchParams.get("email")?.trim() ?? "";
+    const invitedFirstName = searchParams.get("firstName")?.trim() ?? "";
+    const invitedLastName = searchParams.get("lastName")?.trim() ?? "";
+
     if (invitedEmail) setEmail(invitedEmail);
+    if (invitedFirstName) setFirstName(invitedFirstName);
+    if (invitedLastName) setLastName(invitedLastName);
   }, [searchParams]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -39,9 +49,19 @@ export default function SignupPage({
     setMessage("");
 
     const normalizedEmail = email.trim().toLowerCase();
+    const normalizedFirstName = firstName.trim();
+    const normalizedLastName = lastName.trim();
+    const fullName = [normalizedFirstName, normalizedLastName]
+      .filter(Boolean)
+      .join(" ");
 
     if (!normalizedEmail || !password.trim()) {
       setMessage("Please enter your email and password.");
+      return;
+    }
+
+    if (isInvitation && (!normalizedFirstName || !normalizedLastName)) {
+      setMessage("Your invitation is missing your first or last name.");
       return;
     }
 
@@ -74,6 +94,10 @@ export default function SignupPage({
           data: {
             role: accountType,
             account_type: accountType,
+            first_name: normalizedFirstName || null,
+            last_name: normalizedLastName || null,
+            full_name: fullName || null,
+            display_name: fullName || null,
           },
           emailRedirectTo: redirectUrl,
         },
@@ -110,7 +134,7 @@ export default function SignupPage({
       setMessage(
         isInvitation
           ? "Your AMR account was created. Check your email to confirm it, then return to AMR to finish joining the team."
-          : `Your ${isCleaner ? "cleaner" : "owner"} account was created. Check your email to confirm it. The confirmation link will return you to the correct AMR login.`
+          : `Your ${isCleaner ? "cleaner" : "owner"} account was created. Check your email to confirm it. The confirmation link will return you to the correct AMR login.`,
       );
     } catch (error) {
       console.error("Signup failed", error);
@@ -155,7 +179,9 @@ export default function SignupPage({
       }`}
     >
       <form className="authCard" onSubmit={handleSubmit}>
-        <Link to="/" className="brandIcon">AMR</Link>
+        <Link to="/" className="brandIcon">
+          AMR
+        </Link>
 
         <p className="eyebrow">
           {isInvitation
@@ -167,13 +193,13 @@ export default function SignupPage({
 
         <h1>
           {isInvitation
-            ? `${firstName ? `${firstName}, create` : "Create"} your AMR account`
+            ? "Create your AMR account"
             : `Create your ${isCleaner ? "cleaner" : "owner"} account`}
         </h1>
 
         <p>
           {isInvitation
-            ? `Create your account with the invited email below to continue joining ${
+            ? `Your invitation details are already filled in. Create a password to continue joining ${
                 groupName || "your AMR team"
               } as a ${roleLabel}.`
             : isCleaner
@@ -181,17 +207,41 @@ export default function SignupPage({
               : "Stay connected to property operations, schedules, maintenance, and invoices."}
         </p>
 
-        {isInvitation && email && (
+        {isInvitation && (
           <div className="authRecoveryNotice">
-            <span aria-hidden="true">✉️</span>
+            <span aria-hidden="true">✓</span>
             <div>
-              <strong>{email}</strong>
+              <strong>Invitation details loaded</strong>
               <small>
-                This invitation can only be accepted using this email address.
+                Review your information below, then create your password.
               </small>
             </div>
           </div>
         )}
+
+        <label>
+          First name
+          <input
+            type="text"
+            autoComplete="given-name"
+            value={firstName}
+            onChange={(event) => setFirstName(event.target.value)}
+            placeholder="First name"
+            readOnly={isInvitation && Boolean(firstName)}
+          />
+        </label>
+
+        <label>
+          Last name
+          <input
+            type="text"
+            autoComplete="family-name"
+            value={lastName}
+            onChange={(event) => setLastName(event.target.value)}
+            placeholder="Last name"
+            readOnly={isInvitation && Boolean(lastName)}
+          />
+        </label>
 
         <label>
           Email
@@ -205,6 +255,12 @@ export default function SignupPage({
           />
         </label>
 
+        {isInvitation && email && (
+          <p className="mutedText" style={{ marginTop: -6 }}>
+            This invitation can only be accepted with this email address.
+          </p>
+        )}
+
         <label>
           Create password
           <input
@@ -216,9 +272,17 @@ export default function SignupPage({
           />
         </label>
 
-        {message && <p className="authMessage" role="alert">{message}</p>}
+        {message && (
+          <p className="authMessage" role="alert">
+            {message}
+          </p>
+        )}
 
-        <button className="primaryButton" type="submit" disabled={submitting}>
+        <button
+          className="primaryButton"
+          type="submit"
+          disabled={submitting}
+        >
           {submitting
             ? "Creating account..."
             : isInvitation
@@ -228,9 +292,11 @@ export default function SignupPage({
 
         {isInvitation ? (
           <p className="authFooterText">
-            Already created an AMR account with this email?{" "}
+            Already have an AMR account with this email?{" "}
             <Link
-              to={`${loginPath}?email=${encodeURIComponent(email.trim())}&invited=1`}
+              to={`${loginPath}?email=${encodeURIComponent(
+                email.trim(),
+              )}&invited=1`}
             >
               Log in instead
             </Link>
@@ -239,7 +305,9 @@ export default function SignupPage({
           <>
             <p className="authFooterText">
               Already have an account?{" "}
-              <Link to={`${loginPath}?email=${encodeURIComponent(email.trim())}`}>
+              <Link
+                to={`${loginPath}?email=${encodeURIComponent(email.trim())}`}
+              >
                 Log in
               </Link>
             </p>
