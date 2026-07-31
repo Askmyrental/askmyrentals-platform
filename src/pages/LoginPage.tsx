@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../utils/supabase";
 
@@ -15,6 +15,8 @@ export default function LoginPage({ expectedRole }: LoginPageProps) {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [sendingPasswordReset, setSendingPasswordReset] = useState(false);
+  const automaticRecoveryStarted = useRef(false);
 
   const isCleanerLogin = expectedRole === "cleaner";
   const isOwnerLogin = expectedRole === "owner";
@@ -27,6 +29,17 @@ export default function LoginPage({ expectedRole }: LoginPageProps) {
       setMessage(
         "Your email is confirmed. Log in to continue to your AMR invitation or workspace."
       );
+    }
+
+    if (
+      searchParams.get("recovery") === "1" &&
+      emailFromLink &&
+      !automaticRecoveryStarted.current
+    ) {
+      automaticRecoveryStarted.current = true;
+      window.setTimeout(() => {
+        void handlePasswordReset(emailFromLink);
+      }, 0);
     }
   }, [searchParams]);
 
@@ -47,6 +60,50 @@ export default function LoginPage({ expectedRole }: LoginPageProps) {
     : isOwnerLogin
       ? "/owner/signup"
       : "/signup";
+
+  async function handlePasswordReset(emailOverride?: string) {
+    setMessage("");
+
+    const normalizedEmail = (emailOverride ?? email).trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setMessage("Enter your email address first.");
+      return;
+    }
+
+    setSendingPasswordReset(true);
+
+    try {
+      const resetUrl = new URL("/reset-password", window.location.origin);
+      resetUrl.searchParams.set("email", normalizedEmail);
+
+      if (expectedRole) {
+        resetUrl.searchParams.set("role", expectedRole);
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        {
+          redirectTo: resetUrl.toString(),
+        }
+      );
+
+      if (error) throw error;
+
+      setMessage(
+        "Password reset email sent. Check your inbox and follow the link to continue."
+      );
+    } catch (error) {
+      console.error("Password reset request failed", error);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to send the password reset email."
+      );
+    } finally {
+      setSendingPasswordReset(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -178,9 +235,33 @@ export default function LoginPage({ expectedRole }: LoginPageProps) {
           />
         </label>
 
+        <button
+          type="button"
+          className="secondaryButton"
+          onClick={() => void handlePasswordReset()}
+          disabled={submitting || sendingPasswordReset}
+          style={{
+            justifySelf: "start",
+            width: "auto",
+            padding: 0,
+            border: 0,
+            background: "transparent",
+            color: "#2563eb",
+            boxShadow: "none",
+          }}
+        >
+          {sendingPasswordReset
+            ? "Sending reset email..."
+            : "Forgot password?"}
+        </button>
+
         {message && <p className="authMessage" role="alert">{message}</p>}
 
-        <button className="primaryButton" type="submit" disabled={submitting}>
+        <button
+          className="primaryButton"
+          type="submit"
+          disabled={submitting || sendingPasswordReset}
+        >
           {submitting ? "Logging in..." : "Log In"}
         </button>
 

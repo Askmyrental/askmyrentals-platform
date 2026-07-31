@@ -74,6 +74,7 @@ type CleanerProfilePageProps = {
   selectedGroupName: string;
   selectedGroupRole: string;
   onOpenProperties: () => void;
+  onReturnToPulse: () => void;
   onStartBusiness: (businessName: string) => Promise<void>;
 };
 
@@ -94,6 +95,7 @@ export default function CleanerProfilePage({
   selectedGroupName,
   selectedGroupRole,
   onOpenProperties,
+  onReturnToPulse,
   onStartBusiness,
 }: CleanerProfilePageProps) {
   const [profile, setProfile] = useState<CleanerProfileRow | null>(null);
@@ -573,7 +575,19 @@ export default function CleanerProfilePage({
       }
 
       setProfile(data as CleanerProfileRow);
-      setMessage(isAssignedTeamMember ? "Team profile saved." : "Business profile saved.");
+
+      if (isAssignedTeamMember) {
+        setMessage("Team profile saved. Returning to Pulse…");
+        window.sessionStorage.setItem(
+          "amr:profile-save-message",
+          "Profile saved. Your team information is up to date.",
+        );
+        window.setTimeout(() => {
+          onReturnToPulse();
+        }, 650);
+      } else {
+        setMessage("Business profile saved.");
+      }
     } catch (error) {
       console.error("Unable to save cleaner profile", error);
       setErrorMessage(
@@ -876,6 +890,14 @@ export default function CleanerProfilePage({
               Confirm the information your team uses for assignments and communication.
             </p>
           </div>
+
+          <button
+            type="button"
+            className="secondaryButton"
+            onClick={onReturnToPulse}
+          >
+            Back to Pulse
+          </button>
         </header>
 
         {errorMessage && (

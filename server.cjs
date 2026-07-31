@@ -162,6 +162,9 @@ async function sendGroupInvitationEmail({ to, groupName, role }) {
     `&role=${encodeURIComponent(role)}`;
 
   const roleLabel = formatRoleLabel(role);
+  const passwordRecoveryUrl =
+    `${PUBLIC_APP_URL}/cleaner/login?email=${encodeURIComponent(to)}` +
+    `&recovery=1`;
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -190,6 +193,15 @@ async function sendGroupInvitationEmail({ to, groupName, role }) {
           <p style="font-size:13px;color:#6b7280;line-height:1.5">
             After confirming your email and logging in, AMR will ask you to accept the workspace invitation.
           </p>
+          <div style="margin-top:22px;padding-top:18px;border-top:1px solid #e5e7eb">
+            <p style="font-size:14px;color:#374151;line-height:1.5;margin:0 0 8px">
+              Already have an AMR account but forgot your password?
+            </p>
+            <a href="${passwordRecoveryUrl}"
+               style="color:#2563eb;text-decoration:underline;font-size:14px;font-weight:700">
+              Reset your password
+            </a>
+          </div>
         </div>
       `,
     }),
@@ -848,10 +860,28 @@ app.post(
       }
 
       if (!pendingInvite) {
-        return res.status(404).json({
-          error:
-            "No pending invitation was found for this contact. Revoke the stale state or send a new invitation.",
-        });
+        const { data: createdInvite, error: createInviteError } =
+          await supabaseAdmin
+            .from("group_invites")
+            .insert({
+              group_id: groupId,
+              group_contact_id: contactId,
+              first_name: contact.first_name,
+              last_name: contact.last_name,
+              email: contact.email.toLowerCase(),
+              phone_number: contact.phone,
+              invited_role: contact.role || "cleaner",
+              invited_by: req.amrUser.id,
+              status: "pending",
+            })
+            .select("id, status, group_contact_id, email")
+            .single();
+
+        if (createInviteError) {
+          throw new Error(createInviteError.message);
+        }
+
+        pendingInvite = createdInvite;
       }
 
       if (!pendingInvite.group_contact_id) {

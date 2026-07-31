@@ -92,6 +92,11 @@ export default function AuthGate() {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, newSession) => {
+        if (event === "PASSWORD_RECOVERY") {
+          window.location.replace("/reset-password");
+          return;
+        }
+
         setSession((currentSession) => {
           const currentUserId = currentSession?.user?.id ?? null;
           const nextUserId = newSession?.user?.id ?? null;

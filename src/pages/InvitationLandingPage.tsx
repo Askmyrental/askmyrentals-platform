@@ -11,28 +11,25 @@ export default function InvitationLandingPage() {
   const role = searchParams.get("role")?.trim() ?? "team member";
 
   const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const roleLabel = role.replace(/_/g, " ");
 
-  const signupParams = new URLSearchParams();
-  const loginParams = new URLSearchParams();
+  const continueParams = new URLSearchParams();
 
   if (email) {
-    signupParams.set("email", email);
-    loginParams.set("email", email);
+    continueParams.set("email", email);
   }
 
   if (firstName) {
-    signupParams.set("firstName", firstName);
+    continueParams.set("firstName", firstName);
   }
 
   if (lastName) {
-    signupParams.set("lastName", lastName);
+    continueParams.set("lastName", lastName);
   }
 
-  signupParams.set("group", groupName);
-  signupParams.set("role", role);
-
-  loginParams.set("group", groupName);
-  loginParams.set("role", role);
+  continueParams.set("group", groupName);
+  continueParams.set("role", role);
+  continueParams.set("invited", "1");
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -51,27 +48,32 @@ export default function InvitationLandingPage() {
   return (
     <main className="authPage cleanerAuthPage">
       <section className="authCard" style={{ maxWidth: 620 }}>
-        <Link to="/" className="brandIcon">
+        <Link to="/" className="brandIcon" aria-label="Ask My Rentals home">
           AMR
         </Link>
 
         <p className="eyebrow">Workspace invitation</p>
+
         <h1>
-          {firstName ? `${firstName}, you’ve` : "You’ve"} been invited to{" "}
+          {firstName ? `${firstName}, you’ve` : "You’ve"} been invited to join{" "}
           {groupName}
         </h1>
+
         <p>
-          You were invited as <strong>{role.replace(/_/g, " ")}</strong>.
-          Use the exact invited email address to continue.
+          You were invited as a <strong>{roleLabel}</strong>. Continue with the
+          invited email address below.
         </p>
 
         {(fullName || email) && (
           <div className="authRecoveryNotice">
             <span aria-hidden="true">✉️</span>
+
             <div>
               {fullName && <strong>{fullName}</strong>}
               {email && <small>{email}</small>}
-              <small>This invitation is tied to this account information.</small>
+              <small>
+                This invitation can only be accepted using this email address.
+              </small>
             </div>
           </div>
         )}
@@ -79,22 +81,15 @@ export default function InvitationLandingPage() {
         <div style={{ display: "grid", gap: 10, marginTop: 20 }}>
           <Link
             className="primaryButton"
-            to={`/cleaner/signup?${signupParams.toString()}`}
+            to={`/cleaner/signup?${continueParams.toString()}`}
           >
-            Create My AMR Account
-          </Link>
-
-          <Link
-            className="secondaryButton"
-            to={`/cleaner/login?${loginParams.toString()}`}
-          >
-            I Already Have an Account
+            Continue
           </Link>
         </div>
 
         <p className="authFooterText" style={{ marginTop: 18 }}>
-          After confirming your email and logging in, AMR will show the final
-          Accept Invitation screen.
+          AMR will guide you through signing in or creating your account, then
+          show the final invitation acceptance screen.
         </p>
       </section>
     </main>

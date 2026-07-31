@@ -5,7 +5,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import InvitationLandingPage from "./pages/InvitationLandingPage";
-
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 export default function AppRouter() {
   return (
     <Routes>
@@ -28,6 +28,7 @@ export default function AppRouter() {
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/signup" element={<Navigate to="/cleaner/signup" replace />} />
       <Route path="/pay/:publicToken" element={<PublicInvoicePage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/app/*" element={<AuthGate />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

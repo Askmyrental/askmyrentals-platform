@@ -4086,6 +4086,7 @@ console.log("TEAM MEMBERS", mappedMembers);
             selectedGroupName={selectedGroupName}
             selectedGroupRole={selectedGroupRole}
             onOpenProperties={() => setActivePage("Cleaner Properties")}
+            onReturnToPulse={() => setActivePage("Cleaner Portal")}
             onStartBusiness={onCreateBusinessWorkspace}
           />
         )}
