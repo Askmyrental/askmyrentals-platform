@@ -149,7 +149,7 @@ function formatRoleLabel(role) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-async function sendGroupInvitationEmail({ to, groupName, role }) {
+async function sendGroupInvitationEmail({ to, groupName, role, firstName, lastName }) {
   if (!RESEND_API_KEY) {
     throw new Error(
       "Invitation email is not configured. Add RESEND_API_KEY to .env.server."
@@ -158,6 +158,8 @@ async function sendGroupInvitationEmail({ to, groupName, role }) {
 
   const inviteUrl =
     `${PUBLIC_APP_URL}/invite?email=${encodeURIComponent(to)}` +
+    `&firstName=${encodeURIComponent(firstName || "")}` +
+    `&lastName=${encodeURIComponent(lastName || "")}` +
     `&group=${encodeURIComponent(groupName)}` +
     `&role=${encodeURIComponent(role)}`;
 
@@ -695,6 +697,8 @@ app.post(
 
       const emailResult = await sendGroupInvitationEmail({
         to: contact.email.toLowerCase(),
+        firstName: contact.first_name,
+        lastName: contact.last_name,
         groupName: group.name,
         role: contact.role || "cleaner",
       });
@@ -901,6 +905,8 @@ app.post(
 
       const emailResult = await sendGroupInvitationEmail({
         to: contact.email.toLowerCase(),
+        firstName: contact.first_name,
+        lastName: contact.last_name,
         groupName: group.name,
         role: contact.role || "cleaner",
       });
@@ -1158,6 +1164,8 @@ app.post(
 
       const emailResult = await sendGroupInvitationEmail({
         to: email,
+        firstName,
+        lastName,
         groupName: group.name,
         role,
       });
