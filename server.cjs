@@ -809,10 +809,12 @@ app.post(
         });
       }
 
-      const { data: pendingInvite, error: pendingInviteError } =
+      let pendingInvite = null;
+
+      const { data: linkedPendingInvite, error: linkedPendingInviteError } =
         await supabaseAdmin
           .from("group_invites")
-          .select("id, status")
+          .select("id, status, group_contact_id, email")
           .eq("group_id", groupId)
           .eq("group_contact_id", contactId)
           .eq("status", "pending")
@@ -820,15 +822,51 @@ app.post(
           .limit(1)
           .maybeSingle();
 
-      if (pendingInviteError) {
-        throw new Error(pendingInviteError.message);
+      if (linkedPendingInviteError) {
+        throw new Error(linkedPendingInviteError.message);
+      }
+
+      pendingInvite = linkedPendingInvite;
+
+      if (!pendingInvite) {
+        const { data: emailPendingInvite, error: emailPendingInviteError } =
+          await supabaseAdmin
+            .from("group_invites")
+            .select("id, status, group_contact_id, email")
+            .eq("group_id", groupId)
+            .ilike("email", contact.email.toLowerCase())
+            .eq("status", "pending")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (emailPendingInviteError) {
+          throw new Error(emailPendingInviteError.message);
+        }
+
+        pendingInvite = emailPendingInvite;
       }
 
       if (!pendingInvite) {
         return res.status(404).json({
           error:
-            "No pending invitation was found. Revoke the stale state or send a new invitation.",
+            "No pending invitation was found for this contact. Revoke the stale state or send a new invitation.",
         });
+      }
+
+      if (!pendingInvite.group_contact_id) {
+        const { error: attachInviteError } = await supabaseAdmin
+          .from("group_invites")
+          .update({
+            group_contact_id: contactId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", pendingInvite.id)
+          .eq("group_id", groupId);
+
+        if (attachInviteError) {
+          throw new Error(attachInviteError.message);
+        }
       }
 
       const emailResult = await sendGroupInvitationEmail({
