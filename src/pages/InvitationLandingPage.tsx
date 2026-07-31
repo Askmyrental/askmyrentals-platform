@@ -7,11 +7,13 @@ export default function InvitationLandingPage() {
   const email = searchParams.get("email")?.trim() ?? "";
   const firstName = searchParams.get("firstName")?.trim() ?? "";
   const lastName = searchParams.get("lastName")?.trim() ?? "";
-  const groupName = searchParams.get("group")?.trim() ?? "an AMR team";
+  const groupName = searchParams.get("group")?.trim() ?? "your AMR team";
   const role = searchParams.get("role")?.trim() ?? "team member";
 
   const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-  const roleLabel = role.replace(/_/g, " ");
+  const roleLabel = role
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
   const continueParams = new URLSearchParams();
 
@@ -55,24 +57,24 @@ export default function InvitationLandingPage() {
         <p className="eyebrow">Workspace invitation</p>
 
         <h1>
-          {firstName ? `${firstName}, you’ve` : "You’ve"} been invited to join{" "}
-          {groupName}
+          You’ve been invited to join {groupName}
         </h1>
 
         <p>
-          You were invited as a <strong>{roleLabel}</strong>. Continue with the
-          invited email address below.
+          You were invited as a <strong>{roleLabel}</strong>.
         </p>
 
-        {(fullName || email) && (
+        <p>Use this email address to continue:</p>
+
+        {email && (
           <div className="authRecoveryNotice">
             <span aria-hidden="true">✉️</span>
 
             <div>
               {fullName && <strong>{fullName}</strong>}
-              {email && <small>{email}</small>}
+              <strong>{email}</strong>
               <small>
-                This invitation can only be accepted using this email address.
+                This invitation can only be accepted with this email address.
               </small>
             </div>
           </div>
@@ -88,8 +90,8 @@ export default function InvitationLandingPage() {
         </div>
 
         <p className="authFooterText" style={{ marginTop: 18 }}>
-          AMR will guide you through signing in or creating your account, then
-          show the final invitation acceptance screen.
+          On the next screen, create your AMR account. If you already have one,
+          you can log in instead.
         </p>
       </section>
     </main>
