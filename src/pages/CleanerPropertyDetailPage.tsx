@@ -1,3 +1,5 @@
+import CalendarFeedFields from "../components/CalendarFeedFields";
+import type { CalendarProvider } from "../utils/calendarFeed";
 import { useState } from "react";
 
 type CleanerPropertyDetailPageProps = {
@@ -7,7 +9,9 @@ type CleanerPropertyDetailPageProps = {
   onConnectCalendar: (
     propertyId: string,
     calendarUrl: string,
-  ) => Promise<{ importedCount: number; source: string }>;
+    provider: CalendarProvider,
+    replaceExisting?: boolean,
+  ) => Promise<{ importedCount: number; source: string; replaced?: boolean }>;
   onResyncCalendar: (
     propertyId: string,
   ) => Promise<{ importedCount: number }>;
@@ -30,6 +34,8 @@ export default function CleanerPropertyDetailPage({
 }: CleanerPropertyDetailPageProps) {
   const [requestStatus, setRequestStatus] = useState("");
   const [calendarUrl, setCalendarUrl] = useState("");
+  const [calendarProvider, setCalendarProvider] = useState("");
+  const [replaceCalendar, setReplaceCalendar] = useState(false);
   const [calendarStatus, setCalendarStatus] = useState("");
   const [calendarError, setCalendarError] = useState("");
   const [isConnectingCalendar, setIsConnectingCalendar] = useState(false);
@@ -181,14 +187,17 @@ export default function CleanerPropertyDetailPage({
   async function connectCalendar() {
     if (!calendarUrl.trim()) return;
     setIsConnectingCalendar(true);
-    setCalendarStatus("Checking calendar and importing reservations...");
+    setCalendarStatus(replaceCalendar ? "Saving replacement calendar..." : "Checking calendar and importing reservations...");
     setCalendarError("");
     try {
       const result = await onConnectCalendar(
         String(home.id),
         calendarUrl.trim(),
+        calendarProvider as CalendarProvider,
+        replaceCalendar,
       );
-      setCalendarStatus("");
+      setReplaceCalendar(false);
+      setCalendarStatus(result.replaced ? "Calendar replaced. Existing reservations were preserved. Resync separately when ready." : "Calendar connected.");
       setCalendarResult({
         source: result.source,
         importedCount: result.importedCount,
@@ -401,7 +410,7 @@ export default function CleanerPropertyDetailPage({
                 <p className="cleanerPropertyCardLabel">Reservation Calendar</p>
                 <h2>Calendar Connected</h2>
                 <p>
-                  {home?.calendarSource || (home?.airbnbUrl ? "Airbnb" : "VRBO")}
+                  {home?.calendarSource === "VRBO" ? "Vrbo" : home?.calendarSource || (home?.airbnbUrl ? "Airbnb" : "Vrbo")}
                   {" calendar is connected. Resync compares the current feed with saved reservations."}
                 </p>
               </div>
@@ -410,13 +419,16 @@ export default function CleanerPropertyDetailPage({
             <button
               className="propertyCalendarResyncButton"
               type="button"
-              disabled={isResyncingCalendar}
+              disabled={isResyncingCalendar || isConnectingCalendar || replaceCalendar}
               onClick={() => void resyncCalendar()}
             >
               {isResyncingCalendar ? "Syncing..." : "↻ Resync Calendar"}
             </button>
           </div>
 
+          <button type="button" disabled={isResyncingCalendar || isConnectingCalendar} onClick={() => { setReplaceCalendar(true); setCalendarProvider(""); setCalendarUrl(""); setCalendarError(""); setCalendarResult(null); }}>Replace Calendar</button>
+          {calendarStatus && <p role="status">{calendarStatus}</p>}
+          {calendarError && !replaceCalendar && <p className="propertyCalendarConnectError" role="alert">{calendarError}</p>}
           {resyncStatus && (
             <p className="propertyCalendarResyncStatus" role="status">
               ✓ {resyncStatus}
@@ -431,41 +443,31 @@ export default function CleanerPropertyDetailPage({
         </section>
       )}
 
-      {!calendarConnected && (
+      {(!calendarConnected || replaceCalendar) && (
         <section
           className="cleanerCalendarRequestBanner"
           id="propertyCalendarConnect"
         >
           <div>
-            <p className="cleanerPropertyCardLabel">Calendar Needed</p>
-            <h2>Connect the reservation calendar</h2>
+            <p className="cleanerPropertyCardLabel">{replaceCalendar ? "Calendar Replacement" : "Calendar Needed"}</p>
+            <h2>{replaceCalendar ? "Replace the reservation calendar" : "Connect the reservation calendar"}</h2>
             <p>
-              Paste the Airbnb or VRBO iCal link below, or request it from{" "}
-              {clientName}.
+              {replaceCalendar ? "Replacement preserves existing reservations and assignments. Resync separately when ready. Choose a provider below." : `Choose Airbnb or Vrbo, then add the export link, or request it from ${clientName}.`}
             </p>
 
             <div className="propertyCalendarConnectPanel">
-              <input
-                type="url"
-                id="propertyCalendarUrl"
-                value={calendarUrl}
-                onChange={(event) => {
-                  setCalendarUrl(event.target.value);
-                  setCalendarError("");
-                }}
-                placeholder="https://www.airbnb.com/calendar/ical/..."
-                aria-label="Airbnb or VRBO iCal link"
-              />
+              <CalendarFeedFields provider={calendarProvider} onProviderChange={setCalendarProvider} url={calendarUrl} onUrlChange={value => { setCalendarUrl(value); setCalendarError(""); }} disabled={isConnectingCalendar} />
               <div className="propertyCalendarConnectButtons">
                 <button
                   type="button"
-                  disabled={!calendarUrl.trim() || isConnectingCalendar}
+                  disabled={!calendarProvider || !calendarUrl.trim() || isConnectingCalendar}
                   onClick={() => void connectCalendar()}
                 >
                   {isConnectingCalendar
-                    ? "Importing..."
-                    : "Import Reservations"}
+                    ? "Saving..."
+                    : replaceCalendar ? "Confirm Replacement" : "Connect and Import Reservations"}
                 </button>
+                {replaceCalendar && <button type="button" disabled={isConnectingCalendar} onClick={() => { setReplaceCalendar(false); setCalendarUrl(""); setCalendarProvider(""); }}>Cancel Replacement</button>}
                 {clientPhone && isMobileDevice() && (
                   <button
                     className="textAction"
@@ -504,12 +506,12 @@ export default function CleanerPropertyDetailPage({
                 </div>
               )}
               {calendarStatus && (
-                <p className="propertyCalendarConnectStatus">
-                  ✓ {calendarStatus}
+                <p className="propertyCalendarConnectStatus" role="status">
+                  {calendarStatus}
                 </p>
               )}
               {calendarError && (
-                <p className="propertyCalendarConnectError">{calendarError}</p>
+                <p className="propertyCalendarConnectError" role="alert">{calendarError}</p>
               )}
               {requestStatus && (
                 <p className="cleanerCalendarRequestStatus">{requestStatus}</p>

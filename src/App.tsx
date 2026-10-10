@@ -1,3 +1,5 @@
+import CalendarFeedFields from "./components/CalendarFeedFields";
+import { validateCalendarFeed, resolveCalendarFeed, calendarFeedUpdates, type CalendarProvider } from "./utils/calendarFeed";
 import CleanerProfilePage from "./pages/CleanerProfilePage";
 import { loadWorkspaceNames } from "./utils/workspaceNames";
 import { useAppHistoryValue } from "./utils/appHistory";
@@ -835,25 +837,6 @@ function getReservationHomeId(reservation: any) {
 
 const CLEANER_PROPERTY_NOTES_PREFIX = "AMR_CLEANER_PROPERTY:";
 
-function detectCalendarSource(url: string) {
-  const normalized = url.trim().toLowerCase();
-
-  if (normalized.includes("airbnb")) return "Airbnb";
-  if (
-    normalized.includes("vrbo") ||
-    normalized.includes("homeaway") ||
-    normalized.includes("homelidays")
-  ) {
-    return "VRBO";
-  }
-  if (normalized.includes("ownerrez")) return "OwnerRez";
-  if (normalized.includes("guesty")) return "Guesty";
-  if (normalized.includes("hospitable")) return "Hospitable";
-  if (normalized.includes("lodgify")) return "Lodgify";
-
-  return "Other";
-}
-
 function encodeCleanerPropertyDetails(values: CleanerPropertyFormValues) {
   return `${CLEANER_PROPERTY_NOTES_PREFIX}${JSON.stringify({
     imageUrl: values.propertyPhotoUrl.trim(),
@@ -1010,6 +993,7 @@ export default function App({
     city: "",
     address: "",
     setupMode: "VRBO" as Home["setupMode"],
+    calendarSource: "",
     vrboId: "",
     airbnbUrl: "",
     iCalUrl: "",
@@ -1045,6 +1029,7 @@ export default function App({
     propertyName: "",
     market: "",
     vrboId: "",
+    calendarProvider: "",
     vrboICalUrl: "",
     vrboICalText: "",
     airbnbUrl: "",
@@ -1748,23 +1733,9 @@ export default function App({
 
     const mappedHomes: Home[] = (data ?? []).map((property: any) => {
       const cleanerDetails = decodeCleanerPropertyDetails(property.notes) ?? {};
-      const vrboCalendarUrl = String(
-        property.calendar_feed_url ??
-          cleanerDetails.vrboCalendarUrl ??
-          cleanerDetails.calendarFeedUrl ??
-          property.vrbo_ical_url ??
-          property.vrbo_calendar_url ??
-          property.vrbo_property_id ??
-          "",
-      ).trim();
-
-      const airbnbCalendarUrl = String(
-        cleanerDetails.airbnbCalendarUrl ??
-          property.airbnb_ical_url ??
-          property.airbnb_calendar_url ??
-          property.airbnb_property_id ??
-          "",
-      ).trim();
+      const feed = resolveCalendarFeed(property, cleanerDetails);
+      const vrboCalendarUrl = feed.provider !== "Airbnb" ? feed.url : "";
+      const airbnbCalendarUrl = feed.provider === "Airbnb" ? feed.url : "";
 
       return {
         id: property.id,
@@ -1782,10 +1753,8 @@ export default function App({
         vrboId: "",
         airbnbUrl: airbnbCalendarUrl,
         iCalUrl: vrboCalendarUrl,
-        calendarFeedUrl: vrboCalendarUrl,
-        calendarSource:
-          cleanerDetails.calendarSource ??
-          detectCalendarSource(vrboCalendarUrl || airbnbCalendarUrl),
+        calendarFeedUrl: feed.url,
+        calendarSource: feed.provider,
         defaultCleanerId: property.default_cleaner_id ?? "",
         bedrooms: Number(cleanerDetails.bedrooms ?? property.bedrooms ?? 0),
         bathrooms: Number(cleanerDetails.bathrooms ?? property.bathrooms ?? 0),
@@ -2247,20 +2216,11 @@ console.log("TEAM MEMBERS", mappedMembers);
   async function connectCleanerPropertyCalendar(
     propertyId: string,
     calendarUrl: string,
-  ): Promise<{ importedCount: number; source: string }> {
-    const trimmedUrl = calendarUrl.trim();
-
-    if (!trimmedUrl) {
-      throw new Error("Paste the complete Airbnb or VRBO iCal link.");
-    }
-
-    const source = detectCalendarSource(trimmedUrl);
-
-    if (source !== "Airbnb" && source !== "VRBO") {
-      throw new Error(
-        "AMR could not identify this as an Airbnb or VRBO calendar link.",
-      );
-    }
+    provider: CalendarProvider,
+    replaceExisting = false,
+  ): Promise<{ importedCount: number; source: string; replaced?: boolean }> {
+    const trimmedUrl = validateCalendarFeed(provider, calendarUrl);
+    const source = provider;
 
     const existingHome = homes.find(
       (home) => String(home.id) === String(propertyId),
@@ -2270,18 +2230,6 @@ console.log("TEAM MEMBERS", mappedMembers);
       throw new Error("The newly created property could not be found.");
     }
 
-    const databaseUpdates =
-      source === "Airbnb"
-        ? {
-            airbnb_property_id: trimmedUrl,
-            calendar_source: source,
-          }
-        : {
-            calendar_feed_url: trimmedUrl,
-            calendar_source: source,
-            vrbo_property_id: trimmedUrl,
-          };
-
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
 
@@ -2289,26 +2237,38 @@ console.log("TEAM MEMBERS", mappedMembers);
       throw new Error("You must be logged in to connect a calendar.");
     }
 
-    const { error } = await supabase
-      .from("properties")
-      .update(databaseUpdates)
-      .eq("id", propertyId)
-      .eq("owner_id", user.id);
-
-    if (error) {
-      throw new Error(error.message);
+    const { data: savedProperty, error: readError } = await supabase.from("properties")
+      .select("*")
+      .eq("id", propertyId).eq("owner_id", user.id).single();
+    if (readError || !savedProperty) throw new Error(readError?.message || "Unable to read this property.");
+    const savedFeed = resolveCalendarFeed(savedProperty, decodeCleanerPropertyDetails(savedProperty.notes) ?? {});
+    const shownUrl = existingHome.calendarFeedUrl || existingHome.airbnbUrl || existingHome.iCalUrl || "";
+    if (savedFeed.url !== shownUrl) throw new Error("The calendar connection changed. Refresh the property before trying again.");
+    if (savedFeed.url && !replaceExisting) throw new Error("Choose Replace Calendar before changing a connected feed.");
+    let update = supabase.from("properties").update(calendarFeedUpdates(source, trimmedUrl))
+      .eq("id", propertyId).eq("owner_id", user.id);
+    for (const column of ["calendar_feed_url", "calendar_source", "airbnb_property_id", "vrbo_property_id"] as const) {
+      update = savedProperty[column] == null ? update.is(column, null) : update.eq(column, savedProperty[column]);
     }
+    const { data: updated, error } = await update.select("id").single();
+    if (error || !updated) throw new Error(error?.message || "Calendar was not saved. Refresh and retry.");
 
     const propertyForSync: Home = {
       ...existingHome,
-      airbnbUrl: source === "Airbnb" ? trimmedUrl : existingHome.airbnbUrl,
-      iCalUrl: source === "VRBO" ? trimmedUrl : existingHome.iCalUrl,
-      calendarFeedUrl:
-        source === "VRBO" ? trimmedUrl : existingHome.calendarFeedUrl,
+      airbnbUrl: source === "Airbnb" ? trimmedUrl : "",
+      iCalUrl: source === "VRBO" ? trimmedUrl : "",
+      calendarFeedUrl: trimmedUrl,
       calendarSource: source,
     };
 
-    const importedCount = await syncReservations(propertyForSync);
+    await loadPropertiesFromSupabase();
+    // Replacement only saves the connection; existing reservations are untouched.
+    if (savedFeed.url) return { importedCount: 0, source, replaced: true };
+    let importedCount: number;
+    try { importedCount = await syncReservations(propertyForSync); }
+    catch (error) {
+      throw new Error(`Calendar saved, but import failed. Open the property and retry with Resync Calendar. ${error instanceof Error ? error.message : ""}`);
+    }
     await loadPropertiesFromSupabase();
 
     return { importedCount, source };
@@ -2427,20 +2387,17 @@ console.log("TEAM MEMBERS", mappedMembers);
       return;
     }
 
+    if (propertyForm.iCalUrl.trim() || propertyForm.airbnbUrl.trim()) {
+      try { validateCalendarFeed(propertyForm.calendarSource, propertyForm.iCalUrl || propertyForm.airbnbUrl); }
+      catch (error) { alert(error instanceof Error ? error.message : "Invalid calendar link."); return; }
+    }
     const { error } = await supabase.from("properties").insert({
       owner_id: user.id,
 
       property_name: propertyForm.name.trim(),
       default_cleaner_id: propertyForm.defaultCleanerId || null,
       market: propertyForm.city.trim(),
-      calendar_feed_url: propertyForm.iCalUrl.trim() || null,
-      calendar_source: propertyForm.iCalUrl.trim()
-        ? detectCalendarSource(propertyForm.iCalUrl)
-        : propertyForm.airbnbUrl.trim()
-          ? detectCalendarSource(propertyForm.airbnbUrl)
-          : null,
-      vrbo_property_id: propertyForm.iCalUrl.trim() || null,
-      airbnb_property_id: propertyForm.airbnbUrl.trim() || null,
+      ...(propertyForm.iCalUrl.trim() || propertyForm.airbnbUrl.trim() ? calendarFeedUpdates(propertyForm.calendarSource as CalendarProvider, validateCalendarFeed(propertyForm.calendarSource, propertyForm.iCalUrl || propertyForm.airbnbUrl)) : { calendar_feed_url: null, calendar_source: null, vrbo_property_id: null, airbnb_property_id: null }),
     });
 
     if (error) {
@@ -2457,6 +2414,7 @@ console.log("TEAM MEMBERS", mappedMembers);
       city: "",
       address: "",
       setupMode: "VRBO",
+      calendarSource: "",
       vrboId: "",
       airbnbUrl: "",
       iCalUrl: "",
@@ -2479,14 +2437,6 @@ console.log("TEAM MEMBERS", mappedMembers);
       .update({
         property_name: nextHome.name,
         market: nextHome.city,
-        calendar_feed_url: String(nextHome.iCalUrl ?? "").trim() || null,
-        calendar_source: String(nextHome.iCalUrl ?? "").trim()
-          ? detectCalendarSource(String(nextHome.iCalUrl))
-          : String(nextHome.airbnbUrl ?? "").trim()
-            ? detectCalendarSource(String(nextHome.airbnbUrl))
-            : null,
-        vrbo_property_id: String(nextHome.iCalUrl ?? "").trim() || null,
-        airbnb_property_id: String(nextHome.airbnbUrl ?? "").trim() || null,
         default_cleaner_id: nextHome.defaultCleanerId || null,
       })
       .eq("id", id);
@@ -3020,6 +2970,7 @@ console.log("TEAM MEMBERS", mappedMembers);
       city: home.city,
       address: home.address ?? "",
       setupMode: home.setupMode,
+      calendarSource: home.calendarSource || "",
       vrboId: home.vrboId ?? "",
       airbnbUrl: home.airbnbUrl ?? "",
       iCalUrl: home.iCalUrl ?? "",
@@ -3064,9 +3015,9 @@ console.log("TEAM MEMBERS", mappedMembers);
     event.preventDefault();
 
     const propertyName = sourceForm.propertyName.trim();
-    const vrboCalendarUrl = sourceForm.vrboICalUrl.trim();
+    const vrboCalendarUrl = sourceForm.calendarProvider === "VRBO" ? sourceForm.vrboICalUrl.trim() : "";
     const airbnbCalendarUrl = (
-      sourceForm.airbnbICalUrl || sourceForm.airbnbUrl
+      sourceForm.calendarProvider === "Airbnb" ? sourceForm.airbnbICalUrl : ""
     ).trim();
 
     if (!propertyName) {
@@ -3087,12 +3038,14 @@ console.log("TEAM MEMBERS", mappedMembers);
       return;
     }
 
+    let calendarUrl: string;
+    try { calendarUrl = validateCalendarFeed(sourceForm.calendarProvider, vrboCalendarUrl || airbnbCalendarUrl); }
+    catch (error) { alert(error instanceof Error ? error.message : "Invalid calendar link."); return; }
     const { error } = await supabase.from("properties").insert({
       owner_id: user.id,
       property_name: propertyName,
       market: sourceForm.market.trim(),
-      vrbo_property_id: vrboCalendarUrl || null,
-      airbnb_property_id: airbnbCalendarUrl || null,
+      ...calendarFeedUpdates(sourceForm.calendarProvider as CalendarProvider, calendarUrl),
       default_cleaner_id: null,
     });
 
@@ -3108,6 +3061,7 @@ console.log("TEAM MEMBERS", mappedMembers);
       propertyName: "",
       market: "",
       vrboId: "",
+      calendarProvider: "",
       vrboICalUrl: "",
       vrboICalText: "",
       airbnbUrl: "",
@@ -3116,7 +3070,7 @@ console.log("TEAM MEMBERS", mappedMembers);
     });
 
     setImportMessage(
-      "Live property saved. Select it in Property Setup, confirm both calendar links are visible, then run Sync Reservations.",
+      "Live property saved. Select it in Property Setup, confirm the selected provider and calendar link, then run Sync Reservations.",
     );
     setActivePage("Property Setup");
   }
@@ -3177,86 +3131,10 @@ console.log("TEAM MEMBERS", mappedMembers);
             />
           </label>
 
-          <label>
-            VRBO property ID
-            <input
-              value={sourceForm.vrboId}
-              onChange={(event) =>
-                setSourceForm({ ...sourceForm, vrboId: event.target.value })
-              }
-              placeholder="VRBO listing ID"
-            />
-          </label>
-
-          <label>
-            VRBO iCal URL
-            <input
-              value={sourceForm.vrboICalUrl}
-              onChange={(event) =>
-                setSourceForm({
-                  ...sourceForm,
-                  vrboICalUrl: event.target.value,
-                })
-              }
-              placeholder="https://...ics"
-            />
-          </label>
-
-          <label className="fullWidth">
-            Paste VRBO .ics text (optional for browser-safe import)
-            <textarea
-              value={sourceForm.vrboICalText}
-              onChange={(event) =>
-                setSourceForm({
-                  ...sourceForm,
-                  vrboICalText: event.target.value,
-                })
-              }
-              placeholder="Paste BEGIN:VCALENDAR... content here if the URL cannot be fetched from the browser"
-            />
-          </label>
-
-          <label>
-            Airbnb calendar URL backup
-            <input
-              value={sourceForm.airbnbUrl}
-              onChange={(event) =>
-                setSourceForm({ ...sourceForm, airbnbUrl: event.target.value })
-              }
-              placeholder="Optional backup: paste Airbnb .ics URL here too"
-            />
-          </label>
-
-          <label>
-            Airbnb iCal URL
-            <input
-              value={sourceForm.airbnbICalUrl}
-              onChange={(event) =>
-                setSourceForm({
-                  ...sourceForm,
-                  airbnbICalUrl: event.target.value,
-                })
-              }
-              placeholder="https://...ics"
-            />
-          </label>
-
-          <label className="fullWidth">
-            Paste Airbnb .ics text (optional for browser-safe import)
-            <textarea
-              value={sourceForm.airbnbICalText}
-              onChange={(event) =>
-                setSourceForm({
-                  ...sourceForm,
-                  airbnbICalText: event.target.value,
-                })
-              }
-              placeholder="Paste BEGIN:VCALENDAR... content here if the URL cannot be fetched from the browser"
-            />
-          </label>
+          <div className="fullWidth"><CalendarFeedFields provider={sourceForm.calendarProvider} onProviderChange={value => setSourceForm(current => ({ ...current, calendarProvider: value, vrboICalUrl: "", airbnbICalUrl: "", airbnbUrl: "", vrboICalText: "", airbnbICalText: "" }))} url={sourceForm.calendarProvider === "Airbnb" ? sourceForm.airbnbICalUrl : sourceForm.vrboICalUrl} onUrlChange={value => setSourceForm(current => ({ ...current, [current.calendarProvider === "Airbnb" ? "airbnbICalUrl" : "vrboICalUrl"]: value }))} /></div>
 
           <button className="primaryButton" type="submit">
-            Create Live Property + Import Calendars
+            Save Property and Calendar
           </button>
         </form>
       </section>
@@ -4003,6 +3881,7 @@ console.log("TEAM MEMBERS", mappedMembers);
         )}
         {(activePage === "Property Setup" || activePage === "Properties") && (
           <PropertiesPage
+            onConnectCalendar={connectCleanerPropertyCalendar}
             homes={homes.filter((home) => home.id === selectedPropertyId)}
             cleaners={cleaners}
             reservations={reservations}

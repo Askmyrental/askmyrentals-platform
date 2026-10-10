@@ -1,3 +1,5 @@
+import CalendarFeedFields from "../components/CalendarFeedFields";
+import type { CalendarProvider } from "../utils/calendarFeed";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../utils/supabase";
 import CleanerCreatePropertyPage, {
@@ -23,8 +25,10 @@ type CleanerPropertiesPageProps = {
   onCreateProperty: (values: CleanerPropertyFormValues) => Promise<string>;
   onConnectCalendar: (
     propertyId: string,
-    calendarUrl: string
-  ) => Promise<{ importedCount: number; source: string }>;
+    calendarUrl: string,
+    provider: CalendarProvider,
+    replaceExisting?: boolean,
+  ) => Promise<{ importedCount: number; source: string; replaced?: boolean }>;
   onResyncCalendar?: (
     propertyId: string
   ) => Promise<{ importedCount: number }>;
@@ -67,6 +71,7 @@ export default function CleanerPropertiesPage({
     useState<(CleanerPropertyFormValues & { id: string }) | null>(null);
   const [copyStatus, setCopyStatus] = useState("");
   const [calendarUrl, setCalendarUrl] = useState("");
+  const [calendarProvider, setCalendarProvider] = useState("");
   const [calendarImportStatus, setCalendarImportStatus] = useState("");
   const [calendarImportError, setCalendarImportError] = useState("");
   const [isImportingCalendar, setIsImportingCalendar] = useState(false);
@@ -74,6 +79,8 @@ export default function CleanerPropertiesPage({
   const [showAcademy, setShowAcademy] = useState(false);
   const [calendarSetupHome, setCalendarSetupHome] = useState<any | null>(null);
   const [setupCalendarUrl, setSetupCalendarUrl] = useState("");
+  const [setupCalendarProvider, setSetupCalendarProvider] = useState("");
+  const [replaceSetupCalendar, setReplaceSetupCalendar] = useState(false);
   const [setupCalendarStatus, setSetupCalendarStatus] = useState("");
   const [setupCalendarError, setSetupCalendarError] = useState("");
   const [isSetupCalendarSaving, setIsSetupCalendarSaving] = useState(false);
@@ -84,6 +91,7 @@ export default function CleanerPropertiesPage({
     propertyName: string;
     source: string;
     importedCount: number;
+    replaced?: boolean;
   } | null>(null);
 
   const activeCleaner = cleaners.find(
@@ -180,6 +188,7 @@ export default function CleanerPropertiesPage({
       setShowCreateProperty(false);
       setSavedProperty({ ...values, id: propertyId });
       setCalendarUrl("");
+      setCalendarProvider("");
       setCalendarImportStatus("");
       setCalendarImportError("");
       setCopyStatus("");
@@ -198,7 +207,8 @@ export default function CleanerPropertiesPage({
     try {
       const result = await onConnectCalendar(
         savedProperty.id,
-        calendarUrl.trim()
+        calendarUrl.trim(),
+        calendarProvider as CalendarProvider,
       );
 
       setCalendarImportStatus(
@@ -269,9 +279,9 @@ export default function CleanerPropertiesPage({
 
   function openCalendarSetup(home: any) {
     setCalendarSetupHome(home);
-    setSetupCalendarUrl(
-      home.calendarFeedUrl || home.iCalUrl || home.airbnbUrl || ""
-    );
+    setSetupCalendarUrl("");
+    setSetupCalendarProvider("");
+    setReplaceSetupCalendar(false);
     setSetupCalendarStatus("");
     setSetupCalendarError("");
     setCalendarSuccess(null);
@@ -280,18 +290,21 @@ export default function CleanerPropertiesPage({
   async function connectExistingPropertyCalendar() {
     if (!calendarSetupHome || !setupCalendarUrl.trim()) return;
     setIsSetupCalendarSaving(true);
-    setSetupCalendarStatus("Checking calendar and importing reservations...");
+    setSetupCalendarStatus(replaceSetupCalendar ? "Saving replacement calendar..." : "Checking calendar and importing reservations...");
     setSetupCalendarError("");
     try {
       const result = await onConnectCalendar(
         String(calendarSetupHome.id),
-        setupCalendarUrl.trim()
+        setupCalendarUrl.trim(),
+        setupCalendarProvider as CalendarProvider,
+        replaceSetupCalendar,
       );
       setSetupCalendarStatus("");
       setCalendarSuccess({
         propertyName: calendarSetupHome.name || "Property",
         source: result.source,
         importedCount: result.importedCount,
+        replaced: result.replaced,
       });
     } catch (error) {
       setSetupCalendarStatus("");
@@ -448,7 +461,7 @@ export default function CleanerPropertiesPage({
   }
 
   if (savedProperty) {
-    const calendarConnected = Boolean(calendarImportStatus);
+    const calendarConnected = Boolean(calendarImportStatus) && !isImportingCalendar;
 
     return (
       <main className="cleanerPropertySavedPage">
@@ -543,7 +556,7 @@ export default function CleanerPropertiesPage({
           <p className="cleanerPropertiesEyebrow">Property created</p>
           <h1>{savedProperty.propertyName}</h1>
           <p className="cleanerPropertySavedLead">
-            The property is saved. Paste the Airbnb or VRBO iCal link now to
+            The property is saved. Choose Airbnb or Vrbo, then add its iCal link to
             import upcoming reservations.
           </p>
 
@@ -555,24 +568,13 @@ export default function CleanerPropertiesPage({
             </p>
 
             <div className="cleanerCalendarConnectRow">
-              <input
-                type="url"
-                value={calendarUrl}
-                onChange={(event) => {
-                  setCalendarUrl(event.target.value);
-                  setCalendarImportError("");
-                }}
-                placeholder="https://www.airbnb.com/calendar/ical/..."
-                autoFocus
-                disabled={isImportingCalendar || calendarConnected}
-                aria-label="Airbnb or VRBO iCal calendar link"
-              />
+              <CalendarFeedFields provider={calendarProvider} onProviderChange={setCalendarProvider} url={calendarUrl} onUrlChange={value => { setCalendarUrl(value); setCalendarImportError(""); }} disabled={isImportingCalendar || calendarConnected} />
               <button
                 className="cleanerCreatePropertySubmitButton"
                 type="button"
                 onClick={() => void importSavedPropertyCalendar()}
                 disabled={
-                  !calendarUrl.trim() ||
+                  !calendarProvider || !calendarUrl.trim() ||
                   isImportingCalendar ||
                   calendarConnected
                 }
@@ -586,12 +588,12 @@ export default function CleanerPropertiesPage({
             </div>
 
             {calendarImportStatus && (
-              <p className="cleanerCalendarImportStatus">
+              <p className="cleanerCalendarImportStatus" role="status">
                 ✓ {calendarImportStatus}
               </p>
             )}
             {calendarImportError && (
-              <p className="cleanerCalendarImportError">
+              <p className="cleanerCalendarImportError" role="alert">
                 {calendarImportError}
               </p>
             )}
@@ -994,18 +996,18 @@ export default function CleanerPropertiesPage({
       )}
 
       {calendarSetupHome && (
-        <div className="amrModalOverlay" role="presentation" onClick={() => setCalendarSetupHome(null)}>
+        <div className="amrModalOverlay" role="presentation" onClick={() => { if (!isSetupCalendarSaving) setCalendarSetupHome(null); }}>
           <section className="amrModalCard" role="dialog" aria-modal="true" aria-label="Connect reservation calendar" onClick={(event) => event.stopPropagation()}>
             {calendarSuccess ? (
               <div className="calendarSuccessCard">
                 <div className="calendarSuccessIcon">✓</div>
                 <p className="cleanerPropertiesEyebrow">Calendar connected</p>
                 <h2>{calendarSuccess.propertyName}</h2>
-                <p>{calendarSuccess.source} is connected and AMR refreshed the property schedule.</p>
-                <div className="calendarSuccessCount">
+                <p>{calendarSuccess.source === "VRBO" ? "Vrbo" : calendarSuccess.source} is connected. {calendarSuccess.replaced ? "Existing reservations were preserved. Resync separately when ready." : "AMR refreshed the property schedule."}</p>
+                {!calendarSuccess.replaced && <div className="calendarSuccessCount">
                   <strong>{calendarSuccess.importedCount}</strong>
                   <span>{calendarSuccess.importedCount === 1 ? "calendar entry imported" : "calendar entries imported"}</span>
-                </div>
+                </div>}
                 <div className="calendarSuccessActions">
                   <button
                     className="cleanerCreatePropertySubmitButton"
@@ -1029,10 +1031,16 @@ export default function CleanerPropertiesPage({
             ) : (
               <>
                 <div className="amrModalHeader"><div><p className="cleanerPropertiesEyebrow">Property setup</p><h2>Connect Reservation Calendar</h2><p>{calendarSetupHome.name || "Property"}</p></div><button className="amrModalClose" type="button" onClick={() => setCalendarSetupHome(null)}>×</button></div>
-                <div className="calendarConnectField"><label htmlFor="setup-calendar-url">Paste Airbnb or VRBO iCal link</label><input id="setup-calendar-url" type="url" value={setupCalendarUrl} onChange={(event) => setSetupCalendarUrl(event.target.value)} placeholder="https://www.airbnb.com/calendar/ical/..." autoFocus /></div>
-                <div className="calendarConnectActions"><button className="cleanerCreatePropertySubmitButton" type="button" disabled={!setupCalendarUrl.trim() || isSetupCalendarSaving} onClick={() => void connectExistingPropertyCalendar()}>{isSetupCalendarSaving ? "Importing..." : "Import Reservations"}</button><button className="cleanerCreatePropertyCancelButton" type="button" onClick={() => setEditingHome(calendarSetupHome)}>Edit homeowner contact</button></div>
-                {setupCalendarStatus && <p className="calendarConnectStatus">✓ {setupCalendarStatus}</p>}
-                {setupCalendarError && <p className="calendarConnectError">{setupCalendarError}</p>}
+                {(calendarSetupHome.calendarFeedUrl || calendarSetupHome.iCalUrl || calendarSetupHome.airbnbUrl) && !replaceSetupCalendar ? <>
+                  <p>{calendarSetupHome.calendarSource === "VRBO" ? "Vrbo" : calendarSetupHome.calendarSource || "Calendar"} is connected. One active feed is used for this property.</p>
+                  <button type="button" className="cleanerCreatePropertyCancelButton" onClick={() => setReplaceSetupCalendar(true)}>Replace Calendar</button>
+                </> : <>
+                  {replaceSetupCalendar && <p>Replace the active feed. Existing reservations and assignments will remain unchanged. Resync separately when you are ready.</p>}
+                  <CalendarFeedFields provider={setupCalendarProvider} onProviderChange={setSetupCalendarProvider} url={setupCalendarUrl} onUrlChange={value => { setSetupCalendarUrl(value); setSetupCalendarError(""); }} disabled={isSetupCalendarSaving} />
+                  <div className="calendarConnectActions"><button className="cleanerCreatePropertySubmitButton" type="button" disabled={!setupCalendarProvider || !setupCalendarUrl.trim() || isSetupCalendarSaving} onClick={() => void connectExistingPropertyCalendar()}>{isSetupCalendarSaving ? "Saving..." : replaceSetupCalendar ? "Confirm Replacement" : "Connect and Import Reservations"}</button>{replaceSetupCalendar && <button type="button" disabled={isSetupCalendarSaving} onClick={() => { setReplaceSetupCalendar(false); setSetupCalendarUrl(""); setSetupCalendarProvider(""); }}>Cancel Replacement</button>}</div>
+                </>}
+                {setupCalendarStatus && <p className="calendarConnectStatus" role="status">{setupCalendarStatus}</p>}
+                {setupCalendarError && <p className="calendarConnectError" role="alert">{setupCalendarError}</p>}
                 <p className="cleanerPropertySetupNext">Need the link first? Open the property to call, email, copy a request, or text from a phone.</p>
               </>
             )}

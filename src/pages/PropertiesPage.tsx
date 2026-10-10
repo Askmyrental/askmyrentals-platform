@@ -1,4 +1,7 @@
+import CalendarFeedFields from "../components/CalendarFeedFields";
+import CalendarConnectionEditor, { type ConnectCalendar } from "../components/CalendarConnectionEditor";
 type PropertiesPageProps = {
+  onConnectCalendar: ConnectCalendar;
   homes: any[];
   cleaners: any[];
   reservations: any[];
@@ -23,6 +26,7 @@ type PropertiesPageProps = {
 };
 
 export default function PropertiesPage({
+  onConnectCalendar,
   homes,
   reservations,
   cleaners,
@@ -74,6 +78,7 @@ export default function PropertiesPage({
       city: "",
       address: "",
       setupMode: "VRBO",
+      calendarSource: "",
       vrboId: "",
       airbnbUrl: "",
       iCalUrl: "",
@@ -128,9 +133,9 @@ export default function PropertiesPage({
       <>
         <div className="fullWidth">
           <p className="eyebrow">Live property setup</p>
-          <h3>Connect Calendars</h3>
+          <h3>Connect a Calendar</h3>
           <p className="headerSubtext">
-            Add the property name and calendar links. This is what powers
+            Add the property name and one reservation calendar. This is what powers
             reservations, cleaning assignments, calendar QA, and reporting.
           </p>
         </div>
@@ -144,61 +149,15 @@ export default function PropertiesPage({
           />
         </label>
 
-        <div
-          className="fullWidth"
-          style={{
-            padding: "14px 16px",
-            border: "1px solid #bfdbfe",
-            borderRadius: "14px",
-            background: "#eff6ff",
-            color: "#1e3a8a",
-            lineHeight: 1.45,
-          }}
-        >
-          <strong>Which calendar should I use?</strong>
-          <p style={{ margin: "5px 0 0" }}>
-            If the property is listed on both VRBO and Airbnb, connect the
-            VRBO calendar when available. VRBO calendar feeds are generally
-            more consistent for blocked dates and schedule changes.
-          </p>
+        <div className="fullWidth">
+          {isEditing && editingPropertyId ? <CalendarConnectionEditor key={editingPropertyId} home={homes.find(home => home.id === editingPropertyId) || { id: editingPropertyId }} onConnect={onConnectCalendar} /> : <CalendarFeedFields
+            provider={propertyForm.calendarSource || ""}
+            onProviderChange={value => setPropertyForm((current: any) => ({ ...current, calendarSource: value, iCalUrl: "", airbnbUrl: "" }))}
+            url={propertyForm.calendarSource === "Airbnb" ? propertyForm.airbnbUrl : propertyForm.iCalUrl}
+            onUrlChange={value => setPropertyForm((current: any) => ({ ...current, [current.calendarSource === "Airbnb" ? "airbnbUrl" : "iCalUrl"]: value }))}
+          />}
         </div>
-
-        <label className="fullWidth">
-          VRBO iCal Link <span style={{ color: "#16844a", fontWeight: 800 }}>· Preferred</span>
-          <input
-            value={propertyForm.iCalUrl || ""}
-            onChange={(event) => updateFormField("iCalUrl", event.target.value)}
-            placeholder="Paste VRBO export calendar link"
-          />
-          <small style={{ display: "block", marginTop: "6px", color: "#64748b" }}>
-            Recommended when the owner uses both VRBO and Airbnb.
-          </small>
-        </label>
-
-        <label className="fullWidth">
-          Airbnb Calendar Link
-          <input
-            value={propertyForm.airbnbUrl || ""}
-            onChange={(event) => updateFormField("airbnbUrl", event.target.value)}
-            placeholder="Paste Airbnb calendar export link"
-          />
-          <small style={{ display: "block", marginTop: "6px", color: "#92400e" }}>
-            Airbnb may combine neighboring blocked dates into one calendar
-            event, which can create extra schedule-change alerts.
-          </small>
-        </label>
-
-        {isEditing && (
-          <div className="cardActions fullWidth">
-            <button
-              className="secondaryButton"
-              onClick={syncReservations}
-              type="button"
-            >
-              Sync Calendars
-            </button>
-          </div>
-        )}
+        {isEditing && <button type="button" onClick={syncReservations}>Resync Calendar</button>}
 
         <details className="manualPanel fullWidth">
           <summary>Property Details</summary>
@@ -337,7 +296,7 @@ export default function PropertiesPage({
           <p className="eyebrow">Live Mode</p>
           <h2>Property Setup</h2>
           <p className="headerSubtext">
-            Add properties, connect VRBO and Airbnb calendars, and manage
+            Add properties, connect an Airbnb or Vrbo calendar, and manage
             cleaner-facing property instructions.
           </p>
         </div>
