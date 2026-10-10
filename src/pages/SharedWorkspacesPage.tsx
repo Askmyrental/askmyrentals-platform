@@ -702,6 +702,10 @@ export default function SharedWorkspacesPage({
           <div className="emptyStateCard" role="alert">
             <strong>Team needs attention</strong>
             <p>{groupError}</p>
+            <button type="button" className="secondaryButton" disabled={groupLoading}
+              onClick={() => void loadGroupAccess()}>
+              Retry
+            </button>
           </div>
         )}
 
@@ -858,8 +862,8 @@ export default function SharedWorkspacesPage({
             <div>
               <p className="eyebrow">Team Members</p>
               <h3>
-                {visibleMembers.length} Team Member
-                {visibleMembers.length === 1 ? "" : "s"}
+                {groupLoading ? "Loading team…" : groupError ? "Team unavailable" :
+                  `${visibleMembers.length} Team Member${visibleMembers.length === 1 ? "" : "s"}`}
               </h3>
             </div>
           </div>
@@ -874,6 +878,8 @@ export default function SharedWorkspacesPage({
 
           {groupLoading ? (
             <p className="mutedText">Loading team…</p>
+          ) : groupError ? (
+            <p className="mutedText">Team members could not be loaded. Use Retry above.</p>
           ) : visibleMembers.length === 0 ? (
             <p className="mutedText">No matching team members found.</p>
           ) : (
@@ -1071,13 +1077,17 @@ export default function SharedWorkspacesPage({
             <div>
               <p className="eyebrow">Pending Invitations</p>
               <h3>
-                {groupInvites.length} Pending Invitation
-                {groupInvites.length === 1 ? "" : "s"}
+                {groupLoading ? "Loading invitations…" : groupError ? "Invitations unavailable" :
+                  `${groupInvites.length} Pending Invitation${groupInvites.length === 1 ? "" : "s"}`}
               </h3>
             </div>
           </div>
 
-          {groupInvites.length === 0 ? (
+          {groupLoading ? (
+            <p className="mutedText">Loading invitations…</p>
+          ) : groupError ? (
+            <p className="mutedText">Invitations could not be loaded. Use Retry above.</p>
+          ) : groupInvites.length === 0 ? (
             <p className="mutedText">No pending invitations.</p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>

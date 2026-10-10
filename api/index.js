@@ -1,3 +1,3 @@
-"use strict";
+import app from "../server.cjs";
 
-module.exports = require("../server.cjs");
+export default app;
