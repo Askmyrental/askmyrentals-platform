@@ -6925,3 +6925,29 @@ grid-template-columns:1fr;
   }
 
 }
+
+/* "More work later" footer under the home screen task list */
+.cleanerPulseLaterWork {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 700;
+}
+
+.cleanerPulseLaterWorkActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cleanerPulseLaterWorkActions button {
+  width: auto;
+}

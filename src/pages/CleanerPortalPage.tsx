@@ -157,7 +157,7 @@ export default function CleanerPortalPage({
   >("date");
   const [pulseDateRange, setPulseDateRange] = useState<
     "all" | "today" | "7" | "14" | "30" | "custom"
-  >("all");
+  >("7");
   const [pulseCustomStartDate, setPulseCustomStartDate] = useState("");
   const [pulseCustomEndDate, setPulseCustomEndDate] = useState("");
   const [pulsePropertyFilters, setPulsePropertyFilters] = useState<string[]>(["all"]);
@@ -1193,7 +1193,7 @@ if (profileError) {
 
   const pulseDateFilterSummary =
     pulseDateRange === "all"
-      ? "Date Range"
+      ? "All Upcoming"
       : pulseDateRange === "today"
       ? "Today"
       : pulseDateRange === "7"
@@ -1245,20 +1245,16 @@ if (profileError) {
           )
       : `${pulseAssignmentFilters.length} selected`;
 
-  const displayedCleanerTasks = [
+  const getPulseTaskDate = (task: any) =>
+    toLocalDate(task.departure ?? task.scheduledDate ?? task.scheduled_date);
+
+  // Property and assignment filters, applied before the date window so we can
+  // also count the work that falls after it.
+  const pulseTasksMatchingFilters = [
     ...(canManageAssignments && showOnlyUnassignedTasks
       ? unassignedTasks
       : cleanerTasks),
   ]
-    .filter((task) => {
-      if (pulseDateRange === "all") return true;
-
-      const { start, end } = getPulseDateBounds();
-      const taskDate = toLocalDate(
-        task.departure ?? task.scheduledDate ?? task.scheduled_date,
-      );
-      return taskDate >= start && taskDate <= end;
-    })
     .filter((task) => {
       if (pulsePropertyFilters.includes("all")) return true;
       if (task.isCleanerJob) {
@@ -1273,6 +1269,24 @@ if (profileError) {
         return pulseAssignmentFilters.includes("unassigned");
       }
       return pulseAssignmentFilters.includes(assignedCleanerId);
+    });
+
+  const pulseDateWindowEnd =
+    pulseDateRange === "all" ? null : getPulseDateBounds().end;
+
+  const laterPulseTaskCount = pulseDateWindowEnd
+    ? pulseTasksMatchingFilters.filter(
+        (task) => getPulseTaskDate(task) > pulseDateWindowEnd,
+      ).length
+    : 0;
+
+  const displayedCleanerTasks = pulseTasksMatchingFilters
+    .filter((task) => {
+      if (pulseDateRange === "all") return true;
+
+      const { start, end } = getPulseDateBounds();
+      const taskDate = getPulseTaskDate(task);
+      return taskDate >= start && taskDate <= end;
     })
     .sort((first, second) => {
     if (pulseTaskSort === "property-asc") {
@@ -1472,6 +1486,8 @@ if (profileError) {
 
   const focusUnassignedTasks = () => {
     setShowOnlyUnassignedTasks(true);
+    // Show every unassigned task, not just the next 7 days.
+    setPulseDateRange("all");
 
     window.setTimeout(() => {
       document
@@ -5009,13 +5025,48 @@ if (profileError) {
                     <strong>
                       {showOnlyUnassignedTasks
                         ? "No tasks need assignment"
-                        : "No upcoming tasks"}
+                        : laterPulseTaskCount > 0
+                          ? `Nothing scheduled for ${pulseDateFilterSummary.toLowerCase()}`
+                          : "No upcoming tasks"}
                     </strong>
                     <p>
                       {showOnlyUnassignedTasks
                         ? "Every upcoming task currently has a cleaner."
-                        : "No upcoming tasks are currently assigned."}
+                        : laterPulseTaskCount > 0
+                          ? "You have work coming up later."
+                          : "No upcoming tasks are currently assigned."}
                     </p>
+                  </div>
+                )}
+
+                {laterPulseTaskCount > 0 && pulseDateWindowEnd && (
+                  <div className="cleanerPulseLaterWork">
+                    <span>
+                      {laterPulseTaskCount} more{" "}
+                      {laterPulseTaskCount === 1 ? "task" : "tasks"} after{" "}
+                      {pulseDateWindowEnd.toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                    <div className="cleanerPulseLaterWorkActions">
+                      {(pulseDateRange === "today" || pulseDateRange === "7") && (
+                        <button
+                          type="button"
+                          className="secondaryButton"
+                          onClick={() => setPulseDateRange("30")}
+                        >
+                          Next 30 Days
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="primaryButton"
+                        onClick={() => setPulseDateRange("all")}
+                      >
+                        Show All Upcoming
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
