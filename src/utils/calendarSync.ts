@@ -33,15 +33,26 @@ function subtractOneDay(dateKey: string) {
 export function parseICalTextToReservations(
   icalText: string,
   propertyId: string,
-  source: "VRBO" | "Airbnb"
+  source: "VRBO" | "Airbnb" | "Guesty"
 ) {
   const jcalData = ICAL.parse(icalText);
   const comp = new ICAL.Component(jcalData);
   const vevents = comp.getAllSubcomponents("vevent");
 
-  return vevents
+  // Keep the latest revision for a stable UID, including cancellation tombstones.
+  const eventsByUid = new Map<string, any>();
+  for (const event of vevents) {
+    const uid = String(event.getFirstPropertyValue("uid") || "");
+    if (!uid) continue;
+    const previous = eventsByUid.get(uid);
+    const sequence = Number(event.getFirstPropertyValue("sequence") || 0);
+    if (!previous || sequence >= Number(previous.getFirstPropertyValue("sequence") || 0)) eventsByUid.set(uid, event);
+  }
+  return [...eventsByUid.values()]
     .map((vevent: any) => {
       const calendarEvent = new ICAL.Event(vevent);
+
+      if (String(vevent.getFirstPropertyValue("status") || "").toUpperCase() === "CANCELLED") return null;
 
       const startDate = calendarEvent.startDate ?? null;
       const endDate = calendarEvent.endDate ?? null;
@@ -60,6 +71,7 @@ export function parseICalTextToReservations(
 
       const isBlocked =
         normalizedSummary === "blocked" ||
+        (source === "Guesty" && normalizedSummary.includes("blocked by guesty")) ||
         normalizedSummary.includes("not available") ||
         normalizedSummary.includes("unavailable") ||
         normalizedSummary.includes("closed") ||

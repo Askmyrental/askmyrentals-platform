@@ -452,7 +452,7 @@ export default function CleanerPropertyDetailPage({
             <p className="cleanerPropertyCardLabel">{replaceCalendar ? "Calendar Replacement" : "Calendar Needed"}</p>
             <h2>{replaceCalendar ? "Replace the reservation calendar" : "Connect the reservation calendar"}</h2>
             <p>
-              {replaceCalendar ? "Replacement preserves existing reservations and assignments. Resync separately when ready. Choose a provider below." : `Choose Airbnb or Vrbo, then add the export link, or request it from ${clientName}.`}
+              {replaceCalendar ? "Replacement preserves existing reservations and assignments. Resync separately when ready. Choose a provider below." : `Choose Airbnb, Vrbo, or Guesty, then add the export link, or request it from ${clientName}.`}
             </p>
 
             <div className="propertyCalendarConnectPanel">

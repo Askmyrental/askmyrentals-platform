@@ -52,6 +52,7 @@ type ReservationStatus =
 type ReservationSource =
   | "VRBO"
   | "Airbnb"
+  | "Guesty"
   | "Guest Reservation"
   | "Owner Block"
   | "Cleaning"
@@ -363,7 +364,7 @@ function isSameDay(date: Date, dateString: string) {
 }
 
 function isImportedReservation(reservation: Reservation) {
-  return reservation.source === "VRBO" || reservation.source === "Airbnb";
+  return reservation.source === "VRBO" || reservation.source === "Airbnb" || reservation.source === "Guesty";
 }
 
 function normalizeReservationSource(source: string): ReservationSource {
@@ -2264,7 +2265,7 @@ console.log("TEAM MEMBERS", mappedMembers);
     const propertyForSync: Home = {
       ...existingHome,
       airbnbUrl: source === "Airbnb" ? trimmedUrl : "",
-      iCalUrl: source === "VRBO" ? trimmedUrl : "",
+      iCalUrl: source !== "Airbnb" ? trimmedUrl : "",
       calendarFeedUrl: trimmedUrl,
       calendarSource: source,
     };
@@ -2532,7 +2533,7 @@ console.log("TEAM MEMBERS", mappedMembers);
       let importedReservations: any[] = [];
       const successfullySyncedSources = new Set<string>();
 
-      async function fetchCalendar(url: string, source: "VRBO" | "Airbnb") {
+      async function fetchCalendar(url: string, source: CalendarProvider) {
         const response = await fetch(`${API_URL}/api/fetch-ical`, {
           method: "POST",
           headers: {
@@ -2572,7 +2573,7 @@ console.log("TEAM MEMBERS", mappedMembers);
           successfullySyncedSources.add("VRBO");
           successfullySyncedSources.add("Owner Block");
         } else {
-          successfullySyncedSources.add("Airbnb");
+          successfullySyncedSources.add(source);
         }
 
         importedReservations = [...importedReservations, ...parsed];
@@ -2582,7 +2583,7 @@ console.log("TEAM MEMBERS", mappedMembers);
       // feed fails, the sync stops so AMR never mistakes a fetch failure for a
       // cancellation or removed block.
       if (selectedProperty.iCalUrl) {
-        await fetchCalendar(selectedProperty.iCalUrl, "VRBO");
+        await fetchCalendar(selectedProperty.iCalUrl, selectedProperty.calendarSource === "Guesty" ? "Guesty" : "VRBO");
       }
 
       if (selectedProperty.airbnbUrl) {
@@ -3023,7 +3024,7 @@ console.log("TEAM MEMBERS", mappedMembers);
     event.preventDefault();
 
     const propertyName = sourceForm.propertyName.trim();
-    const vrboCalendarUrl = sourceForm.calendarProvider === "VRBO" ? sourceForm.vrboICalUrl.trim() : "";
+    const vrboCalendarUrl = sourceForm.calendarProvider !== "Airbnb" ? sourceForm.vrboICalUrl.trim() : "";
     const airbnbCalendarUrl = (
       sourceForm.calendarProvider === "Airbnb" ? sourceForm.airbnbICalUrl : ""
     ).trim();

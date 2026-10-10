@@ -263,11 +263,13 @@ export default function ReportsPage({ homes, reservations }: ReportsPageProps) {
       const operationalSource =
         source === "vrbo" ||
         source === "airbnb" ||
+        source === "guesty" ||
         source === "guest reservation" ||
         source === "owner block";
 
       return (
         operationalSource &&
+        status !== "blocked" &&
         status !== "no clean needed" &&
         !status.includes("complete") &&
         taskDate >= todayKey &&

@@ -296,7 +296,7 @@ export default function PropertiesPage({
           <p className="eyebrow">Live Mode</p>
           <h2>Property Setup</h2>
           <p className="headerSubtext">
-            Add properties, connect an Airbnb or Vrbo calendar, and manage
+            Add properties, connect an Airbnb, Vrbo, or Guesty calendar, and manage
             cleaner-facing property instructions.
           </p>
         </div>
@@ -402,10 +402,7 @@ export default function PropertiesPage({
                 </div>
 
                 <div className="propertySourceRow">
-                  <span>{home.iCalUrl ? "VRBO connected" : "No VRBO calendar"}</span>
-                  <span>
-                    {home.airbnbUrl ? "Airbnb connected" : "No Airbnb calendar"}
-                  </span>
+                  <span>{home.calendarFeedUrl || home.iCalUrl || home.airbnbUrl ? `${home.calendarSource === "VRBO" ? "Vrbo" : home.calendarSource || "Calendar"} connected` : "No calendar connected"}</span>
                 </div>
 
                 <p>
@@ -476,15 +473,12 @@ export default function PropertiesPage({
 
               <div className="propertyDataGrid">
                 <div>
-                  <span>VRBO Calendar</span>
-                  <strong>{selectedProperty.iCalUrl ? "Connected" : "Missing"}</strong>
+                  <span>Calendar provider</span>
+                  <strong>{selectedProperty.calendarSource === "VRBO" ? "Vrbo" : selectedProperty.calendarSource || "Not connected"}</strong>
                 </div>
-
                 <div>
-                  <span>Airbnb Calendar</span>
-                  <strong>
-                    {selectedProperty.airbnbUrl ? "Connected" : "Missing"}
-                  </strong>
+                  <span>Calendar connection</span>
+                  <strong>{selectedProperty.calendarFeedUrl || selectedProperty.iCalUrl || selectedProperty.airbnbUrl ? "Connected" : "Missing"}</strong>
                 </div>
 
                 <div>

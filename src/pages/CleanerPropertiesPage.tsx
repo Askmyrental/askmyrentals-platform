@@ -556,7 +556,7 @@ export default function CleanerPropertiesPage({
           <p className="cleanerPropertiesEyebrow">Property created</p>
           <h1>{savedProperty.propertyName}</h1>
           <p className="cleanerPropertySavedLead">
-            The property is saved. Choose Airbnb or Vrbo, then add its iCal link to
+            The property is saved. Choose Airbnb, Vrbo, or Guesty, then add its iCal link to
             import upcoming reservations.
           </p>
 
