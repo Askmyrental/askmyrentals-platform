@@ -1,3 +1,4 @@
+import { formatClockTime } from "../utils/formatTime";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { supabase } from "../utils/supabase";
 
@@ -84,6 +85,15 @@ function formatMoney(cents: number) {
     style: "currency",
     currency: "USD",
   }).format(cents / 100);
+}
+
+const formatJobTime = formatClockTime;
+
+// An "upcoming" job whose date has already passed needs the cleaner's attention.
+function isPastDueJob(job: { status: string; scheduled_date: string | null }) {
+  if (job.status !== "upcoming" || !job.scheduled_date) return false;
+  const endOfJobDay = new Date(`${job.scheduled_date.slice(0, 10)}T23:59:59`);
+  return endOfJobDay.getTime() < Date.now();
 }
 
 function formatJobDate(value: string) {
@@ -1378,9 +1388,13 @@ if (choice === null) return;
                   </div>
 
                   <span
-                    className={`cleanerInvoiceStatusBadge status-${job.status}`}
+                    className={`cleanerInvoiceStatusBadge status-${
+                      isPastDueJob(job) ? "overdue" : job.status
+                    }`}
                   >
-                    {getVisibleStatusLabel(job.status)}
+                    {isPastDueJob(job)
+                      ? "Date Passed"
+                      : getVisibleStatusLabel(job.status)}
                   </span>
                 </div>
 
@@ -1409,7 +1423,7 @@ if (choice === null) return;
                   </div>
                   <div>
                     <span>Time</span>
-                    <strong>{job.scheduled_time || "Not set"}</strong>
+                    <strong>{formatJobTime(job.scheduled_time) || "Not set"}</strong>
                   </div>
                   <div>
                     <span>Customer charge</span>
@@ -1417,7 +1431,11 @@ if (choice === null) return;
                   </div>
                   <div>
                     <span>Status</span>
-                    <strong>{getVisibleStatusLabel(job.status)}</strong>
+                    <strong>
+                      {isPastDueJob(job)
+                        ? "Date passed — update status"
+                        : getVisibleStatusLabel(job.status)}
+                    </strong>
                   </div>
                 </div>
 
@@ -1562,7 +1580,7 @@ if (choice === null) return;
               <p>
                 <strong>Scheduled:</strong>{" "}
                 {formatJobDate(selectedJob.scheduled_date)}{" "}
-                {selectedJob.scheduled_time || ""}
+                {formatJobTime(selectedJob.scheduled_time)}
               </p>
               <p>
                 <strong>Customer charge:</strong>{" "}

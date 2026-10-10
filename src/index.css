@@ -6925,3 +6925,21 @@ grid-template-columns:1fr;
   }
 
 }
+
+/* Outside payments are a secondary path; Stripe payment is the main action. */
+.cleanerInvoiceOutsidePaymentLink {
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 8px 0;
+  cursor: pointer;
+  width: auto;
+}
+
+.cleanerInvoiceOutsidePaymentLink:hover {
+  color: #334155;
+}

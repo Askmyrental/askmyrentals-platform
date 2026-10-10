@@ -1,3 +1,4 @@
+import { formatClockTime } from "../utils/formatTime";
 import { resolveCustomerCharge, parseCustomerCharge, saveCustomerChargeUpdate } from "../utils/customerCharge";
 import {
   useEffect,
@@ -5680,10 +5681,10 @@ if (profileError) {
                   })}
                   {(selectedCleanerTask.scheduledTime ??
                     selectedCleanerTask.scheduled_time) &&
-                    ` · ${
+                    ` · ${formatClockTime(
                       selectedCleanerTask.scheduledTime ??
                       selectedCleanerTask.scheduled_time
-                    }`}
+                    )}`}
                 </p>
               </div>
 

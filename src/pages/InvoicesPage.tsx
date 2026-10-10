@@ -78,6 +78,21 @@ function formatMoney(cents: number) {
   }).format(cents / 100);
 }
 
+// Sent or viewed invoices past their due date are treated as overdue,
+// so the Overdue counter and badges stay accurate without a background job.
+function withComputedOverdue(invoice: Invoice): Invoice {
+  if (
+    (invoice.status === "sent" || invoice.status === "viewed") &&
+    invoice.due_date
+  ) {
+    const endOfDueDate = new Date(`${invoice.due_date.slice(0, 10)}T23:59:59`);
+    if (endOfDueDate.getTime() < Date.now()) {
+      return { ...invoice, status: "overdue" };
+    }
+  }
+  return invoice;
+}
+
 function formatInvoiceDate(value: string | null) {
   if (!value) return "—";
 
@@ -792,7 +807,9 @@ export default function InvoicesPage({
     return false;
   }
 
-  const workFilteredInvoices = invoices.filter(invoiceMatchesWorkFilter);
+  const workFilteredInvoices = invoices
+    .map(withComputedOverdue)
+    .filter(invoiceMatchesWorkFilter);
 
   const filteredReadyTasks = readyTasks.filter((task) => {
     if (selectedWorkFilters.has("all")) return true;
@@ -1691,19 +1708,6 @@ export default function InvoicesPage({
 
                       {["sent", "viewed", "overdue"].includes(invoice.status) && (
                         <button
-                          className="secondaryButton cleanerInvoicePaidButton"
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openMarkPaid(invoice);
-                          }}
-                        >
-                          Mark Paid
-                        </button>
-                      )}
-
-                      {["sent", "viewed", "overdue"].includes(invoice.status) && (
-                        <button
                           className="secondaryButton cleanerInvoiceVoidButton"
                           type="button"
                           disabled={isVoidingInvoice}
@@ -1931,16 +1935,6 @@ export default function InvoicesPage({
 
               {["sent", "viewed", "overdue"].includes(selectedInvoice.status) && (
                 <button
-                  className="secondaryButton"
-                  type="button"
-                  onClick={() => openMarkPaid(selectedInvoice)}
-                >
-                  Mark as Paid
-                </button>
-              )}
-
-              {["sent", "viewed", "overdue"].includes(selectedInvoice.status) && (
-                <button
                   className="secondaryButton cleanerInvoiceVoidButton"
                   type="button"
                   disabled={isVoidingInvoice}
@@ -1975,6 +1969,16 @@ export default function InvoicesPage({
                     Copy Payment Link
                   </button>
                 </>
+              )}
+
+              {["sent", "viewed", "overdue"].includes(selectedInvoice.status) && (
+                <button
+                  className="textButton cleanerInvoiceOutsidePaymentLink"
+                  type="button"
+                  onClick={() => openMarkPaid(selectedInvoice)}
+                >
+                  Paid another way? Record outside payment
+                </button>
               )}
             </div>
           </section>
