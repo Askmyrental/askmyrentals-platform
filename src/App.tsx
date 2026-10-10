@@ -3656,16 +3656,25 @@ console.log("TEAM MEMBERS", mappedMembers);
   function renderPlaceholder() {
     return (
       <section className="placeholderPage">
-        <p className="eyebrow">Stable checkpoint</p>
+        <p className="eyebrow">AMR {activePage === "Help" ? "Help" : "Workspace"}</p>
         <h2>{activePage}</h2>
         <p>
-          This module is parked for a later phase so the Task Board and Calendar
-          can stay stable.
+          {activePage === "Help"
+            ? "Find assigned work in Schedule. Open a task to review its property, address, notes, and work history. For assignment or team-access questions, contact your team administrator."
+            : activePage === "Settings"
+              ? "Your account and workspace access are managed in Profile and Teams. You can review your details there. Additional preferences will be available in a future update."
+              : "This feature is not available yet. You can continue managing your work from your workspace."}
         </p>
+        {isAuthenticatedCleaner && (
+          <button type="button" className="secondaryButton" onClick={() => setActivePage("Cleaner Profile")}>
+            Open Profile
+          </button>
+        )}
         <button
+          type="button"
           className="primaryButton"
-          onClick={() => setActivePage("Reservations")}
-        ></button>
+          onClick={() => setActivePage(isAuthenticatedCleaner ? "Cleaner Portal" : "Pulse")}
+        >Return to Pulse</button>
       </section>
     );
   }

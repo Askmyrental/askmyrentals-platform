@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../utils/supabase";
+import { buildReportProperties } from "../utils/reportProperties";
 
 type DatePreset = "this_month" | "last_month" | "this_year" | "custom";
 type InvoiceStatus = "draft" | "sent" | "viewed" | "paid" | "overdue" | "void";
@@ -147,6 +148,9 @@ export default function ReportsPage({ homes, reservations }: ReportsPageProps) {
   const [cleanerJobs, setCleanerJobs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const reportHomes = useMemo(() => buildReportProperties(
+    homes, [...reservations, ...cleanerJobs, ...invoices],
+  ), [homes, reservations, cleanerJobs, invoices]);
 
   const range = useMemo(
     () => getRange(preset, customStart, customEnd),
@@ -285,7 +289,7 @@ export default function ReportsPage({ homes, reservations }: ReportsPageProps) {
 
     const reservationForecastItems = upcomingReservations.map((item) => {
       const propertyId = getItemPropertyId(item);
-      const home = homes.find(
+      const home = reportHomes.find(
         (home) => String(home.id) === propertyId
       );
       const fee = Number(
@@ -313,7 +317,7 @@ export default function ReportsPage({ homes, reservations }: ReportsPageProps) {
 
     const jobForecastItems = upcomingJobs.map((item) => {
       const propertyId = getItemPropertyId(item);
-      const home = homes.find(
+      const home = reportHomes.find(
         (home) => String(home.id) === propertyId
       );
 
@@ -373,7 +377,7 @@ export default function ReportsPage({ homes, reservations }: ReportsPageProps) {
       propertyId: string,
       propertyName?: string | null
     ) => {
-      const home = homes.find(
+      const home = reportHomes.find(
         (item) => String(item.id) === String(propertyId)
       );
       const property =
@@ -599,7 +603,7 @@ export default function ReportsPage({ homes, reservations }: ReportsPageProps) {
     };
   }, [
     cleanerJobs,
-    homes,
+    reportHomes,
     invoices,
     range.end,
     range.start,
@@ -615,7 +619,7 @@ export default function ReportsPage({ homes, reservations }: ReportsPageProps) {
         "Property",
         selectedPropertyId === "all"
           ? "All properties"
-          : homes.find(
+          : reportHomes.find(
               (home) => String(home.id) === selectedPropertyId
             )?.name ?? "Selected property",
       ],
@@ -759,7 +763,7 @@ export default function ReportsPage({ homes, reservations }: ReportsPageProps) {
             }
           >
             <option value="all">All Properties</option>
-            {homes.map((home) => (
+            {reportHomes.map((home) => (
               <option key={home.id} value={String(home.id)}>
                 {home.name}
               </option>

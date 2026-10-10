@@ -200,7 +200,7 @@ export default function LoginPage({ expectedRole }: LoginPageProps) {
       isCleanerLogin ? "cleanerAuthPage" : isOwnerLogin ? "ownerAuthPage" : ""
     }`}>
       <form className="authCard" onSubmit={handleSubmit}>
-        <Link to="/" className="brandIcon">AMR</Link>
+        <Link to="/" className="brandIcon" aria-label="Ask My Rentals home">AMR</Link>
 
         <p className="eyebrow">
           {isCleanerLogin

@@ -179,7 +179,7 @@ export default function SignupPage({
       }`}
     >
       <form className="authCard" onSubmit={handleSubmit}>
-        <Link to="/" className="brandIcon">
+        <Link to="/" className="brandIcon" aria-label="Ask My Rentals home">
           AMR
         </Link>
 
