@@ -1,3 +1,4 @@
+import { resolveCustomerCharge } from "../utils/customerCharge";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { supabase } from "../utils/supabase";
 
@@ -173,13 +174,7 @@ export default function InvoicesPage({
       (item) => String(item.id) === String(task.homeId)
     );
 
-    const taskPrice =
-      task.cleaningFee ??
-      task.amount ??
-      task.invoiceAmount ??
-      task.price ??
-      home?.cleaningFee ??
-      "";
+    const taskPrice = resolveCustomerCharge(task, home);
 
     setForm((current) => ({
       ...current,
@@ -278,7 +273,7 @@ export default function InvoicesPage({
       customerEmail: home?.ownerEmail ?? "",
       unitPrice:
         home?.cleaningFee === undefined || home?.cleaningFee === null
-          ? current.unitPrice
+          ? ""
           : String(home.cleaningFee),
     }));
   }

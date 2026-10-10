@@ -1,3 +1,4 @@
+import { resolveCustomerCharge } from "../utils/customerCharge";
 import { useState } from "react";
 import { useAppHistoryValue } from "../utils/appHistory";
 
@@ -212,22 +213,17 @@ export default function CleanerPortalCalendar({
     return { label: "Upcoming", className: "upcoming" };
   };
 
-  const getEstimatedPay = (task: any) => {
-    const value =
-      task.cleaningFee ??
-      task.amount ??
-      task.invoiceAmount ??
-      task.price ??
-      null;
+  const getCustomerCharge = (task: any) => {
+    const value = resolveCustomerCharge(task);
 
-    if (value === null || value === "") return "Set on invoice";
+    if (value === null) return "Set on invoice";
 
     const numericValue = Number(value);
     return Number.isFinite(numericValue)
       ? new Intl.NumberFormat(undefined, {
           style: "currency",
           currency: "USD",
-          maximumFractionDigits: 0,
+          maximumFractionDigits: 2,
         }).format(numericValue)
       : "Set on invoice";
   };
@@ -812,7 +808,7 @@ export default function CleanerPortalCalendar({
                   normalizeDateKey(getTaskDate(task))
                 );
                 const taskStatus = getTaskStatus(task);
-                const estimatedPay = getEstimatedPay(task);
+                const customerCharge = getCustomerCharge(task);
 
                 return (
                   <button
@@ -837,7 +833,7 @@ export default function CleanerPortalCalendar({
                       <span>{getTaskSubtitle(task)}</span>
                       {!isNoCleanNeeded(task) && !isAirbnbBlock(task) && (
                         <span className="cleanerDayTaskPay">
-                          Estimated Pay: {estimatedPay}
+                          Customer Cleaning Charge: {customerCharge}
                         </span>
                       )}
                     </div>

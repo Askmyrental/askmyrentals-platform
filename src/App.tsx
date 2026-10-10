@@ -1,3 +1,4 @@
+import { saveCustomerChargeUpdate } from "./utils/customerCharge";
 import CalendarFeedFields from "./components/CalendarFeedFields";
 import { validateCalendarFeed, resolveCalendarFeed, calendarFeedUpdates, type CalendarProvider } from "./utils/calendarFeed";
 import CleanerProfilePage from "./pages/CleanerProfilePage";
@@ -156,6 +157,8 @@ type Reservation = {
 
   propertyName?: string;
   propertyAddress?: string;
+  customerCleaningCharge?: number | null;
+  propertyCleaningFee?: number | null;
   workspaceName?: string;
   workspaceId?: string;
   persistedNotes?: string | null;
@@ -1825,6 +1828,8 @@ export default function App({
     property:properties (
       property_name,
       address,
+      cleaning_fee,
+      standard_cleaning_charge:property_standard_cleaning_charge,
       market
     )
   `)
@@ -1869,6 +1874,8 @@ export default function App({
   assignedContactId:
     item.assigned_contact_id ?? undefined,
 
+  customerCleaningCharge: item.customer_cleaning_charge == null ? null : Number(item.customer_cleaning_charge),
+  propertyCleaningFee: item.property?.standard_cleaning_charge ?? item.property?.cleaning_fee ?? null,
   propertyName:
     item.property?.property_name ?? undefined,
   workspaceName: workspaceNames[item.group_id] ?? item.workspace?.name ?? undefined,
@@ -2170,6 +2177,7 @@ console.log("TEAM MEMBERS", mappedMembers);
         bedrooms: Number(values.bedrooms) || 0,
         bathrooms: Number(values.bathrooms) || 0,
         max_guests: 0,
+        cleaning_fee: values.cleaningFee.trim() === "" ? null : Number(values.cleaningFee),
         
         owner_name: values.ownerName.trim(),
         owner_email: values.ownerEmail.trim() || null,
@@ -3308,58 +3316,37 @@ console.log("TEAM MEMBERS", mappedMembers);
     }
   }
   async function updateReservationFromCleaner(
-    id: string,
-    status: ReservationStatus,
-    note: string,
+    id: string, status: ReservationStatus, note: string,
+    customerCharge?: { value: number | null; previous: number | null },
   ): Promise<boolean> {
-    setReservations((current) =>
-      current.map((reservation) =>
-        reservation.id === id
-          ? {
-              ...reservation,
-              status,
-              timeline: [...reservation.timeline, note],
-            }
-          : reservation,
-      ),
-    );
-
-    const reservation = reservations.find((item) => item.id === id);
-    const nextTimeline = reservation ? [...reservation.timeline, note] : [note];
-
+    const reservation = reservations.find(item => item.id === id);
     const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (user) {
-      const { data, error } = await supabase
-        .from("reservations")
-        .update({
-          status,
-          timeline: nextTimeline,
-        })
-        .eq("id", id)
-        .select("id, status")
-        .maybeSingle();
-
-      if (error) {
-        console.error("Cleaner reservation update failed", error);
-        window.alert(error.message);
-        return false;
+    if (!userData.user) { window.alert("Please sign in again before saving the task."); return false; }
+    try {
+      const { data: latest, error: readError } = await supabase.from("reservations")
+        .select("id, timeline").eq("id", id).single();
+      if (readError || !latest) throw new Error(readError?.message || "You no longer have access to this task.");
+      const previousTimeline = Array.isArray(latest.timeline) ? latest.timeline : [];
+      const updates = { status, timeline: [...previousTimeline, note] };
+      let data: any;
+      if (customerCharge) {
+        data = await saveCustomerChargeUpdate(supabase, "reservations", id,
+          customerCharge.previous, customerCharge.value, updates, latest.timeline);
+      } else {
+        let query = supabase.from("reservations").update(updates).eq("id", id);
+        query = latest.timeline == null ? query.is("timeline", null) : query.eq("timeline", JSON.stringify(latest.timeline));
+        const result = await query.select("id, status, timeline").maybeSingle();
+        if (result.error || !result.data) throw new Error(result.error?.message || "The task changed or access was denied. Refresh and retry.");
+        data = result.data;
       }
-
-      if (!data) {
-        console.error("Cleaner reservation update matched no row", {
-          id,
-          status,
-          authenticatedUserId: user.id,
-        });
-        window.alert(
-          "The task changed on screen, but Supabase did not permit the reservation update. Check the reservations UPDATE policy for cleaner accounts.",
-        );
-        return false;
-      }
+      setReservations(current => current.map(item => item.id === id ? {
+        ...item, status: data.status, timeline: data.timeline,
+        ...(customerCharge ? { customerCleaningCharge: data.customer_cleaning_charge == null ? null : Number(data.customer_cleaning_charge) } : {}),
+      } : item));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to save task. Retry.");
+      return false;
     }
-
     if (reservation) {
       setNotifications((current) => [
         {

@@ -1,3 +1,4 @@
+import { resolveCustomerCharge, parseCustomerCharge, saveCustomerChargeUpdate } from "../utils/customerCharge";
 import {
   useEffect,
   useState,
@@ -63,6 +64,7 @@ type CleanerPortalPageProps = {
     id: string,
     status: any,
     note: string,
+    customerCharge?: { value: number | null; previous: number | null },
   ) => Promise<boolean>;
   submitCleanerMaintenanceIssue: (event: FormEvent<HTMLFormElement>) => void;
   isImportedReservation: (reservation: any) => boolean;
@@ -998,6 +1000,7 @@ if (profileError) {
         serviceAddress: job.service_address ?? "",
         amount: Number(job.amount_cents ?? 0) / 100,
         cleaningFee: Number(job.amount_cents ?? 0) / 100,
+        customerCleaningCharge: Number(job.amount_cents ?? 0) / 100,
         notes: normalizeManualJobNote(job.notes),
         persistedNotes: job.notes ?? null,
         cleanerNotes: normalizeManualJobNote(job.notes),
@@ -1554,6 +1557,7 @@ if (profileError) {
     task: any,
     nextStatus: CleanerPortalStatus,
     note: string,
+    customerCharge?: number | null,
   ) {
     if (!task.isCleanerJob) {
       const reservationStatus =
@@ -1571,6 +1575,7 @@ if (profileError) {
         String(task.id),
         reservationStatus,
         note,
+        customerCharge !== undefined ? { value: customerCharge, previous: task.customerCleaningCharge ?? null } : undefined,
       );
 
       if (!saved) return null;
@@ -1578,6 +1583,7 @@ if (profileError) {
       return {
         ...task,
         status: reservationStatus,
+        ...(customerCharge !== undefined ? { customerCleaningCharge: customerCharge } : {}),
         cleanerNotes: note || task.cleanerNotes || "",
         notes: note || task.notes || "",
       };
@@ -1591,22 +1597,18 @@ if (profileError) {
       "No Clean Needed": "no_clean_needed",
     };
 
-    const { data, error } = await supabase
-      .from("cleaner_jobs")
-      .update({
-        status: statusMap[nextStatus],
-        notes: note || task.notes || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", task.cleanerJobId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Independent job update failed", error);
-      window.alert(error.message);
-      return null;
-    }
+    const updates = { status: statusMap[nextStatus], notes: note || task.notes || null, updated_at: new Date().toISOString() };
+    let data: any;
+    try {
+      if (customerCharge !== undefined) {
+        data = await saveCustomerChargeUpdate(supabase, "cleaner_jobs", task.cleanerJobId,
+          task.customerCleaningCharge ?? task.amount ?? task.cleaningFee ?? 0, customerCharge, updates);
+      } else {
+        const result = await supabase.from("cleaner_jobs").update(updates).eq("id", task.cleanerJobId).select().single();
+        if (result.error || !result.data) throw new Error(result.error?.message || "Task could not be saved.");
+        data = result.data;
+      }
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Unable to save task. Retry."); return null; }
 
     setCleanerJobs((current) =>
       current.map((job) => (job.id === data.id ? data : job)),
@@ -1617,6 +1619,7 @@ if (profileError) {
       status: nextStatus === "Ready to Invoice" ? "Completed" : nextStatus,
       notes: data.notes ?? "",
       cleanerNotes: data.notes ?? "",
+      customerCleaningCharge: Number(data.amount_cents ?? 0) / 100,
       cleaningFee: Number(data.amount_cents ?? 0) / 100,
       amount: Number(data.amount_cents ?? 0) / 100,
     };
@@ -1830,7 +1833,7 @@ if (profileError) {
       result.maintenanceReported
         ? `Maintenance draft: ${result.maintenanceTitle}. ${result.maintenanceDescription}`
         : "",
-      result.cleaningFee ? `Cleaning fee: $${result.cleaningFee}.` : "",
+      result.cleaningFee ? `Customer cleaning charge: $${result.cleaningFee}.` : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -1842,6 +1845,7 @@ if (profileError) {
       },
       "In Progress",
       draftSummary,
+      result.chargeEdited ? parseCustomerCharge(result.cleaningFee) : undefined,
     );
 
     if (!updatedTask) return;
@@ -1883,7 +1887,7 @@ if (profileError) {
             result.maintenancePhotos.length === 1 ? "" : "s"
           } selected.`
         : "No maintenance issues reported.",
-      result.cleaningFee ? `Cleaning fee: $${result.cleaningFee}.` : "",
+      result.cleaningFee ? `Customer cleaning charge: $${result.cleaningFee}.` : "",
       taskBeingCompleted.isCleanerJob
         ? "Independent job completed."
         : "Owner completion report queued.",
@@ -1893,6 +1897,7 @@ if (profileError) {
       taskBeingCompleted,
       "Ready to Invoice",
       completionParts.join(" "),
+      result.chargeEdited ? parseCustomerCharge(result.cleaningFee) : undefined,
     );
 
     if (!updatedTask) return;
@@ -2003,12 +2008,7 @@ if (profileError) {
     selectedTaskHome?.outstandingBalance ??
     null;
 
-  const selectedEstimatedPay =
-    selectedCleanerTask?.cleaningFee ??
-    selectedCleanerTask?.amount ??
-    selectedCleanerTask?.invoiceAmount ??
-    selectedCleanerTask?.price ??
-    null;
+  const selectedCustomerCharge = resolveCustomerCharge(selectedCleanerTask, selectedTaskHome);
 
   const reportDateBounds = () => {
     const start = new Date(today);
@@ -5715,16 +5715,14 @@ if (profileError) {
               </span>
             </div>
 
-            {!isAssignedTeamCleaner && (
             <div className="cleanerJobPayRow">
-              <span>Estimated Pay</span>
+              <span>Customer Cleaning Charge</span>
               <strong>
-                {selectedEstimatedPay === null || selectedEstimatedPay === ""
+                {selectedCustomerCharge === null
                   ? "Set on invoice"
-                  : `$${selectedEstimatedPay}`}
+                  : `$${selectedCustomerCharge}`}
               </strong>
             </div>
-            )}
 
             {isAirbnbBlock(selectedCleanerTask) && (
               <section

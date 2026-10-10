@@ -1,3 +1,4 @@
+import { resolveCustomerCharge, parseCustomerCharge } from "../../utils/customerCharge";
 import { useEffect, useState, type FormEvent } from "react";
 
 export type CompleteTaskResult = {
@@ -11,6 +12,7 @@ export type CompleteTaskResult = {
   maintenanceUrgency: "Low" | "Medium" | "High";
   maintenancePhotos: File[];
   cleaningFee: string;
+  chargeEdited: boolean;
 };
 
 type CompleteTaskModalProps = {
@@ -18,8 +20,8 @@ type CompleteTaskModalProps = {
   home: any;
   onClose: () => void;
   onUndoStart: () => void;
-  onSaveDraft: (result: CompleteTaskResult) => void;
-  onFinish: (result: CompleteTaskResult) => void;
+  onSaveDraft: (result: CompleteTaskResult) => void | Promise<void>;
+  onFinish: (result: CompleteTaskResult) => void | Promise<void>;
 };
 
 export default function CompleteTaskModal({
@@ -45,6 +47,8 @@ export default function CompleteTaskModal({
   >("Medium");
   const [maintenancePhotos, setMaintenancePhotos] = useState<File[]>([]);
   const [cleaningFee, setCleaningFee] = useState("");
+  const [chargeEdited, setChargeEdited] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -65,16 +69,8 @@ export default function CompleteTaskModal({
       savedDraft?.maintenanceUrgency ?? "Medium"
     );
     setMaintenancePhotos([]);
-    setCleaningFee(
-      String(
-        savedDraft?.cleaningFee ??
-          task?.cleaningFee ??
-          task?.amount ??
-          task?.invoiceAmount ??
-          task?.price ??
-          ""
-      )
-    );
+    setCleaningFee(String(resolveCustomerCharge(task, home) ?? ""));
+    setChargeEdited(false);
     setError("");
   }, [task]);
 
@@ -89,16 +85,31 @@ export default function CompleteTaskModal({
     maintenanceUrgency,
     maintenancePhotos,
     cleaningFee: cleaningFee.trim(),
+    chargeEdited,
   });
 
-  const handleSaveDraft = () => {
+  function validateCharge() {
+    try {
+      const value = parseCustomerCharge(cleaningFee);
+      if (task?.isCleanerJob && value === null) throw new Error("Enter the customer charge, including 0 for no charge.");
+      return true;
+    } catch (e) { setError(e instanceof Error ? e.message : "Invalid customer charge."); return false; }
+  }
+  const handleSaveDraft = async () => {
+    if (isSaving) return;
     setError("");
-    onSaveDraft(buildResult());
+    if (!validateCharge()) return;
+    setIsSaving(true);
+    try { await onSaveDraft(buildResult()); }
+    catch (e) { setError(e instanceof Error ? e.message : "Unable to save. Retry."); }
+    finally { setIsSaving(false); }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSaving) return;
     setError("");
+    if (!validateCharge()) return;
 
     if (guestReady === "no" && maintenanceChoice !== "issue") {
       setError(
@@ -118,7 +129,10 @@ export default function CompleteTaskModal({
       return;
     }
 
-    onFinish(buildResult());
+    setIsSaving(true);
+    try { await onFinish(buildResult()); }
+    catch (e) { setError(e instanceof Error ? e.message : "Unable to save. Retry."); }
+    finally { setIsSaving(false); }
   };
 
   return (
@@ -137,6 +151,7 @@ export default function CompleteTaskModal({
           </div>
 
           <button
+            disabled={isSaving}
             type="button"
             className="cleanerScheduleClose"
             onClick={onClose}
@@ -375,18 +390,20 @@ export default function CompleteTaskModal({
           </fieldset>
 
           <label className="completeTaskField">
-            Cleaning fee
+            Customer cleaning charge
             <div className="completeTaskMoneyInput">
               <span>$</span>
               <input
+                disabled={isSaving}
                 inputMode="decimal"
                 value={cleaningFee}
                 onChange={(event) =>
-                  setCleaningFee(event.target.value)
+                  { setCleaningFee(event.target.value); setChargeEdited(true); }
                 }
                 placeholder="0.00"
               />
             </div>
+            <small>{task?.isCleanerJob ? "This is the customer charge, not employee pay. Enter 0 for no charge." : "This is the customer charge, not employee pay. Leave blank to use the property standard fee; enter 0 for no charge."}</small>
           </label>
 
           {error && (
@@ -398,6 +415,7 @@ export default function CompleteTaskModal({
           <div className="completeTaskActions">
             <div className="completeTaskSecondaryActions">
               <button
+                disabled={isSaving}
                 type="button"
                 className="secondaryButton"
                 onClick={onClose}
@@ -406,6 +424,7 @@ export default function CompleteTaskModal({
               </button>
 
               <button
+                disabled={isSaving}
                 type="button"
                 className="completeTaskUndoButton"
                 onClick={onUndoStart}
@@ -416,6 +435,7 @@ export default function CompleteTaskModal({
 
             <div className="completeTaskFinalActions">
               <button
+                disabled={isSaving}
                 type="button"
                 className="completeTaskDraftButton"
                 onClick={handleSaveDraft}
@@ -424,6 +444,7 @@ export default function CompleteTaskModal({
               </button>
 
               <button
+                disabled={isSaving}
                 type="submit"
                 className="completeTaskFinishButton"
               >

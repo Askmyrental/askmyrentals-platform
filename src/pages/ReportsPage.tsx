@@ -1,3 +1,4 @@
+import { resolveCustomerCharge } from "../utils/customerCharge";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../utils/supabase";
 import { buildReportProperties } from "../utils/reportProperties";
@@ -292,15 +293,8 @@ export default function ReportsPage({ homes, reservations }: ReportsPageProps) {
       const home = reportHomes.find(
         (home) => String(home.id) === propertyId
       );
-      const fee = Number(
-        item.cleaningFee ??
-          item.cleaning_fee ??
-          home?.cleaningFee ??
-          home?.cleaning_fee ??
-          0
-      );
-      const amountCents =
-        Number.isFinite(fee) && fee > 0 ? Math.round(fee * 100) : null;
+      const fee = resolveCustomerCharge(item, home);
+      const amountCents = fee === null ? null : Math.round(fee * 100);
 
       return {
         id: `reservation-${item.id}`,
