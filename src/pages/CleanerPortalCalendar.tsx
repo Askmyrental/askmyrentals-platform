@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAppHistoryValue } from "../utils/appHistory";
 
 type CleanerPortalCalendarProps = {
   cleanerTasks: any[];
@@ -16,10 +17,19 @@ export default function CleanerPortalCalendar({
   isAssignedTeamCleaner = false,
 }: CleanerPortalCalendarProps) {
   const today = new Date();
-  const [calendarMonth, setCalendarMonth] = useState(
-    new Date(today.getFullYear(), today.getMonth(), 1)
-  );
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [monthRoute, setMonthRoute] = useAppHistoryValue("month",
+    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`);
+  const calendarMonth = /^\d{4}-\d{2}$/.test(monthRoute ?? "")
+    ? new Date(`${monthRoute}-01T12:00:00`)
+    : new Date(today.getFullYear(), today.getMonth(), 1);
+  const setCalendarMonth = (month: Date) => setMonthRoute(
+    `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`);
+  const [dayRoute, setDayRoute] = useAppHistoryValue("day");
+  const selectedDay = dayRoute && /^\d{4}-\d{2}-\d{2}$/.test(dayRoute)
+    ? new Date(`${dayRoute}T12:00:00`) : null;
+  const setSelectedDay = (day: Date | null) => setDayRoute(day
+    ? `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`
+    : null);
   const [previewDayKey, setPreviewDayKey] = useState<string | null>(null);
 
   const monthStart = new Date(

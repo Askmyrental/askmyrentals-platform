@@ -1,5 +1,6 @@
 import CleanerProfilePage from "./pages/CleanerProfilePage";
 import { loadWorkspaceNames } from "./utils/workspaceNames";
+import { useAppHistoryValue } from "./utils/appHistory";
 import SharedWorkspacesPage from "./pages/SharedWorkspacesPage";
 import CleanerJobsPage from "./pages/CleanerJobsPage";
 import CleanerClientsPage from "./pages/CleanerClientsPage";
@@ -932,9 +933,13 @@ export default function App({
     selectedGroupRole === "cleaner" ||
     selectedGroupRole === "employee";
 
-  const [activePage, setActivePage] = useState<string>(
+  const [historyPage, setHistoryPage] = useAppHistoryValue("view",
     initialPage ?? (isAuthenticatedCleaner ? "Cleaner Portal" : "Pulse"),
+    selectedGroupId,
   );
+  const activePage = historyPage!;
+  const setActivePage: React.Dispatch<React.SetStateAction<string>> = (next) =>
+    setHistoryPage(typeof next === "function" ? next(activePage) : next);
   const [cleanerInvoiceInitialFilter, setCleanerInvoiceInitialFilter] =
     useState("all");
   const [selectedCleanerInvoiceId, setSelectedCleanerInvoiceId] = useState<

@@ -8,6 +8,7 @@ import {
 } from "react";
 import CleanerPortalCalendar from "./CleanerPortalCalendar";
 import { saveTaskNotes } from "../utils/saveTaskNotes";
+import { useAppHistoryValue } from "../utils/appHistory";
 import CompleteTaskModal, {
   type CompleteTaskResult,
 } from "../components/pulse/CompleteTaskModal";
@@ -109,10 +110,18 @@ export default function CleanerPortalPage({
   const [savedTaskNotes, setSavedTaskNotes] = useState<Record<string, string>>({});
   const [savingTaskNote, setSavingTaskNote] = useState(false);
   const [taskNoteError, setTaskNoteError] = useState("");
-  const [showCleanerCalendar, setShowCleanerCalendar] = useState(false);
-  const [selectedCleanerTask, setSelectedCleanerTask] = useState<any | null>(
+  const [calendarRoute, setCalendarRoute] = useAppHistoryValue("calendar");
+  const showCleanerCalendar = calendarRoute === "1";
+  const setShowCleanerCalendar = (show: boolean) => setCalendarRoute(show ? "1" : null);
+  const [taskRoute, setTaskRoute] = useAppHistoryValue("task");
+  const [selectedCleanerTask, setSelectedCleanerTaskState] = useState<any | null>(
     null,
   );
+  const setSelectedCleanerTask = (next: any) => {
+    const task = typeof next === "function" ? next(selectedCleanerTask) : next;
+    setSelectedCleanerTaskState(task);
+    setTaskRoute(task ? String(task.id) : null);
+  };
   const [taskBeingCompleted, setTaskBeingCompleted] = useState<any | null>(
     null,
   );
@@ -1038,6 +1047,24 @@ if (profileError) {
 
     return selectedWorkFilters.includes(String(task.homeId));
   };
+
+  useEffect(() => {
+    if (!taskRoute) {
+      setSelectedCleanerTaskState(null);
+      return;
+    }
+    const task = calendarTasks.find((item) => String(item.id) === taskRoute);
+    if (!task) {
+      setSelectedCleanerTaskState(null);
+      return;
+    }
+    if (task && String(selectedCleanerTask?.id) !== taskRoute) {
+      setSelectedCleanerTaskState(task);
+      setTaskNoteDraft(task.cleanerNotes ?? task.notes ?? "");
+      setTaskNoteSaved(false);
+      setTaskNoteError("");
+    }
+  }, [taskRoute, reservations, cleanerJobs]);
 
   const filteredCalendarTasks = calendarTasks.filter(matchesSelectedWorkFilter);
 

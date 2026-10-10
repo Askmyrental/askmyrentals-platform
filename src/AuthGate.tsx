@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "./utils/supabase";
 import App from "./App";
 import MyGroupsPage from "./pages/MyGroupsPage";
@@ -49,6 +49,9 @@ type BusinessCreationSuccess = {
 };
 
 export default function AuthGate() {
+  const [routeParams] = useSearchParams();
+  const routeWorkspace = routeParams.get("workspace");
+  const [invitationJustAccepted, setInvitationJustAccepted] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [propertyCount, setPropertyCount] = useState(0);
@@ -63,6 +66,11 @@ export default function AuthGate() {
   const [profileLoadError, setProfileLoadError] = useState("");
   const [profileRetryKey, setProfileRetryKey] = useState(0);
   const [groups, setGroups] = useState<GroupOption[]>([]);
+  useEffect(() => {
+    if (routeWorkspace && groups.some((group) => group.id === routeWorkspace)) {
+      setSelectedGroupId(routeWorkspace);
+    }
+  }, [routeWorkspace, groups]);
   const [groupsLoading, setGroupsLoading] = useState(false);
   const [groupLoadError, setGroupLoadError] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -106,6 +114,7 @@ export default function AuthGate() {
           const userChanged = currentUserId !== nextUserId;
 
           if (event === "SIGNED_OUT" || !newSession) {
+            setInvitationJustAccepted(false);
             setProfile(null);
             setPropertyCount(0);
             setLaunchPage(null);
@@ -120,6 +129,7 @@ export default function AuthGate() {
             setEmployeeWelcomeDismissed(false);
             setBusinessCreationSuccess(null);
           } else if (event === "SIGNED_IN" && userChanged) {
+            setInvitationJustAccepted(false);
             setProfile(null);
             setPropertyCount(0);
             setLaunchPage(null);
@@ -420,6 +430,7 @@ export default function AuthGate() {
     setInviteActionId(null);
     setSelectedGroupId(null);
     setAccountRefreshKey((current) => current + 1);
+    if (response === "accept") setInvitationJustAccepted(true);
   }
 
   function formatInviteRole(role: string) {
@@ -927,6 +938,7 @@ export default function AuthGate() {
 
   if (
     profile.role === "employee" &&
+    invitationJustAccepted &&
     !employeeWelcomeDismissed &&
     selectedGroupForWelcome
   ) {
