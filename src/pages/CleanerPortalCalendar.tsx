@@ -93,6 +93,11 @@ export default function CleanerPortalCalendar({
     String(task.status ?? "").toLowerCase() === "no clean needed";
 
   const getTaskTitle = (task: any) => {
+    const property = homes.find((item) => normalizeId(item.id) === normalizeId(task.homeId));
+    const name = [property?.name, task.propertyName, task.property_name]
+      .find((value) => typeof value === "string" && value.trim());
+    const address = getTaskAddress(task);
+    if (name || address) return name?.trim() || address;
     if (task.isCleanerJob) {
       return task.jobType ?? task.taskType ?? "Independent Job";
     }
@@ -110,6 +115,12 @@ export default function CleanerPortalCalendar({
     }
 
     return home?.name ?? "Cleaning";
+  };
+
+  const getTaskAddress = (task: any) => {
+    const home = homes.find((item) => normalizeId(item.id) === normalizeId(task.homeId));
+    return [home?.address, task.propertyAddress, task.property_address, task.serviceAddress]
+      .find((value) => typeof value === "string" && value.trim())?.trim() ?? "";
   };
 
   const getTaskSubtitle = (task: any) => {
@@ -725,7 +736,11 @@ export default function CleanerPortalCalendar({
                     const taskTime = getTaskTime(task);
                     return (
                       <div className="cleanerCalendarHoverTask" key={normalizeId(task.id)}>
-                        <div><strong>{task.isCleanerJob ? "💼 " : "🏠 "}{getTaskTitle(task)}</strong><small>{taskTime || getTaskSubtitle(task)}</small></div>
+                        <div><strong>{task.isCleanerJob ? "💼 " : "🏠 "}{getTaskTitle(task)}</strong>
+                          {getTaskAddress(task) && getTaskAddress(task) !== getTaskTitle(task) && <small>{getTaskAddress(task)}</small>}
+                          {task.workspaceName && <small>{task.workspaceName}</small>}
+                          <small>{[taskTime, getTaskSubtitle(task)].filter(Boolean).join(" · ")}</small>
+                        </div>
                         <span className={`cleanerCalendarHoverStatus ${taskStatus.className}`}>{taskStatus.label}</span>
                       </div>
                     );
@@ -807,6 +822,8 @@ export default function CleanerPortalCalendar({
                               : "🏠 Turnover"}
                       </span>
                       <strong>{getTaskTitle(task)}</strong>
+                      {getTaskAddress(task) && getTaskAddress(task) !== getTaskTitle(task) && <span>{getTaskAddress(task)}</span>}
+                      {task.workspaceName && <span>{task.workspaceName}</span>}
                       <span>{getTaskSubtitle(task)}</span>
                       {!isNoCleanNeeded(task) && !isAirbnbBlock(task) && (
                         <span className="cleanerDayTaskPay">

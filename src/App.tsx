@@ -152,6 +152,8 @@ type Reservation = {
 
   propertyName?: string;
   propertyAddress?: string;
+  workspaceName?: string;
+  persistedNotes?: string | null;
 
   notes?: string;
   timeline: string[];
@@ -1841,6 +1843,7 @@ export default function App({
   .from("reservations")
   .select(`
     *,
+    workspace:groups (name),
     property:properties (
       property_name,
       address,
@@ -1887,11 +1890,11 @@ export default function App({
 
   propertyName:
     item.property?.property_name ?? undefined,
+  workspaceName: item.workspace?.name ?? undefined,
+  persistedNotes: item.notes ?? null,
 
   propertyAddress:
-    item.property?.address ??
-    item.property?.market ??
-    undefined,
+    item.property?.address ?? undefined,
 
   notes: item.notes ?? "",
 

@@ -7,6 +7,7 @@ import {
   type SetStateAction,
 } from "react";
 import CleanerPortalCalendar from "./CleanerPortalCalendar";
+import { saveTaskNotes } from "../utils/saveTaskNotes";
 import CompleteTaskModal, {
   type CompleteTaskResult,
 } from "../components/pulse/CompleteTaskModal";
@@ -103,6 +104,9 @@ export default function CleanerPortalPage({
   onOpenProfile,
 }: CleanerPortalPageProps) {
   const [showCleanerIssueModal, setShowCleanerIssueModal] = useState(false);
+  const [savedTaskNotes, setSavedTaskNotes] = useState<Record<string, string>>({});
+  const [savingTaskNote, setSavingTaskNote] = useState(false);
+  const [taskNoteError, setTaskNoteError] = useState("");
   const [showCleanerCalendar, setShowCleanerCalendar] = useState(false);
   const [selectedCleanerTask, setSelectedCleanerTask] = useState<any | null>(
     null,
@@ -984,6 +988,7 @@ if (profileError) {
         amount: Number(job.amount_cents ?? 0) / 100,
         cleaningFee: Number(job.amount_cents ?? 0) / 100,
         notes: normalizeManualJobNote(job.notes),
+        persistedNotes: job.notes ?? null,
         cleanerNotes: normalizeManualJobNote(job.notes),
       };
     });
@@ -1006,7 +1011,9 @@ if (profileError) {
       };
     }),
     ...normalizedCalendarJobTasks,
-  ].sort((firstTask, secondTask) => {
+  ].map((task) => Object.prototype.hasOwnProperty.call(savedTaskNotes, task.id)
+    ? { ...task, notes: savedTaskNotes[task.id], cleanerNotes: savedTaskNotes[task.id], persistedNotes: savedTaskNotes[task.id] }
+    : task).sort((firstTask, secondTask) => {
     const dateDifference =
       toLocalDate(firstTask.departure).getTime() -
       toLocalDate(secondTask.departure).getTime();
@@ -1685,6 +1692,7 @@ if (profileError) {
 
     if (matchingTask) {
       setTaskOpenedFrom(openedFrom);
+      setTaskNoteError("");
       setSelectedCleanerTask(matchingTask);
       setTaskNoteDraft(matchingTask.cleanerNotes ?? matchingTask.notes ?? "");
       setTaskNoteSaved(false);
@@ -1702,22 +1710,32 @@ if (profileError) {
   };
 
   const saveTaskNote = async () => {
-    if (!selectedCleanerTask || !selectedTaskStatus) return;
-
-    const cleanNote = taskNoteDraft.trim();
-    const updatedTask = await updateCleanerTask(
-      selectedCleanerTask,
-      selectedTaskStatus,
-      cleanNote,
-    );
-
-    if (!updatedTask) return;
-
-    setSelectedCleanerTask({
-      ...updatedTask,
-      cleanerNotes: cleanNote,
-    });
-    setTaskNoteSaved(true);
+    if (!selectedCleanerTask || savingTaskNote) return;
+    const task = selectedCleanerTask;
+    setSavingTaskNote(true);
+    setTaskNoteSaved(false);
+    setTaskNoteError("");
+    try {
+      const notes = await saveTaskNotes(
+        supabase,
+        task.isCleanerJob ? "cleaner_jobs" : "reservations",
+        String(task.cleanerJobId ?? task.id),
+        task.persistedNotes !== undefined ? task.persistedNotes : task.notes ?? null,
+        taskNoteDraft.trim(),
+      );
+      setSavedTaskNotes((current) => ({ ...current, [task.id]: notes }));
+      if (task.isCleanerJob) {
+        setCleanerJobs((current) => current.map((job) => job.id === task.cleanerJobId ? { ...job, notes } : job));
+      }
+      setSelectedCleanerTask((current: any) => current?.id === task.id
+        ? { ...current, notes, cleanerNotes: notes, persistedNotes: notes }
+        : current);
+      setTaskNoteSaved(true);
+    } catch (error) {
+      setTaskNoteError(error instanceof Error ? error.message : "Unable to save notes. Please try again.");
+    } finally {
+      setSavingTaskNote(false);
+    }
   };
 
   const openCompleteTask = (task: any) => {
@@ -1914,26 +1932,15 @@ if (profileError) {
     : null;
 
   const getTaskPropertyName = (task: any, home?: any) =>
-    String(
-      home?.name ??
-        task?.propertyName ??
-        task?.property_name ??
-        task?.homeName ??
-        task?.home_name ??
-        task?.customerName ??
-        (task?.isCleanerJob ? "Independent Job" : "Property"),
-    );
+    [home?.name, task?.propertyName, task?.property_name, task?.homeName, task?.home_name]
+      .find((value) => typeof value === "string" && value.trim())?.trim()
+      || getTaskPropertyAddress(task, home)
+      || (task?.isCleanerJob ? task.customerName || "Independent Job" : "Property");
 
   const getTaskPropertyAddress = (task: any, home?: any) =>
-    String(
-      home?.address ??
-        home?.addressLine1 ??
-        task?.propertyAddress ??
-        task?.property_address ??
-        task?.serviceAddress ??
-        task?.service_address ??
-        "",
-    );
+    [home?.address, home?.addressLine1, task?.propertyAddress, task?.property_address,
+      task?.serviceAddress, task?.service_address]
+      .find((value) => typeof value === "string" && value.trim())?.trim() ?? "";
 
   const selectedTaskStatus = selectedCleanerTask
     ? getCleanerPortalStatus(selectedCleanerTask)
@@ -5617,6 +5624,10 @@ if (profileError) {
                     selectedTaskHome,
                   )}
                 </h3>
+                {getTaskPropertyAddress(selectedCleanerTask, selectedTaskHome).trim() && (
+                  <p>{getTaskPropertyAddress(selectedCleanerTask, selectedTaskHome)}</p>
+                )}
+                {selectedCleanerTask.workspaceName && <p>{selectedCleanerTask.workspaceName}</p>}
                 <p className="cleanerJobType">
                   {selectedCleanerTask.jobType ??
                     selectedCleanerTask.taskType ??
@@ -5764,6 +5775,7 @@ if (profileError) {
               </div>
 
               <textarea
+                disabled={savingTaskNote}
                 value={taskNoteDraft}
                 onChange={(event) => {
                   setTaskNoteDraft(event.target.value);
@@ -5776,9 +5788,19 @@ if (profileError) {
                 type="button"
                 className="secondaryButton"
                 onClick={saveTaskNote}
+                disabled={savingTaskNote}
               >
-                Save Note
+                {savingTaskNote ? "Saving…" : "Save Note"}
               </button>
+              {taskNoteError && <p role="alert">{taskNoteError}</p>}
+              {Array.isArray(selectedCleanerTask.timeline) && selectedCleanerTask.timeline.length > 0 && (
+                <div>
+                  <strong>Task history</strong>
+                  {selectedCleanerTask.timeline.map((entry: string, index: number) => (
+                    <p key={index} style={{ whiteSpace: "pre-wrap" }}>{entry}</p>
+                  ))}
+                </div>
+              )}
             </section>
 
             {selectedPropertyIntelligence.length > 0 && (
