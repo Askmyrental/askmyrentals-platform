@@ -6,6 +6,7 @@ export function updateAppSearch(search: string, key: string, value: string | nul
   if (value === null) params.delete(key);
   else params.set(key, value);
   if (key === "view") {
+    if (value !== "Cleaner Properties") params.delete("property");
     ["task", "calendar", "day", "month"].forEach((name) => params.delete(name));
   }
   if (key === "calendar" && value === null) {

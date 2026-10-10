@@ -1,3 +1,4 @@
+import { useAppHistoryValue } from "../utils/appHistory";
 import CalendarFeedFields from "../components/CalendarFeedFields";
 import type { CalendarProvider } from "../utils/calendarFeed";
 import { useEffect, useMemo, useState } from "react";
@@ -62,7 +63,7 @@ export default function CleanerPropertiesPage({
   onDeleteProperty,
 }: CleanerPropertiesPageProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedHomeId, setSelectedHomeId] = useState<string | null>(null);
+  const [selectedHomeId, setSelectedHomeId] = useAppHistoryValue("property");
   const [showCreateProperty, setShowCreateProperty] = useState(false);
   const [createPropertyFormKey, setCreatePropertyFormKey] = useState(0);
   const [editingHome, setEditingHome] = useState<any | null>(null);

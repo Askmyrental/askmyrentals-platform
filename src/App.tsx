@@ -996,7 +996,7 @@ export default function App({
     null,
   );
   const [workOrderFilter, setWorkOrderFilter] = useState("all");
-  const [historyPropertyId, setHistoryPropertyId] = useAppHistoryValue("property", "", selectedGroupId);
+  const [historyPropertyId, setHistoryPropertyId] = useAppHistoryValue("ownerProperty", "", selectedGroupId);
   const selectedPropertyId = historyPropertyId!;
   const setSelectedPropertyId: React.Dispatch<React.SetStateAction<string>> = next => setHistoryPropertyId(typeof next === "function" ? next(selectedPropertyId) : next);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
