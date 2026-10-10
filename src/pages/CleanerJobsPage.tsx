@@ -1,3 +1,4 @@
+import { seesOnlyAssignedWork } from "../utils/teamRoles";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { supabase } from "../utils/supabase";
 import {
@@ -337,12 +338,7 @@ export default function CleanerJobsPage({
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
 
-  const isAssignedTeamCleaner = [
-    "cleaner",
-    "employee",
-    "team_member",
-    "member",
-  ].includes(normalizedGroupRole);
+  const isAssignedTeamCleaner = seesOnlyAssignedWork(normalizedGroupRole);
 
   const canManageAssignments = !isAssignedTeamCleaner;
 
@@ -350,17 +346,7 @@ export default function CleanerJobsPage({
   // Everyone else (cleaners, maintenance, inspectors, and any role we don't
   // recognize) sees only the rental cleans assigned to them. A personal
   // account with no team role sees its own calendar.
-  const canSeeAllWork =
-    normalizedGroupRole === "" ||
-    [
-      "owner",
-      "group_owner",
-      "company_owner",
-      "admin",
-      "administrator",
-      "manager",
-      "team_manager",
-    ].includes(normalizedGroupRole);
+  const canSeeAllWork = !seesOnlyAssignedWork(normalizedGroupRole);
 
   const getVisibleStatusLabel = (status: JobStatus) => {
     if (

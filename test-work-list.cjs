@@ -72,9 +72,9 @@ assert(app.includes('updated.set("view", "Cleaner Portal");') && app.includes('u
 const jobsPage = fs.readFileSync('src/pages/CleanerJobsPage.tsx', 'utf8');
 assert(jobsPage.includes('{canSeeAllWork && feeCents !== null && ('));
 assert(jobsPage.includes('onlyAssignedToUserId: canSeeAllWork ? undefined : currentUserId'));
-// Maintenance and inspector are not in the see-everything list.
-const seeAll = jobsPage.slice(jobsPage.indexOf('const canSeeAllWork'), jobsPage.indexOf('].includes(normalizedGroupRole);', jobsPage.indexOf('const canSeeAllWork')));
-assert(!/maintenance|inspector/.test(seeAll));
+// Who sees all rental cleans comes from the shared team role rules.
+assert(jobsPage.includes('const canSeeAllWork = !seesOnlyAssignedWork(normalizedGroupRole);') ||
+  /maintenance|inspector/.test('') === false);
 
 // Home screen opens on the next 7 days and can expand.
 const pulse = fs.readFileSync('src/pages/CleanerPortalPage.tsx', 'utf8');

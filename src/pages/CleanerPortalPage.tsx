@@ -1,3 +1,4 @@
+import { canManageTeam, canSeeBusinessFinancials, isTeamOwner, seesOnlyAssignedWork } from "../utils/teamRoles";
 import { displayWorkType } from "../utils/rentalCleans";
 import { resolveCustomerCharge, parseCustomerCharge, saveCustomerChargeUpdate } from "../utils/customerCharge";
 import {
@@ -518,26 +519,13 @@ export default function CleanerPortalPage({
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
 
-  const isWorkspaceOwner = ["owner", "group_owner", "company_owner"].includes(
-    normalizedGroupRole,
-  );
+  const isWorkspaceOwner = isTeamOwner(normalizedGroupRole);
 
-  const canManageAssignments = [
-    "owner",
-    "group_owner",
-    "company_owner",
-    "admin",
-    "administrator",
-    "manager",
-    "team_manager",
-  ].includes(normalizedGroupRole);
+  const canManageAssignments = canManageTeam(normalizedGroupRole);
 
-  const isAssignedTeamCleaner = [
-    "cleaner",
-    "employee",
-    "team_member",
-    "member",
-  ].includes(normalizedGroupRole);
+  // Cleaners, maintenance, inspectors, and legacy team members see only their
+  // assigned work and no business financials.
+  const isAssignedTeamCleaner = seesOnlyAssignedWork(normalizedGroupRole);
 
   const getTaskAssignedUserId = (task: any) =>
     String(
@@ -5755,6 +5743,7 @@ if (profileError) {
               </span>
             </div>
 
+            {!isAssignedTeamCleaner && (
             <div className="cleanerJobPayRow">
               <span>Customer Cleaning Charge</span>
               <strong>
@@ -5763,6 +5752,7 @@ if (profileError) {
                   : `$${selectedCustomerCharge}`}
               </strong>
             </div>
+            )}
 
             {isAirbnbBlock(selectedCleanerTask) && (
               <section
@@ -6102,6 +6092,7 @@ if (profileError) {
           onUndoStart={undoTaskStart}
           onSaveDraft={saveCompletionDraft}
           onFinish={finishCompletedTask}
+          canEditCharge={canSeeBusinessFinancials(normalizedGroupRole)}
         />
       )}
 

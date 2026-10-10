@@ -22,6 +22,8 @@ type CompleteTaskModalProps = {
   onUndoStart: () => void;
   onSaveDraft: (result: CompleteTaskResult) => void | Promise<void>;
   onFinish: (result: CompleteTaskResult) => void | Promise<void>;
+  // Only owners/managers may see or change the customer charge.
+  canEditCharge?: boolean;
 };
 
 export default function CompleteTaskModal({
@@ -31,6 +33,7 @@ export default function CompleteTaskModal({
   onUndoStart,
   onSaveDraft,
   onFinish,
+  canEditCharge = true,
 }: CompleteTaskModalProps) {
   const [guestReady, setGuestReady] = useState<"yes" | "no">("yes");
   const [notes, setNotes] = useState("");
@@ -84,11 +87,12 @@ export default function CompleteTaskModal({
     maintenanceDescription: maintenanceDescription.trim(),
     maintenanceUrgency,
     maintenancePhotos,
-    cleaningFee: cleaningFee.trim(),
-    chargeEdited,
+    cleaningFee: canEditCharge ? cleaningFee.trim() : "",
+    chargeEdited: canEditCharge && chargeEdited,
   });
 
   function validateCharge() {
+    if (!canEditCharge) return true;
     try {
       const value = parseCustomerCharge(cleaningFee);
       if (task?.isCleanerJob && value === null) throw new Error("Enter the customer charge, including 0 for no charge.");
@@ -389,6 +393,7 @@ export default function CompleteTaskModal({
             )}
           </fieldset>
 
+          {canEditCharge && (
           <label className="completeTaskField">
             Customer cleaning charge
             <div className="completeTaskMoneyInput">
@@ -405,6 +410,7 @@ export default function CompleteTaskModal({
             </div>
             <small>{task?.isCleanerJob ? "This is the customer charge, not employee pay. Enter 0 for no charge." : "This is the customer charge, not employee pay. Leave blank to use the property standard fee; enter 0 for no charge."}</small>
           </label>
+          )}
 
           {error && (
             <p className="completeTaskError" role="alert">

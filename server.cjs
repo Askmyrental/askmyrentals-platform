@@ -473,6 +473,26 @@ async function requireGroupManager(groupId, userId) {
   return membership;
 }
 
+// Managers and administrators may only bring on, change, or remove cleaners and
+// maintenance staff. Owners may manage every role except owner. Mirrors the
+// database trigger in migrations/proposed/20261011_role_security.sql.
+const MANAGER_MANAGEABLE_ROLES = new Set(["cleaner", "maintenance"]);
+function assertCanManageTeamRole(actorRole, targetRole, existingRole) {
+  if (targetRole === "owner" || existingRole === "owner") {
+    const ownerError = new Error("Team owners can't be changed here.");
+    ownerError.statusCode = 403;
+    throw ownerError;
+  }
+  if (actorRole === "owner") return;
+  const targetOk = !targetRole || MANAGER_MANAGEABLE_ROLES.has(targetRole);
+  const existingOk = !existingRole || MANAGER_MANAGEABLE_ROLES.has(existingRole);
+  if (!targetOk || !existingOk) {
+    const roleError = new Error("Managers can only manage cleaners and maintenance staff.");
+    roleError.statusCode = 403;
+    throw roleError;
+  }
+}
+
 app.post(
   "/api/group-contacts",
   requireAuthenticatedUser,
@@ -511,7 +531,8 @@ app.post(
         return res.status(400).json({ error: "That team role is not supported." });
       }
 
-      await requireGroupManager(groupId, req.amrUser.id);
+      const actorMembership = await requireGroupManager(groupId, req.amrUser.id);
+      assertCanManageTeamRole(actorMembership.role, role, null);
 
       if (email) {
         const { data: existingContact, error: existingContactError } =
@@ -580,7 +601,17 @@ app.patch(
         return res.status(400).json({ error: "Contact and group are required." });
       }
 
-      await requireGroupManager(groupId, req.amrUser.id);
+      const actorMembership = await requireGroupManager(groupId, req.amrUser.id);
+
+      const { data: existingContact, error: existingContactError } = await supabaseAdmin
+        .from("group_contacts")
+        .select("id, role")
+        .eq("id", contactId)
+        .eq("group_id", groupId)
+        .maybeSingle();
+      if (existingContactError) throw new Error(existingContactError.message);
+      if (!existingContact) return res.status(404).json({ error: "Manual contact not found." });
+      assertCanManageTeamRole(actorMembership.role, role, existingContact.role);
 
       const updates = { updated_at: new Date().toISOString() };
 
@@ -624,7 +655,17 @@ app.delete(
         return res.status(400).json({ error: "Contact and group are required." });
       }
 
-      await requireGroupManager(groupId, req.amrUser.id);
+      const actorMembership = await requireGroupManager(groupId, req.amrUser.id);
+
+      const { data: existingContact, error: existingContactError } = await supabaseAdmin
+        .from("group_contacts")
+        .select("id, role")
+        .eq("id", contactId)
+        .eq("group_id", groupId)
+        .maybeSingle();
+      if (existingContactError) throw new Error(existingContactError.message);
+      if (!existingContact) return res.status(404).json({ error: "Manual contact not found." });
+      assertCanManageTeamRole(actorMembership.role, null, existingContact.role);
 
       const { error } = await supabaseAdmin
         .from("group_contacts")
@@ -664,7 +705,7 @@ app.post(
         return res.status(400).json({ error: "Contact and group are required." });
       }
 
-      await requireGroupManager(groupId, req.amrUser.id);
+      const inviteActorMembership = await requireGroupManager(groupId, req.amrUser.id);
 
       const { data: contact, error: contactError } = await supabaseAdmin
         .from("group_contacts")
@@ -675,6 +716,7 @@ app.post(
 
       if (contactError) throw new Error(contactError.message);
       if (!contact) return res.status(404).json({ error: "Manual contact not found." });
+      assertCanManageTeamRole(inviteActorMembership.role, contact.role, contact.role);
       if (!contact.email) {
         return res.status(400).json({
           error: "Add an email address before inviting this cleaner to AMR.",
@@ -816,7 +858,7 @@ app.post(
         });
       }
 
-      await requireGroupManager(groupId, req.amrUser.id);
+      const contactActorMembership = await requireGroupManager(groupId, req.amrUser.id);
 
       const { data: contact, error: contactError } = await supabaseAdmin
         .from("group_contacts")
@@ -834,6 +876,8 @@ app.post(
           error: "Manual contact not found.",
         });
       }
+
+      assertCanManageTeamRole(contactActorMembership.role, contact.role, contact.role);
 
       if (!contact.email) {
         return res.status(400).json({
@@ -1009,7 +1053,7 @@ app.post(
         });
       }
 
-      await requireGroupManager(groupId, req.amrUser.id);
+      const contactActorMembership = await requireGroupManager(groupId, req.amrUser.id);
 
       const { data: contact, error: contactError } = await supabaseAdmin
         .from("group_contacts")
@@ -1027,6 +1071,8 @@ app.post(
           error: "Manual contact not found.",
         });
       }
+
+      assertCanManageTeamRole(contactActorMembership.role, contact.role, contact.role);
 
       const now = new Date().toISOString();
 
@@ -1103,6 +1149,7 @@ app.post(
         "administrator",
         "homeowner",
         "maintenance",
+        "inspector",
       ]);
 
       if (!groupId || !email) {
@@ -1138,6 +1185,8 @@ app.post(
           error: "You do not have permission to invite members to this group.",
         });
       }
+
+      assertCanManageTeamRole(membership.role, role, null);
 
       const { data: group, error: groupError } = await supabaseAdmin
         .from("groups")

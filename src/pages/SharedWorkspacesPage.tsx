@@ -1,3 +1,4 @@
+import { TEAM_ROLE_LABELS, assignableTeamRoles, canManageMember } from "../utils/teamRoles";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { supabase } from "../utils/supabase";
 
@@ -78,6 +79,16 @@ export default function SharedWorkspacesPage({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("cleaner");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setCurrentUserId(data.user?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [savingPerson, setSavingPerson] = useState(false);
 
   const [memberSearch, setMemberSearch] = useState("");
@@ -773,12 +784,9 @@ export default function SharedWorkspacesPage({
                   <label>
                     Team role
                     <select value={role} onChange={(event) => setRole(event.target.value)}>
-                      <option value="cleaner">Cleaner</option>
-                      <option value="team_member">Team Member</option>
-                      <option value="manager">Manager</option>
-                      <option value="administrator">Administrator</option>
-                      <option value="homeowner">Homeowner</option>
-                      <option value="maintenance">Maintenance Worker</option>
+                      {assignableTeamRoles(selectedGroupRole).map((value) => (
+                        <option key={value} value={value}>{TEAM_ROLE_LABELS[value] ?? value}</option>
+                      ))}
                     </select>
                   </label>
 
@@ -939,7 +947,11 @@ export default function SharedWorkspacesPage({
                       }}
                     >
                       {person.kind === "member" ? (
-                        person.member.role !== "owner" && (
+                        canManageMember(
+                          selectedGroupRole,
+                          person.member.role,
+                          String(person.member.user_id ?? "") === String(currentUserId ?? ""),
+                        ) && (
                           <>
                             <select
                               value={person.member.role}
@@ -966,10 +978,11 @@ export default function SharedWorkspacesPage({
                                 boxSizing: "border-box",
                               }}
                             >
-                              <option value="cleaner">Cleaner</option>
-                              <option value="manager">Manager</option>
-                              <option value="inspector">Inspector</option>
-                              <option value="maintenance">Maintenance Worker</option>
+                              {Array.from(new Set([person.member.role, ...assignableTeamRoles(selectedGroupRole)])).map((value) => (
+                                <option key={value} value={value} disabled={!assignableTeamRoles(selectedGroupRole).includes(value)}>
+                                  {TEAM_ROLE_LABELS[value] ?? value}
+                                </option>
+                              ))}
                             </select>
                             <button
                               type="button"
@@ -1046,12 +1059,11 @@ export default function SharedWorkspacesPage({
                               boxSizing: "border-box",
                             }}
                           >
-                            <option value="cleaner">Cleaner</option>
-                            <option value="manager">Manager</option>
-                            <option value="inspector">Inspector</option>
-                            <option value="maintenance">
-                              Maintenance Worker
-                            </option>
+                            {Array.from(new Set([person.contact.role, ...assignableTeamRoles(selectedGroupRole)])).map((value) => (
+                              <option key={value} value={value} disabled={!assignableTeamRoles(selectedGroupRole).includes(value)}>
+                                {TEAM_ROLE_LABELS[value] ?? value}
+                              </option>
+                            ))}
                           </select>
 
                           <button

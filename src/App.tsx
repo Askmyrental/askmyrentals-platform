@@ -1,3 +1,4 @@
+import { normalizeTeamRole, seesOnlyAssignedWork } from "./utils/teamRoles";
 import { useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { saveCustomerChargeUpdate } from "./utils/customerCharge";
@@ -918,9 +919,11 @@ export default function App({
   const isAuthenticatedCleaner =
     userRole === "cleaner" || userRole === "employee";
 
+  // Team members who only work assigned tasks (cleaners, maintenance,
+  // inspectors, legacy team members) load the work assigned to them.
   const isEmployeeCleaner =
-    selectedGroupRole === "cleaner" ||
-    selectedGroupRole === "employee";
+    seesOnlyAssignedWork(selectedGroupRole) ||
+    normalizeTeamRole(selectedGroupRole) === "employee";
 
   const [historyPage, setHistoryPage] = useAppHistoryValue("view",
     initialPage ?? (isAuthenticatedCleaner ? "Cleaner Portal" : "Pulse"),
