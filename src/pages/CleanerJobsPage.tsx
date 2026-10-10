@@ -1412,7 +1412,7 @@ if (choice === null) return;
                     <strong>{job.scheduled_time || "Not set"}</strong>
                   </div>
                   <div>
-                    <span>Price</span>
+                    <span>Customer charge</span>
                     <strong>{formatMoney(job.amount_cents)}</strong>
                   </div>
                   <div>
@@ -1565,7 +1565,7 @@ if (choice === null) return;
                 {selectedJob.scheduled_time || ""}
               </p>
               <p>
-                <strong>Price:</strong>{" "}
+                <strong>Customer charge:</strong>{" "}
                 {formatMoney(selectedJob.amount_cents)}
               </p>
               <p>
@@ -1888,7 +1888,7 @@ if (choice === null) return;
               )}
 
               <label>
-                Price per job
+                Customer charge per job
                 <input
                   type="number"
                   min="0"

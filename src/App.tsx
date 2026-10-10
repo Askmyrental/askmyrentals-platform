@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { saveCustomerChargeUpdate } from "./utils/customerCharge";
 import CalendarFeedFields from "./components/CalendarFeedFields";
 import { validateCalendarFeed, resolveCalendarFeed, calendarFeedUpdates, type CalendarProvider } from "./utils/calendarFeed";
@@ -925,8 +927,12 @@ export default function App({
     selectedGroupId,
   );
   const activePage = historyPage!;
-  const setActivePage: React.Dispatch<React.SetStateAction<string>> = (next) =>
-    setHistoryPage(typeof next === "function" ? next(activePage) : next);
+  const setActivePage: React.Dispatch<React.SetStateAction<string>> = (next) => {
+    const page = typeof next === "function" ? next(activePage) : next;
+    if (page === "Reservation Detail" && ownerItemRef.current) {
+      setOwnerParams(current => { const updated = new URLSearchParams(current); updated.set("ownerTask", ownerItemRef.current!.id); updated.set("ownerReturn", ownerReturnRef.current); updated.set("view", page); updated.set("workspace", selectedGroupId); return updated; });
+    } else setHistoryPage(page);
+  };
   const [cleanerInvoiceInitialFilter, setCleanerInvoiceInitialFilter] =
     useState("all");
   const [selectedCleanerInvoiceId, setSelectedCleanerInvoiceId] = useState<
@@ -966,28 +972,33 @@ export default function App({
   const [selectedItemType, setSelectedItemType] = useState("all");
   const today = new Date();
 
-  const [calendarDate, setCalendarDate] = useState(
-    new Date(today.getFullYear(), today.getMonth() - 1, 1),
-  );
-  const [selectedCalendarItem, setSelectedCalendarItem] = useState<
-    Reservation | CalendarBlock | null
-  >(null);
-  const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<
-    string | null
-  >(null);
+  const [, setOwnerParams] = useSearchParams();
+  const [ownerMonth, setOwnerMonth] = useAppHistoryValue("ownerMonth", toInputDate(new Date(today.getFullYear(), today.getMonth() - 1, 1)), selectedGroupId);
+  const parsedOwnerMonth = /^\d{4}-\d{2}-\d{2}$/.test(ownerMonth ?? "") ? new Date(ownerMonth + "T12:00:00") : new Date(NaN);
+  const calendarDate = Number.isNaN(parsedOwnerMonth.getTime()) ? new Date(today.getFullYear(), today.getMonth() - 1, 1) : parsedOwnerMonth;
+  const setCalendarDate: React.Dispatch<React.SetStateAction<Date>> = next => setOwnerMonth(toInputDate(typeof next === "function" ? next(calendarDate) : next));
+  const [ownerTaskId, setOwnerTaskId] = useAppHistoryValue("ownerTask", null, selectedGroupId);
+  const ownerItemRef = useRef<Reservation | CalendarBlock | null>(null);
+  const ownerReturnRef = useRef("Pulse");
+  const selectedCalendarItem = reservations.find(item => item.id === ownerTaskId) ?? calendarBlocks.find(item => item.id === ownerTaskId) ?? null;
+  const setSelectedCalendarItem = (item: Reservation | CalendarBlock | null) => { ownerItemRef.current = item; if (!item || !("guestName" in item)) setOwnerTaskId(item?.id ?? null); };
+  const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useAppHistoryValue("ownerDay", null, selectedGroupId);
   const [calendarCreateDraft, setCalendarCreateDraft] = useState<{
     source: string;
     date: string;
     homeId: string;
   } | null>(null);
-  const [reservationDetailReturnPage, setReservationDetailReturnPage] =
-    useState<string>("Pulse");
+  const [ownerReturnPage] = useAppHistoryValue("ownerReturn", "Pulse", selectedGroupId);
+  const setReservationDetailReturnPage = (page: string) => { ownerReturnRef.current = page; };
+  const reservationDetailReturnPage = ownerReturnPage!;
 
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(
     null,
   );
   const [workOrderFilter, setWorkOrderFilter] = useState("all");
-  const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [historyPropertyId, setHistoryPropertyId] = useAppHistoryValue("property", "", selectedGroupId);
+  const selectedPropertyId = historyPropertyId!;
+  const setSelectedPropertyId: React.Dispatch<React.SetStateAction<string>> = next => setHistoryPropertyId(typeof next === "function" ? next(selectedPropertyId) : next);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(
     null,
@@ -1368,9 +1379,8 @@ export default function App({
     setActivePage("Reservations");
   }
   function openReservationFromCalendar(reservation: Reservation) {
-    setSelectedCalendarItem(reservation);
-    setReservationDetailReturnPage(activePage);
-    setActivePage("Reservation Detail");
+    ownerItemRef.current = reservation;
+    setOwnerParams(current => { const next = new URLSearchParams(current); next.set("ownerTask", reservation.id); next.set("ownerReturn", activePage); next.set("view", "Reservation Detail"); next.set("workspace", selectedGroupId); return next; });
   }
 
   function getCalendarDayData(date: Date, homeFilter: string) {

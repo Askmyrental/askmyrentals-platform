@@ -379,7 +379,10 @@ export default function AuthGate() {
         (group) => group.id === savedGroupId
       );
 
-      if (mappedGroups.length === 1) {
+      const requestedGroup = mappedGroups.find(group => group.id === new URLSearchParams(window.location.search).get("workspace"));
+      if (requestedGroup) {
+        setSelectedGroupId(requestedGroup.id);
+      } else if (mappedGroups.length === 1) {
         setSelectedGroupId(mappedGroups[0].id);
         window.localStorage.setItem(storageKey, mappedGroups[0].id);
       } else if (savedGroupStillExists && savedGroupId) {

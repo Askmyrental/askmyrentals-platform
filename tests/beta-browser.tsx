@@ -1,0 +1,8 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {BrowserRouter,useSearchParams} from 'react-router-dom';
+import {useAppHistoryValue} from '../src/utils/appHistory';
+import Detail from '../src/pages/CleanerPropertyDetailPage';
+import '../src/index.css'; import '../src/App.css';
+function Fixture(){const [,setParams]=useSearchParams();const [view,setView]=useAppHistoryValue('view','Calendar','fixture-workspace');const [month,setMonth]=useAppHistoryValue('ownerMonth','2026-10-01','fixture-workspace');const [task,setTask]=useAppHistoryValue('ownerTask',null,'fixture-workspace');return <><p>Isolated company-owner fixture; no database or authentication network calls</p><button onClick={()=>setMonth('2026-11-01')}>November</button><button onClick={()=>setParams(current=>{const next=new URLSearchParams(current);next.set('ownerTask','fixture-task');next.set('view','Reservation Detail');return next;})}>Open fixture task</button><output>{JSON.stringify({view,month,task,workspace:new URLSearchParams(location.search).get('workspace'),session:'mock-owner'})}</output><div style={{width:'100%',maxWidth:1200,margin:'auto'}}><Detail home={{id:'fixture-property',name:'Squeeze Me In (fixture)',address:'404 Test Street',ownerName:'Test client',ownerEmail:'very.long.client.contact.email.for.layout@example.invalid',cleaningFee:224.96,calendarFeedUrl:'fixture-only',calendarSource:'Guesty'}} reservations={[]} invoices={[]} onConnectCalendar={async()=>{throw Error('Calendar writes forbidden in fixture')}} onResyncCalendar={async()=>{throw Error('Sync forbidden in fixture')}} onEdit={()=>{}} onBack={()=>setView('Calendar')}/></div></>}
+createRoot(document.getElementById('root')!).render(<BrowserRouter><Fixture/></BrowserRouter>);

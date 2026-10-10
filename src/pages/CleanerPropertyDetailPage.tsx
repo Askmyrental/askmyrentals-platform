@@ -63,7 +63,6 @@ export default function CleanerPropertyDetailPage({
   );
   const cleaningFee =
     home?.cleaningFee ??
-    home?.cleanerFee ??
     home?.standardCleaningFee ??
     home?.defaultCleaningFee;
   const outstandingInvoiceCount =
@@ -280,6 +279,11 @@ export default function CleanerPropertyDetailPage({
         .propertyCalendarConnectedTitle h2 { margin:2px 0 5px; }
         .propertyCalendarConnectedTitle p { margin:0; color:#475569; }
         .propertyCalendarResyncButton { min-height:44px; padding:0 18px; border:0; border-radius:14px; background:#16844a; color:#fff; font-weight:900; white-space:nowrap; cursor:pointer; }
+        .propertyCalendarReplaceButton { min-height:44px; padding:10px 18px; border:1px solid #16844a; border-radius:14px; background:#fff; color:#166534; font:inherit; font-weight:900; cursor:pointer; }
+        .propertyCalendarReplaceButton:disabled { opacity:.68; cursor:wait; }
+        .cleanerPropertyDetailCard, .cleanerPropertyDetailInfoList > div { min-width:0; }
+        .cleanerPropertyDetailInfoList strong, .cleanerPropertyDetailCardHeader h2 { overflow-wrap:anywhere; }
+        @media(max-width:700px){ .propertyCalendarReplaceButton { width:100%; } }
         .propertyCalendarResyncButton:disabled { cursor:wait; opacity:.68; }
         .propertyCalendarResyncStatus { margin:14px 0 0; padding:12px 13px; border-radius:14px; background:#dcfce7; color:#166534; font-weight:800; line-height:1.45; }
         .propertyCalendarResyncError { margin:14px 0 0; padding:12px 13px; border-radius:14px; background:#fee2e2; color:#991b1b; font-weight:800; }
@@ -345,7 +349,7 @@ export default function CleanerPropertyDetailPage({
             </div>
 
             <div>
-              <span>Cleaning Fee</span>
+              <span>Customer Cleaning Charge</span>
               <strong>
                 {cleaningFee !== undefined &&
                 cleaningFee !== null &&
@@ -426,7 +430,7 @@ export default function CleanerPropertyDetailPage({
             </button>
           </div>
 
-          <button type="button" disabled={isResyncingCalendar || isConnectingCalendar} onClick={() => { setReplaceCalendar(true); setCalendarProvider(""); setCalendarUrl(""); setCalendarError(""); setCalendarResult(null); }}>Replace Calendar</button>
+          <button className="propertyCalendarReplaceButton" type="button" disabled={isResyncingCalendar || isConnectingCalendar} onClick={() => { setReplaceCalendar(true); setCalendarProvider(""); setCalendarUrl(""); setCalendarError(""); setCalendarResult(null); }}>Replace Calendar</button>
           {calendarStatus && <p role="status">{calendarStatus}</p>}
           {calendarError && !replaceCalendar && <p className="propertyCalendarConnectError" role="alert">{calendarError}</p>}
           {resyncStatus && (

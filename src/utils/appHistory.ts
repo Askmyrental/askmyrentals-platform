@@ -21,7 +21,10 @@ export function useAppHistoryValue(key: string, fallback: string | null = null, 
     const resolved = typeof next === "function" ? next(value) : next;
     if (resolved === value) return;
     setParams((current) => {
-      const updated = updateAppSearch(current.toString(), key, resolved);
+      // React Router search-param setters do not queue functional updates.
+      // Read the current URL so consecutive actions preserve earlier changes.
+      const search = typeof window === "undefined" ? current.toString() : window.location.search;
+      const updated = updateAppSearch(search, key, resolved);
       if (workspace) updated.set("workspace", workspace);
       return updated;
     });
