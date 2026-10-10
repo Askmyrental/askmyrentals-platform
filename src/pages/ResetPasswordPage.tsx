@@ -11,6 +11,19 @@ export default function ResetPasswordPage() {
     return params.get("email")?.trim() ?? "";
   }, [location.search]);
 
+  const loginUrl = useMemo(() => {
+    const role = new URLSearchParams(location.search).get("role");
+    const path = role === "cleaner"
+      ? "/cleaner/login"
+      : role === "owner"
+        ? "/owner/login"
+        : "/login";
+    const query = invitedEmail
+      ? `?email=${encodeURIComponent(invitedEmail)}`
+      : "";
+    return `${path}${query}`;
+  }, [location.search, invitedEmail]);
+
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState(
@@ -99,11 +112,7 @@ export default function ResetPasswordPage() {
   }
 
   function returnToAmr() {
-    const query = invitedEmail
-      ? `?email=${encodeURIComponent(invitedEmail)}`
-      : "";
-
-    navigate(`/login${query}`, { replace: true });
+    navigate(loginUrl, { replace: true });
   }
 
   return (
@@ -178,13 +187,7 @@ export default function ResetPasswordPage() {
         {!saved && (
           <p className="authFooterText">
             Need another link?{" "}
-            <Link
-              to={`/login${
-                invitedEmail
-                  ? `?email=${encodeURIComponent(invitedEmail)}`
-                  : ""
-              }`}
-            >
+            <Link to={loginUrl}>
               Return to login
             </Link>
           </p>

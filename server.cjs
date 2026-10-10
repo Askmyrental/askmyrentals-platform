@@ -863,6 +863,8 @@ app.post(
         pendingInvite = emailPendingInvite;
       }
 
+      const isExistingInvite = Boolean(pendingInvite);
+
       if (!pendingInvite) {
         const { data: createdInvite, error: createInviteError } =
           await supabaseAdmin
@@ -888,18 +890,31 @@ app.post(
         pendingInvite = createdInvite;
       }
 
-      if (!pendingInvite.group_contact_id) {
-        const { error: attachInviteError } = await supabaseAdmin
+      const resendTime = new Date();
+      const now = resendTime.toISOString();
+
+      if (isExistingInvite) {
+        const { data: renewedInvite, error: renewInviteError } = await supabaseAdmin
           .from("group_invites")
           .update({
-            group_contact_id: contactId,
-            updated_at: new Date().toISOString(),
+            expires_at: new Date(
+              resendTime.getTime() + 7 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            updated_at: now,
+            ...(!pendingInvite.group_contact_id
+              ? { group_contact_id: contactId }
+              : {}),
           })
           .eq("id", pendingInvite.id)
-          .eq("group_id", groupId);
+          .eq("group_id", groupId)
+          .eq("status", "pending")
+          .select("id")
+          .single();
 
-        if (attachInviteError) {
-          throw new Error(attachInviteError.message);
+        if (renewInviteError || !renewedInvite) {
+          throw new Error(
+            renewInviteError?.message || "Unable to renew the invitation.",
+          );
         }
       }
 
@@ -910,20 +925,6 @@ app.post(
         groupName: group.name,
         role: contact.role || "cleaner",
       });
-
-      const now = new Date().toISOString();
-
-      const { error: inviteUpdateError } = await supabaseAdmin
-        .from("group_invites")
-        .update({
-          updated_at: now,
-        })
-        .eq("id", pendingInvite.id)
-        .eq("group_id", groupId);
-
-      if (inviteUpdateError) {
-        throw new Error(inviteUpdateError.message);
-      }
 
       const { data: updatedContact, error: contactUpdateError } =
         await supabaseAdmin

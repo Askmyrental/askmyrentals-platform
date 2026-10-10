@@ -25,7 +25,7 @@ export default function AppRouter() {
       <Route path="/cleaner/login" element={<LoginPage expectedRole="cleaner" />} />
       <Route path="/owner/signup" element={<SignupPage accountType="owner" />} />
       <Route path="/cleaner/signup" element={<SignupPage accountType="cleaner" />} />
-      <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<Navigate to="/cleaner/signup" replace />} />
       <Route path="/pay/:publicToken" element={<PublicInvoicePage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
