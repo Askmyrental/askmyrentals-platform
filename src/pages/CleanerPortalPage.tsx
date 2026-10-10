@@ -1,3 +1,4 @@
+import { displayWorkType } from "../utils/rentalCleans";
 import { resolveCustomerCharge, parseCustomerCharge, saveCustomerChargeUpdate } from "../utils/customerCharge";
 import {
   useEffect,
@@ -1135,11 +1136,7 @@ if (profileError) {
   };
 
   const getPulseTaskTypeName = (task: any) =>
-    String(
-      task.jobType ??
-        task.taskType ??
-        "Vacation Rental Turnover",
-    );
+    displayWorkType(task.jobType ?? task.taskType);
 
   const comparePulseText = (first: string, second: string) =>
     first.localeCompare(second, undefined, {
@@ -1225,7 +1222,7 @@ if (profileError) {
     ? "All Properties"
     : pulsePropertyFilters.length === 1
       ? pulsePropertyFilters[0] === "manual-jobs"
-        ? "Manual Jobs"
+        ? "Independent Jobs"
         : String(
             sortedHomes.find(
               (home) => String(home.id) === pulsePropertyFilters[0],
@@ -4675,7 +4672,7 @@ if (profileError) {
                     })}
                     <label className="cleanerPulseHeaderFilterOption">
                       <input type="checkbox" checked={pulsePropertyFilters.includes("manual-jobs")} onChange={() => togglePulseMultiFilter("manual-jobs", setPulsePropertyFilters)} />
-                      <span>Manual Jobs</span>
+                      <span>Independent Jobs</span>
                     </label>
                     <div className="cleanerPulseHeaderFilterFooter">
                       <button type="button" className="secondaryButton" onClick={() => setPulsePropertyFilters(["all"])}>Reset</button>
@@ -4812,7 +4809,7 @@ if (profileError) {
                       <div className="cleanerPulseHeaderFilterMenu">
                         <label className="cleanerPulseHeaderFilterOption"><input type="checkbox" checked={pulsePropertyFilters.includes("all")} onChange={() => setPulsePropertyFilters(["all"])} /><span>All Properties</span></label>
                         {sortedHomes.map((home) => { const value = String(home.id); return <label className="cleanerPulseHeaderFilterOption" key={value}><input type="checkbox" checked={pulsePropertyFilters.includes(value)} onChange={() => togglePulseMultiFilter(value, setPulsePropertyFilters)} /><span>{home.name}</span></label>; })}
-                        <label className="cleanerPulseHeaderFilterOption"><input type="checkbox" checked={pulsePropertyFilters.includes("manual-jobs")} onChange={() => togglePulseMultiFilter("manual-jobs", setPulsePropertyFilters)} /><span>Manual Jobs</span></label>
+                        <label className="cleanerPulseHeaderFilterOption"><input type="checkbox" checked={pulsePropertyFilters.includes("manual-jobs")} onChange={() => togglePulseMultiFilter("manual-jobs", setPulsePropertyFilters)} /><span>Independent Jobs</span></label>
                         <div className="cleanerPulseHeaderFilterFooter"><button type="button" className="secondaryButton" onClick={() => setPulsePropertyFilters(["all"])}>Reset</button><button type="button" className="primaryButton" onClick={() => setShowPulsePropertyFilter(false)}>Done</button></div>
                       </div>
                     )}
@@ -4919,9 +4916,7 @@ if (profileError) {
 
                       <div className="cleanerTaskLedgerTask" role="cell">
                         <strong>
-                          {reservation.jobType ??
-                            reservation.taskType ??
-                            "Vacation Rental Turnover"}
+                          {displayWorkType(reservation.jobType ?? reservation.taskType)}
                         </strong>
 
                         {canManageAssignments ? (
@@ -5129,9 +5124,7 @@ if (profileError) {
                           : (home?.name ?? "Unknown Property")}
                       </strong>
                       <small>
-                        {task.jobType ??
-                          task.taskType ??
-                          "Vacation Rental Turnover"}
+                        {displayWorkType(task.jobType ?? task.taskType)}
                       </small>
                     </span>
 
@@ -5204,9 +5197,7 @@ if (profileError) {
                           : (home?.name ?? "Unknown Property")}
                       </strong>
                       <small>
-                        {task.jobType ??
-                          task.taskType ??
-                          "Vacation Rental Turnover"}
+                        {displayWorkType(task.jobType ?? task.taskType)}
                       </small>
                     </span>
 
@@ -5349,7 +5340,7 @@ if (profileError) {
                           });
                         }}
                       />
-                      <span>Manual Jobs</span>
+                      <span>Independent Jobs</span>
                     </label>
 
                     <div className="cleanerWorkFilterFooter">
@@ -5526,7 +5517,7 @@ if (profileError) {
                         })
                       }
                     />
-                    <span>Manual Jobs</span>
+                    <span>Independent Jobs</span>
                   </label>
                 </div>
               </section>
@@ -5711,9 +5702,7 @@ if (profileError) {
                 )}
                 {selectedCleanerTask.workspaceName && <p>{selectedCleanerTask.workspaceName}</p>}
                 <p className="cleanerJobType">
-                  {selectedCleanerTask.jobType ??
-                    selectedCleanerTask.taskType ??
-                    "Vacation Rental Turnover"}
+                  {displayWorkType(selectedCleanerTask.jobType ?? selectedCleanerTask.taskType)}
                 </p>
                 <p className="cleanerJobScheduleDate">
                   📅{" "}

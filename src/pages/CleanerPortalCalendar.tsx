@@ -142,7 +142,7 @@ export default function CleanerPortalCalendar({
     if (isOwnerStay(task)) {
       return isNoCleanNeeded(task)
         ? "Owner Stay • No Clean"
-        : "Owner stay turnover";
+        : "Owner stay · Rental clean";
     }
 
     if (isAirbnbBlock(task)) {
@@ -151,7 +151,7 @@ export default function CleanerPortalCalendar({
       )} • Informational only`;
     }
 
-    return task.guestName ?? task.title ?? "Turnover cleaning";
+    return task.guestName ?? task.title ?? "Rental clean";
   };
 
   const getTaskStatus = (task: any) => {
@@ -820,12 +820,12 @@ export default function CleanerPortalCalendar({
                     <div className="cleanerDayTaskMain">
                       <span className="cleanerDayTaskType">
                         {task.isCleanerJob
-                          ? "💼 Job"
+                          ? "💼 Independent job"
                           : isOwnerStay(task)
                             ? "🏠 Owner Stay"
                             : isAirbnbBlock(task)
-                              ? "🏠 Airbnb Block Turnover"
-                              : "🏠 Turnover"}
+                              ? "🏠 Airbnb block · Rental clean"
+                              : "🏠 Rental clean"}
                       </span>
                       <strong>{getTaskTitle(task)}</strong>
                       {getTaskAddress(task) && getTaskAddress(task) !== getTaskTitle(task) && <span>{getTaskAddress(task)}</span>}

@@ -933,6 +933,18 @@ export default function App({
       setOwnerParams(current => { const updated = new URLSearchParams(current); updated.set("ownerTask", ownerItemRef.current!.id); updated.set("ownerReturn", ownerReturnRef.current); updated.set("view", page); updated.set("workspace", selectedGroupId); return updated; });
     } else setHistoryPage(page);
   };
+  // Opens a rental clean's task card on the home screen (same URL the home
+  // screen uses), so back/forward navigation keeps working.
+  const openRentalCleanTask = (taskId: string) => {
+    setOwnerParams(() => {
+      const updated = new URLSearchParams(window.location.search);
+      ["calendar", "day", "month", "property"].forEach((name) => updated.delete(name));
+      updated.set("view", "Cleaner Portal");
+      updated.set("task", taskId);
+      if (selectedGroupId) updated.set("workspace", selectedGroupId);
+      return updated;
+    });
+  };
   const [cleanerInvoiceInitialFilter, setCleanerInvoiceInitialFilter] =
     useState("all");
   const [selectedCleanerInvoiceId, setSelectedCleanerInvoiceId] = useState<
@@ -3608,7 +3620,7 @@ console.log("TEAM MEMBERS", mappedMembers);
                 { label: "Schedule", page: "Cleaner Schedule" },
                 { label: "Clients", page: "Cleaner Clients" },
                 { label: "Properties", page: "Cleaner Properties" },
-                { label: "Jobs", page: "Cleaner Jobs" },
+                { label: "Work", page: "Cleaner Jobs" },
                 { label: "Invoices", page: "Cleaner Invoices" },
                 { label: "Profile", page: "Cleaner Profile" },
                 { label: "Workspaces", page: "Shared Workspaces" },
@@ -4063,6 +4075,9 @@ console.log("TEAM MEMBERS", mappedMembers);
   }
   selectedGroupRole={selectedGroupRole}
   onCreateInvoiceFromJob={openInvoiceFromTask}
+  reservations={reservations}
+  isImportedReservation={isImportedReservation}
+  onOpenRentalClean={openRentalCleanTask}
 />
         )}
         {activePage === "Cleaner Reports" && (
@@ -4193,7 +4208,7 @@ console.log("TEAM MEMBERS", mappedMembers);
           ? [
               { label: "Pulse", page: "Cleaner Portal", icon: "🧠" },
               { label: "Schedule", page: "Cleaner Schedule", icon: "📅" },
-              { label: "Jobs", page: "Cleaner Jobs", icon: "💼" },
+              { label: "Work", page: "Cleaner Jobs", icon: "💼" },
               { label: "Invoices", page: "Cleaner Invoices", icon: "💵" },
               { label: "More", page: "More", icon: "☰" },
             ]

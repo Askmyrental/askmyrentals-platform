@@ -132,7 +132,7 @@ export default function LandingPage({
                   <strong>AMR</strong>
                 </div>
 
-                {["Pulse", "Schedule", "Properties", "Jobs", "Invoices", "Reports"].map(
+                {["Pulse", "Schedule", "Properties", "Work", "Invoices", "Reports"].map(
                   (item, index) => (
                     <div
                       key={item}

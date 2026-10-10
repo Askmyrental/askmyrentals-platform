@@ -808,7 +808,7 @@ export default function InvoicesPage({
     ? "All Work"
     : selectedWorkFilters.size === 1
       ? selectedWorkFilters.has(MANUAL_JOBS_FILTER)
-        ? "Manual Jobs"
+        ? "Independent Jobs"
         : homes.find((home) =>
             selectedWorkFilters.has(String(home.id))
           )?.name ?? "1 selected"
@@ -1506,7 +1506,7 @@ export default function InvoicesPage({
                   checked={selectedWorkFilters.has(MANUAL_JOBS_FILTER)}
                   onChange={() => toggleWorkFilter(MANUAL_JOBS_FILTER)}
                 />
-                <span>Manual Jobs</span>
+                <span>Independent Jobs</span>
               </label>
             </div>
 

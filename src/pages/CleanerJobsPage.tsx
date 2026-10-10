@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { supabase } from "../utils/supabase";
+import {
+  RENTAL_CLEAN_LABEL,
+  getRentalCleanAssignedContactId,
+  getRentalCleanAssignedUserId,
+  getRentalCleanSourceLabel,
+  getRentalCleanStatus,
+  selectUpcomingRentalCleans,
+  type RentalCleanStatus,
+} from "../utils/rentalCleans";
 
 type JobStatus =
   | "upcoming"
@@ -59,6 +68,26 @@ type CleanerJobsPageProps = {
   cleaners?: any[];
   selectedGroupRole?: string;
   onCreateInvoiceFromJob: (job: any) => void;
+  // Calendar reservations, shown as rental cleans in the combined Work list.
+  reservations?: any[];
+  isImportedReservation?: (reservation: any) => boolean;
+  onOpenRentalClean?: (taskId: string) => void;
+};
+
+type WorkTypeFilter = "all" | "rental" | "independent";
+
+type WorkItem =
+  | { kind: "job"; date: string; time: string; job: CleanerJob }
+  | { kind: "rental"; date: string; time: string; task: any };
+
+// Status filter values used by independent jobs, mapped onto rental clean statuses.
+const RENTAL_STATUS_FOR_FILTER: Record<string, RentalCleanStatus | null> = {
+  upcoming: "Upcoming",
+  in_progress: "In Progress",
+  completed: "Completed",
+  invoiced: null,
+  paid: null,
+  cancelled: null,
 };
 
 const JOB_TYPES = [
@@ -266,7 +295,12 @@ export default function CleanerJobsPage({
   cleaners = [],
   selectedGroupRole,
   onCreateInvoiceFromJob,
+  reservations = [],
+  isImportedReservation = () => false,
+  onOpenRentalClean,
 }: CleanerJobsPageProps) {
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [workTypeFilter, setWorkTypeFilter] = useState<WorkTypeFilter>("all");
   const [jobs, setJobs] = useState<CleanerJob[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -311,6 +345,22 @@ export default function CleanerJobsPage({
   ].includes(normalizedGroupRole);
 
   const canManageAssignments = !isAssignedTeamCleaner;
+
+  // Only owners and managers see every rental clean in the Work list.
+  // Everyone else (cleaners, maintenance, inspectors, and any role we don't
+  // recognize) sees only the rental cleans assigned to them. A personal
+  // account with no team role sees its own calendar.
+  const canSeeAllWork =
+    normalizedGroupRole === "" ||
+    [
+      "owner",
+      "group_owner",
+      "company_owner",
+      "admin",
+      "administrator",
+      "manager",
+      "team_manager",
+    ].includes(normalizedGroupRole);
 
   const getVisibleStatusLabel = (status: JobStatus) => {
     if (
@@ -444,10 +494,78 @@ export default function CleanerJobsPage({
     });
   }, [jobs, searchTerm, selectedStatus, isAssignedTeamCleaner]);
 
-  const upcomingCount = jobs.filter((job) => job.status === "upcoming").length;
-  const inProgressCount = jobs.filter(
-    (job) => job.status === "in_progress",
+  const upcomingRentalCleans = useMemo(
+    () =>
+      selectUpcomingRentalCleans(reservations, {
+        isImportedReservation,
+        onlyAssignedToUserId: canSeeAllWork ? undefined : currentUserId,
+      }),
+    [reservations, isImportedReservation, canSeeAllWork, currentUserId],
+  );
+
+  const getRentalCleanPropertyName = (task: any) => {
+    const home = homes.find((item) => String(item.id) === String(task.homeId ?? task.home_id ?? ""));
+    return String(home?.name ?? task.propertyName ?? task.property_name ?? "Property");
+  };
+
+  const getRentalCleanAddress = (task: any) => {
+    const home = homes.find((item) => String(item.id) === String(task.homeId ?? task.home_id ?? ""));
+    return String(home?.address ?? task.address ?? "");
+  };
+
+  const getRentalCleanFee = (task: any) => {
+    const home = homes.find((item) => String(item.id) === String(task.homeId ?? task.home_id ?? ""));
+    const fee = Number(task.customerCleaningCharge ?? task.cleaningFee ?? home?.cleaningFee ?? NaN);
+    return Number.isFinite(fee) ? Math.round(fee * 100) : null;
+  };
+
+  const filteredRentalCleans = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return upcomingRentalCleans.filter((task) => {
+      if (selectedStatus !== "all") {
+        const wanted = RENTAL_STATUS_FOR_FILTER[selectedStatus] ?? null;
+        if (!wanted || getRentalCleanStatus(task) !== wanted) return false;
+      }
+      if (!normalizedSearch) return true;
+      return [getRentalCleanPropertyName(task), getRentalCleanAddress(task), RENTAL_CLEAN_LABEL]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch);
+    });
+  }, [upcomingRentalCleans, selectedStatus, searchTerm, homes]);
+
+  const workItems: WorkItem[] = [
+    ...(workTypeFilter === "rental"
+      ? []
+      : filteredJobs.map((job) => ({
+          kind: "job" as const,
+          date: String(job.scheduled_date ?? ""),
+          time: String(job.scheduled_time ?? ""),
+          job,
+        }))),
+    ...(workTypeFilter === "independent"
+      ? []
+      : filteredRentalCleans.map((task) => ({
+          kind: "rental" as const,
+          date: String(task.departure ?? "").slice(0, 10),
+          time: String(task.scheduledTime ?? ""),
+          task,
+        }))),
+  ].sort((first, second) =>
+    `${first.date}-${first.time}`.localeCompare(`${second.date}-${second.time}`),
+  );
+
+  const rentalUpcomingCount = upcomingRentalCleans.filter(
+    (task) => getRentalCleanStatus(task) === "Upcoming",
   ).length;
+  const rentalInProgressCount = upcomingRentalCleans.filter(
+    (task) => getRentalCleanStatus(task) === "In Progress",
+  ).length;
+
+  const upcomingCount =
+    jobs.filter((job) => job.status === "upcoming").length + rentalUpcomingCount;
+  const inProgressCount =
+    jobs.filter((job) => job.status === "in_progress").length + rentalInProgressCount;
   const readyCount = jobs.filter((job) =>
     isAssignedTeamCleaner
       ? ["completed", "invoiced", "paid"].includes(job.status)
@@ -466,6 +584,8 @@ export default function CleanerJobsPage({
       setIsLoading(false);
       return;
     }
+
+    setCurrentUserId(user.id);
 
     let jobsQuery = supabase
       .from("cleaner_jobs")
@@ -1212,6 +1332,104 @@ if (choice === null) return;
     });
   }
 
+  function getRentalCleanAssigneeName(task: any) {
+    const userId = getRentalCleanAssignedUserId(task);
+    const contactId = getRentalCleanAssignedContactId(task);
+    if (!userId && !contactId) return null;
+    const match = cleaners.find((cleaner) => {
+      const id = String(cleaner?.id ?? "");
+      const key = String(cleaner?.assignmentKey ?? "");
+      return (
+        (userId && (id === userId || key === `user:${userId}` || getCleanerAssignmentId(cleaner) === userId)) ||
+        (contactId && (id === contactId || id === `contact:${contactId}` || key === `contact:${contactId}`))
+      );
+    });
+    return match ? getCleanerDisplayName(match) : "Assigned team member";
+  }
+
+  // Rental cleans keep their own task flow (assign, start, complete, notes,
+  // invoice) on the home screen task card, so the Work card opens that card.
+  function renderRentalCleanCard(task: any) {
+    const status = getRentalCleanStatus(task);
+    const assignee = getRentalCleanAssigneeName(task);
+    const address = getRentalCleanAddress(task);
+    const feeCents = getRentalCleanFee(task);
+    const statusClass =
+      status === "In Progress" ? "in_progress" : status === "Completed" ? "completed" : "upcoming";
+    const openTask = () => onOpenRentalClean?.(String(task.id));
+
+    return (
+      <article
+        className="cleanerPropertyCard workRentalCleanCard"
+        key={`rental-${task.id}`}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${RENTAL_CLEAN_LABEL.toLowerCase()} at ${getRentalCleanPropertyName(task)}`}
+        onClick={openTask}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openTask();
+          }
+        }}
+        style={{ cursor: "pointer" }}
+      >
+        <div className="cleanerPropertyCardBody">
+          <div className="cleanerPropertyCardTitleRow">
+            <div>
+              <p className="cleanerPropertyCardLabel">
+                {RENTAL_CLEAN_LABEL} · {getRentalCleanSourceLabel(task)}
+              </p>
+              <h2>{getRentalCleanPropertyName(task)}</h2>
+            </div>
+
+            <span className={`cleanerInvoiceStatusBadge status-${statusClass}`}>
+              {status}
+            </span>
+          </div>
+
+          <p className="cleanerPropertyAddress">
+            <span aria-hidden="true">📍</span>
+            {address || "Address not added"}
+          </p>
+
+          <p
+            className="cleanerPropertyOwner"
+            style={{ color: assignee ? "#475569" : "#b91c1c", fontWeight: 800 }}
+          >
+            {assignee ? "👤" : "⚠️"} {assignee ?? "Unassigned"}
+          </p>
+
+          <div className="cleanerPropertyCardStats">
+            <div>
+              <span>Checkout</span>
+              <strong>{formatJobDate(String(task.departure ?? "").slice(0, 10))}</strong>
+            </div>
+            {canSeeAllWork && feeCents !== null && (
+              <div>
+                <span>Cleaning fee</span>
+                <strong>{formatMoney(feeCents)}</strong>
+              </div>
+            )}
+          </div>
+
+          <div className="cleanerPropertyCardActions">
+            <button
+              className="primaryButton"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                openTask();
+              }}
+            >
+              Open Task
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <main className="cleanerJobsPage">
       {assignmentNotice && (
@@ -1240,10 +1458,10 @@ if (choice === null) return;
       <header className="cleanerPropertiesHeader">
         <div>
           <p className="cleanerPropertiesEyebrow">Work Manager</p>
-          <h1>Jobs</h1>
+          <h1>Work</h1>
           <p className="cleanerPropertiesSubtitle">
-            Schedule one-time or recurring residential, commercial, and
-            vacation-rental work.
+            Rental cleans from your calendars and independent jobs, together in
+            one list.
           </p>
         </div>
 
@@ -1260,8 +1478,8 @@ if (choice === null) return;
         <article className="cleanerPropertiesMetricCard">
           <div className="cleanerPropertiesMetricIcon">💼</div>
           <div>
-            <strong>{jobs.length}</strong>
-            <span>All Jobs</span>
+            <strong>{jobs.length + upcomingRentalCleans.length}</strong>
+            <span>All Work</span>
           </div>
         </article>
 
@@ -1297,10 +1515,20 @@ if (choice === null) return;
             type="search"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search jobs or clients..."
-            aria-label="Search jobs"
+            placeholder="Search work, clients, or properties..."
+            aria-label="Search work"
           />
         </label>
+
+        <select
+          value={workTypeFilter}
+          onChange={(event) => setWorkTypeFilter(event.target.value as WorkTypeFilter)}
+          aria-label="Filter work by type"
+        >
+          <option value="all">All work</option>
+          <option value="rental">Rental cleans</option>
+          <option value="independent">Independent jobs</option>
+        </select>
 
         <select
           value={selectedStatus}
@@ -1334,7 +1562,13 @@ if (choice === null) return;
         <section className="emptyStateCard">
           <strong>Loading jobs…</strong>
         </section>
-      ) : filteredJobs.length === 0 ? (
+      ) : workItems.length === 0 &&
+        (jobs.length > 0 || upcomingRentalCleans.length > 0) ? (
+        <section className="emptyStateCard">
+          <strong>No work matches these filters</strong>
+          <p>Try a different type, status, or search.</p>
+        </section>
+      ) : workItems.length === 0 ? (
         <section className="cleanerPropertiesFirstProperty">
           <div className="cleanerPropertiesFirstPropertyIcon">💼</div>
           <p className="cleanerPropertiesEyebrow">Start here</p>
@@ -1354,7 +1588,7 @@ if (choice === null) return;
         </section>
       ) : (
         <section className="cleanerPropertiesGrid">
-          {filteredJobs.map((job) => (
+          {workItems.map((item) => item.kind === "rental" ? renderRentalCleanCard(item.task) : ((job: CleanerJob) => (
             <article
               className="cleanerPropertyCard"
               key={job.id}
@@ -1373,7 +1607,7 @@ if (choice === null) return;
               <div className="cleanerPropertyCardBody">
                 <div className="cleanerPropertyCardTitleRow">
                   <div>
-                    <p className="cleanerPropertyCardLabel">Job</p>
+                    <p className="cleanerPropertyCardLabel">Independent job</p>
                     <h2>{job.job_type}</h2>
                   </div>
 
@@ -1486,7 +1720,7 @@ if (choice === null) return;
                 </div>
               </div>
             </article>
-          ))}
+          ))(item.job))}
         </section>
       )}
 
