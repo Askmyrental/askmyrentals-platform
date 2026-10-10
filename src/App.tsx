@@ -1,4 +1,5 @@
 import CleanerProfilePage from "./pages/CleanerProfilePage";
+import { loadWorkspaceNames } from "./utils/workspaceNames";
 import SharedWorkspacesPage from "./pages/SharedWorkspacesPage";
 import CleanerJobsPage from "./pages/CleanerJobsPage";
 import CleanerClientsPage from "./pages/CleanerClientsPage";
@@ -153,6 +154,7 @@ type Reservation = {
   propertyName?: string;
   propertyAddress?: string;
   workspaceName?: string;
+  workspaceId?: string;
   persistedNotes?: string | null;
 
   notes?: string;
@@ -905,6 +907,7 @@ type AppProps = {
   userRole?: string | null;
   selectedGroupId: string;
   selectedGroupName: string;
+  onWorkspaceNameChanged?: (name: string) => void;
   selectedGroupRole: string;
   canSwitchGroups?: boolean;
   onChangeGroup?: () => void;
@@ -916,6 +919,7 @@ export default function App({
   userRole,
   selectedGroupId,
   selectedGroupName,
+  onWorkspaceNameChanged,
   selectedGroupRole,
   canSwitchGroups = false,
   onChangeGroup,
@@ -1865,6 +1869,9 @@ export default function App({
       return;
     }
 
+    let workspaceNames: Record<string, string> = {};
+    try { workspaceNames = await loadWorkspaceNames(supabase); }
+    catch (error) { console.error("Unable to load calendar workspace names", error); }
     const mappedReservations: Reservation[] = (data ?? []).map((item: any) => {
       const source = normalizeReservationSource(item.source);
       const status = (item.status ?? "Unassigned") as ReservationStatus;
@@ -1890,7 +1897,8 @@ export default function App({
 
   propertyName:
     item.property?.property_name ?? undefined,
-  workspaceName: item.workspace?.name ?? undefined,
+  workspaceName: workspaceNames[item.group_id] ?? item.workspace?.name ?? undefined,
+  workspaceId: item.group_id ?? undefined,
   persistedNotes: item.notes ?? null,
 
   propertyAddress:
@@ -4063,6 +4071,7 @@ console.log("TEAM MEMBERS", mappedMembers);
             homes={homes}
             reservations={reservations}
             cleanerPortalId={cleanerPortalId}
+            selectedGroupName={selectedGroupName}
             selectedGroupId={selectedGroupId}
             selectedGroupRole={selectedGroupRole}
             cleanerIssueForm={cleanerIssueForm}
@@ -4091,6 +4100,7 @@ console.log("TEAM MEMBERS", mappedMembers);
             onOpenProperties={() => setActivePage("Cleaner Properties")}
             onReturnToPulse={() => setActivePage("Cleaner Portal")}
             onStartBusiness={onCreateBusinessWorkspace}
+            onWorkspaceNameChanged={onWorkspaceNameChanged}
           />
         )}
         {activePage === "Shared Workspaces" && (
@@ -4111,6 +4121,7 @@ console.log("TEAM MEMBERS", mappedMembers);
             homes={homes}
             reservations={reservations}
             cleanerPortalId={cleanerPortalId}
+            selectedGroupName={selectedGroupName}
             selectedGroupId={selectedGroupId}
             selectedGroupRole={selectedGroupRole}
             cleanerIssueForm={cleanerIssueForm}

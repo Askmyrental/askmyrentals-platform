@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import { supabase } from "./utils/supabase";
 import App from "./App";
 import MyGroupsPage from "./pages/MyGroupsPage";
+import { loadWorkspaceNames } from "./utils/workspaceNames";
 
 type AppRole = "cleaner" | "owner" | "employee" | "admin";
 
@@ -353,6 +354,13 @@ export default function AuthGate() {
         })
         .filter(Boolean) as GroupOption[];
 
+      try {
+        const names = await loadWorkspaceNames(supabase);
+        if (cancelled) return;
+        mappedGroups.forEach((group) => { group.name = names[group.id] ?? group.name; });
+      } catch (error) {
+        console.error("Unable to refresh workspace names", error);
+      }
       setGroups(mappedGroups);
 
       const storageKey = `amr-selected-group:${userId}`;
@@ -1106,6 +1114,8 @@ export default function AuthGate() {
   return (
     <App
       userRole={profile.role}
+      onWorkspaceNameChanged={(name) => setGroups((current) => current.map((group) =>
+        group.id === selectedGroup.id ? { ...group, name } : group))}
       initialPage={
         launchPage ?? (cleanerMode ? "Cleaner Portal" : "Pulse")
       }

@@ -72,6 +72,7 @@ type GroupInvite = {
 type CleanerProfilePageProps = {
   selectedGroupId: string;
   selectedGroupName: string;
+  onWorkspaceNameChanged?: (name: string) => void;
   selectedGroupRole: string;
   onOpenProperties: () => void;
   onReturnToPulse: () => void;
@@ -93,6 +94,7 @@ const EMPTY_FORM: CleanerProfileForm = {
 export default function CleanerProfilePage({
   selectedGroupId,
   selectedGroupName,
+  onWorkspaceNameChanged,
   selectedGroupRole,
   onOpenProperties,
   onReturnToPulse,
@@ -575,6 +577,16 @@ export default function CleanerProfilePage({
       }
 
       setProfile(data as CleanerProfileRow);
+
+      // A company label belongs to the workspace creator, not an employee's profile.
+      if (selectedGroupRole === "owner") {
+        const { data: group, error: groupError } = await supabase.from("groups")
+          .select("created_by, name").eq("id", selectedGroupId).maybeSingle();
+        if (groupError) throw groupError;
+        if (group?.created_by === user.id) {
+          onWorkspaceNameChanged?.(data.business_name?.trim() || group.name || "AMR Group");
+        }
+      }
 
       if (isAssignedTeamMember) {
         setMessage("Team profile saved. Returning to Pulse…");

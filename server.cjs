@@ -307,6 +307,37 @@ app.post("/api/lookup-listing", async (req, res) => {
   });
 });
 
+// Return display names only for the caller's active workspaces.
+app.get("/api/workspace-names", requireAuthenticatedUser, async (req, res) => {
+  try {
+    const { data: memberships, error: membershipError } = await supabaseAdmin
+      .from("group_members")
+      .select("groups(id, name, created_by, status)")
+      .eq("user_id", req.amrUser.id)
+      .eq("status", "active");
+    if (membershipError) throw membershipError;
+    const groups = (memberships || []).map((member) =>
+      Array.isArray(member.groups) ? member.groups[0] : member.groups,
+    ).filter((group) => group?.status === "active");
+    const ownerIds = [...new Set(groups.map((group) => group.created_by).filter(Boolean))];
+    let profiles = [];
+    if (ownerIds.length) {
+      const result = await supabaseAdmin.from("profiles")
+        .select("id, business_name").in("id", ownerIds);
+      if (result.error) throw result.error;
+      profiles = result.data || [];
+    }
+    const names = Object.fromEntries(groups.map((group) => [group.id,
+      profiles.find((profile) => profile.id === group.created_by)?.business_name?.trim()
+        || group.name?.trim() || "AMR Group",
+    ]));
+    res.json({ names });
+  } catch (error) {
+    console.error("Unable to load workspace names", error);
+    res.status(500).json({ error: "Unable to load workspace names." });
+  }
+});
+
 app.get(
   "/api/groups/:groupId/members",
   

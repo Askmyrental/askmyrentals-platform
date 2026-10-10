@@ -51,6 +51,7 @@ type CleanerPortalPageProps = {
   reservations: any[];
   cleanerPortalId: string;
   selectedGroupId: string;
+  selectedGroupName?: string;
   selectedGroupRole?: string;
   cleanerIssueForm: any;
   openCleanerScheduleOnLoad: boolean;
@@ -87,6 +88,7 @@ export default function CleanerPortalPage({
   reservations,
   cleanerPortalId,
   selectedGroupId,
+  selectedGroupName,
   selectedGroupRole,
   cleanerIssueForm,
   setCleanerIssueForm,
@@ -785,7 +787,7 @@ if (profileError) {
     pulseIdentityName.trim().split(/\s+/)[0] || "";
 
   const pulseWorkspaceName = String(
-    activeCleaner?.businessName ??
+    selectedGroupName ?? activeCleaner?.businessName ??
       activeCleaner?.business_name ??
       activeCleaner?.companyName ??
       activeCleaner?.company_name ??
@@ -1002,6 +1004,8 @@ if (profileError) {
 
       return {
         ...reservation,
+        workspaceName: reservation.workspaceId === selectedGroupId
+          ? selectedGroupName ?? reservation.workspaceName : reservation.workspaceName,
         invoiceSent: Boolean(linkedInvoice),
         invoiceStatus: linkedInvoice?.status ?? "",
         invoiceId: linkedInvoice?.id ?? null,
